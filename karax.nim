@@ -1,0 +1,352 @@
+# Simple lib to write JS UIs
+
+import dom, vdom, jstrutils
+
+export dom.Element, dom.Event, dom.cloneNode, dom
+
+proc kout*[T](x: T) {.importc: "console.log", varargs.}
+  ## the preferred way of debugging karax applications.
+
+proc id*(e: Node): cstring {.importcpp: "#.id", nodecl.}
+proc `id=`*(e: Node; x: cstring) {.importcpp: "#.id = #", nodecl.}
+proc class*(e: Node): cstring {.importcpp: "#.className", nodecl.}
+proc `class=`*(e: Node; v: cstring) {.importcpp: "#.className = #", nodecl.}
+
+proc value*(e: Element): cstring {.importcpp: "#.value", nodecl.}
+proc `value=`*(e: Element; v: cstring) {.importcpp: "#.value = #", nodecl.}
+
+proc getElementsByClass*(e: Element; name: cstring): seq[Element] {.
+  importcpp: "#.getElementsByClassName(#)", nodecl.}
+
+type
+  Timeout* = ref object
+
+var document* {.importc.}: Document
+
+proc vnodeToDom(n: VNode): Element =
+  if n.kind == VNodeKind.text:
+    result = cast[Element](document.createTextNode(n.text))
+  else:
+    result = document.createElement(toTag[n.kind])
+    for k in n:
+      appendChild(result, vnodeToDom(k))
+    # text is mapped to 'value':
+    if n.text != nil:
+      result.value = n.text
+  if n.id != nil:
+    result.id = n.id
+  if n.class != nil:
+    result.class = n.class
+  for k, v in attrs(n): result.setAttribute(k, v)
+  let myn = n
+  for e, h in items(n.events):
+    proc wrapper(): proc (ev: Event) =
+      result = proc (ev: Event) =
+        assert myn != nil
+        h(ev, myn)
+    result.addEventListener(toEventName[e], wrapper())
+
+proc same(n: VNode, e: Element): bool =
+  if toTag[n.kind] == e.nodename:
+    result = true
+    if n.kind != VNodeKind.text:
+      if e.childNodes.len != n.len: return false
+      for i in 0 ..< n.len:
+        if not same(n[i], cast[Element](e.childNodes[i])): return false
+
+var
+  dorender: proc (): VNode {.closure.}
+  drawTimeout: Timeout
+  currentTree: VNode
+
+proc setRenderer*(renderer: proc (): VNode) =
+  dorender = renderer
+
+proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
+proc clearTimeout*(t: Timeout) {.importc, nodecl.}
+#proc targetElem*(e: Event): Element = cast[Element](e.target)
+
+#proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
+
+#proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
+#  "document.getElementsByClassName", nodecl.}
+
+proc textContent(e: Element): cstring {.
+  importcpp: "#.textContent", nodecl.}
+
+proc replaceById(id: cstring; newTree: Node) =
+  let x = document.getElementById(id)
+  x.parentNode.replaceChild(newTree, x)
+  #newTree.id = id
+
+proc equals(a, b: VNode): bool =
+  if a.kind != b.kind: return false
+  if a.id != b.id: return false
+  if a.kind == VNodeKind.text:
+    if a.text != b.text: return false
+  #elif a.childNodes.len != b.childNodes.len:
+  #  return false
+  # XXX test event listeners here?
+  # --> maybe give nodes a hash?
+  when false:
+    # this needs to be done differently in a virtual DOM:
+    if a.class != b.class:
+      # style differences are updated in place and we pretend
+      # it's still the same node
+      a.class = b.class
+  return true
+
+proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
+  if not equals(newNode, oldNode):
+    let n = vnodeToDom(newNode)
+    if parent == nil:
+      replaceById("ROOT", n)
+    else:
+      parent.replaceChild(n, current)
+  elif newNode.kind != VNodeKind.text:
+    let newLength = newNode.len
+    let oldLength = oldNode.len
+    assert oldNode.kind == newNode.kind
+    when false:
+      if current.nodeName != toTag[oldNode.kind]:
+        kout current.nodeName
+        kout toTag[oldNode.kind]
+        assert false
+    for i in 0..min(newLength, oldLength)-1:
+      updateElement(current, current.childNodes[i],
+        newNode[i],
+        oldNode[i])
+    if newLength > oldLength:
+      for i in oldLength..newLength-1:
+        current.appendChild(vnodeToDom(newNode[i]))
+    elif oldLength > newLength:
+      for i in countdown(oldLength-1, newLength):
+        current.removeChild(current.lastChild)
+
+proc dodraw() =
+  let newtree = dorender()
+  newtree.id = "ROOT"
+  if currentTree == nil:
+    currentTree = newtree
+    let asdom = vnodeToDom currentTree
+    replaceById("ROOT", asdom)
+  else:
+    let olddom = document.getElementById("ROOT")
+    updateElement(nil, olddom, newtree, currentTree)
+
+proc redraw*() =
+  # we buffer redraw requests:
+  if drawTimeout != nil:
+    clearTimeout(drawTimeout)
+  drawTimeout = setTimeout(dodraw, 30)
+
+#proc prepend*(parent, kid: Element) =
+#  parent.insertBefore(kid, parent.firstChild)
+#  prependChild(parent, kid)
+
+proc len(x: Element): int {.importcpp: "#.childNodes.length".}
+proc `[]`(x: Element; idx: int): Element {.importcpp: "#.childNodes[#]".}
+
+proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
+  asm """
+    return s.match(/^[0-9]+$/);
+  """
+
+var
+  linkCounter: int
+
+proc link*(id: int): VNode =
+  result = newVNode(VNodeKind.anchor)
+  result.setAttr("href", "#")
+  inc linkCounter
+  result.setAttr("id", $linkCounter & ":" & $id)
+
+proc link*(action: EventHandler): VNode =
+  result = newVNode(VNodeKind.anchor)
+  result.setAttr("href", "#")
+  addEventListener(result, EventKind.onclick, action)
+
+proc suffix*(s, prefix: cstring): cstring =
+  if s.startsWith(prefix):
+    result = s.substr(prefix.len)
+  else:
+    kout(cstring"bug! " & s & cstring" does not start with " & prefix)
+
+proc suffixAsInt*(s, prefix: cstring): int = parseInt(suffix(s, prefix))
+
+proc scrollTop*(e: Element): int {.importcpp: "#.scrollTop", nodecl.}
+proc offsetHeight*(e: Element): int {.importcpp: "#.offsetHeight", nodecl.}
+proc offsetTop*(e: Element): int {.importcpp: "#.offsetTop", nodecl.}
+
+template onImpl(s) {.dirty.} =
+  proc wrapper(ev: Event; n: VNode) =
+    action(ev, n)
+    redraw()
+  addEventListener(e, s, wrapper)
+
+proc setOnclick*(e: VNode; action: EventHandler) =
+  onImpl EventKind.onclick
+
+proc setOnfocuslost*(e: VNode; action: EventHandler) =
+  onImpl EventKind.onblur
+
+proc setOnchanged*(e: VNode; action: EventHandler) =
+  onImpl EventKind.onchange
+
+proc setOnscroll*(e: VNode; action: EventHandler) =
+  onImpl EventKind.onscroll
+
+proc select*(choices: openarray[cstring]): VNode =
+  result = newVNode(VNodeKind.select)
+  var i = 0
+  for c in choices:
+    result.add tree(VNodeKind.option, [(cstring"value", toCstr(i))], text(c))
+    inc i
+
+proc select*(choices: openarray[(int, cstring)]): VNode =
+  result = newVNode(VNodeKind.select)
+  for c in choices:
+    result.add tree(VNodeKind.option, [(cstring"value", toCstr(c[0]))], text(c[1]))
+
+var radioCounter: int
+
+proc radio*(choices: openarray[(int, cstring)]): VNode =
+  result = newVNode(VNodeKind.fieldset)
+  var i = 0
+  inc radioCounter
+  for c in choices:
+    let id = cstring"radio_" & c[1] & toCstr(i)
+    var kid = tree(VNodeKind.input, [(cstring"type", cstring"radio"),
+      (cstring"id", id), (cstring"name", cstring"radio" & toCStr(radioCounter)),
+      (cstring"value", toCStr(c[0]))])
+    if i == 0:
+      kid.setAttr(cstring"checked", cstring"checked")
+    var lab = tree(VNodeKind.label, [(cstring"for", id)], text(c[1]))
+    kid.add lab
+    result.add kid
+    inc i
+
+proc tag*(kind: VNodeKind; id=cstring(nil), class=cstring(nil)): VNode =
+  result = newVNode(kind)
+  result.id = id
+  result.class = class
+
+proc tdiv*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.tdiv, id, class)
+proc span*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.span, id, class)
+
+proc valueAsInt*(e: Element): int = parseInt(e.value)
+
+proc th*(s: cstring): VNode =
+  result = newVNode(VNodeKind.th)
+  result.add text(s)
+
+proc td*(s: string): VNode =
+  result = newVNode(VNodeKind.td)
+  result.add text(s)
+
+proc td*(s: VNode): VNode =
+  result = newVNode(VNodeKind.td)
+  result.add s
+
+proc td*(class: cstring; s: VNode): VNode =
+  result = newVNode(VNodeKind.td)
+  result.add s
+  result.class = class
+
+proc table*(class=cstring(nil), kids: varargs[VNode]): VNode =
+  result = tag(VNodeKind.table, nil, class)
+  for k in kids: result.add k
+
+proc tr*(kids: varargs[VNode]): VNode =
+  result = newVNode(VNodeKind.tr)
+  for k in kids:
+    if k.kind in {VNodeKind.td, VNodeKind.th}:
+      result.add k
+    else:
+      result.add td(k)
+
+proc getAttr(e: Element; key: cstring): cstring {.
+  importcpp: "#.getAttribute(#)", nodecl.}
+
+proc realtimeInput*(id, val: cstring; changed: proc(value: cstring)): VNode =
+  #let oldElem = getElementById(id)
+  #if oldElem != nil: return oldElem
+  #let newVal = if oldElem.isNil: val else: $oldElem.value
+  var timer: Timeout
+  proc wrapper() =
+    changed(document.getElementById(id).value)
+    redraw()
+  proc onkeyup(ev: Event; n: VNode) =
+    if timer != nil: clearTimeout(timer)
+    timer = setTimeout(wrapper, 400)
+  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
+  result.id = id
+  result.value = val
+  result.addEventListener(EventKind.onkeyup, onkeyup)
+
+proc enterInput*(id, val: cstring; onenter: proc(value: cstring)): VNode =
+  #let oldElem = getElementById(id)
+  #if oldElem != nil: return oldElem
+  #let newVal = if oldElem.isNil: val else: $oldElem.value
+  proc onkeyup(ev: Event; n: VNode) =
+    if ev.keyCode == 13:
+      onenter(document.getElementById(id).value)
+      redraw()
+
+  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
+  result.id = id
+  result.value = val
+  result.addEventListener(EventKind.onkeyup, onkeyup)
+
+
+proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
+          data: cstring;
+          cont: proc (httpStatus: int; response: cstring)) =
+  proc setRequestHeader(a, b: cstring) {.importc: "ajax.setRequestHeader".}
+  {.emit: """
+  var ajax = new XMLHttpRequest();
+  ajax.open(`meth`,`url`,true);""".}
+  for a, b in items(headers):
+    setRequestHeader(a, b)
+  {.emit: """
+  ajax.onreadystatechange = function(){
+    if(this.readyState == 4){
+      if(this.status == 200){
+        `cont`(this.status, this.responseText);
+      } else {
+        `cont`(this.status, this.statusText);
+      }
+    }
+  }
+  ajax.send(`data`);
+  """.}
+
+proc ajaxPut*(url: string; headers: openarray[(cstring, cstring)];
+          data: cstring;
+          cont: proc (httpStatus: int, response: cstring)) =
+  ajax("PUT", url, headers, data, cont)
+
+proc ajaxGet*(url: string; headers: openarray[(cstring, cstring)];
+          cont: proc (httpStatus: int, response: cstring)) =
+  ajax("GET", url, headers, nil, cont)
+
+{.push stackTrace:off.}
+
+proc setupErrorHandler*(useAlert=false) =
+  ## Installs an error handler that transforms native JS unhandled
+  ## exceptions into Nim based stack traces. If `useAlert` is false,
+  ## the error message it put into the console, otherwise `alert`
+  ## is called.
+  proc stackTraceAsCstring(): cstring = cstring(getStackTrace())
+  {.emit: """
+  window.onerror = function(msg, url, line, col, error) {
+    var x = "Error: " + msg + "\n" + `stackTraceAsCstring`()
+    if (`useAlert`)
+      alert(x);
+    else
+      console.log(x);
+    var suppressErrorAlert = true;
+    return suppressErrorAlert;
+  };""".}
+
+{.pop.}
