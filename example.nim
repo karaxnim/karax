@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jdict
+import vdom, karax, karaxdsl, jdict, jstrutils
 
 when false:
   var plugins {.exportc.}: seq[(string, proc())] = @[]
@@ -14,31 +14,50 @@ when false:
     if plugins.len > 0:
       plugins[0][1]()
 
-var entries: seq[cstring]
+var
+  entries: seq[cstring]
+  selectedEntry = -1
 
 proc onTodoEnter(val: cstring) =
   entries.add val
 
-proc onclickHandler(ev: Event; n: VNode) =
+proc removeHandler(ev: Event; n: VNode) =
   let id = suffixAsInt(n.id, "remove:")
   #entries.delete(id)
   entries[id] = nil
 
-var entryCache = newJDict[int, VNode]()
+proc editHandler(ev: Event; n: VNode) =
+  let id = suffixAsInt(n.id, "edit:")
+  selectedEntry = id
 
-proc createEntry(i: int; d: cstring): VNode =
+when defined(usecache):
+  var entryCache = newJDict[int, VNode]()
+
+proc editInput(i: int; d: cstring): VNode =
+  proc onTodoChange(val: cstring) =
+    entries[i] = val
+    selectedEntry = -1
+  result = enterInput("todo-edit", d, onTodoChange)
+  #result.setOnfocuslost(proc (ev: Event; n: VNode) = selectedEntry = -1)
+
+proc createEntry(i: int; d: cstring; selected: bool): VNode =
   # implement caching:
-  if entryCache.contains(i):
-    let old = entryCache[i]
-    return old
+  when defined(usecache):
+    if entryCache.contains(i):
+      let old = entryCache[i]
+      return old
 
   result = buildHtml(tr) do:
+    td(id="edit:" & $i, onclick=editHandler):
+      if selected:
+        editInput(i, d)
+      else:
+        text d
     td:
-      text d
-    td:
-      span(id="remove:" & $i, onclick=onclickHandler):
+      span(id="remove:" & $i, onclick=removeHandler):
         text "[remove]"
-  entryCache[i] = result
+  when defined(usecache):
+    entryCache[i] = result
 
 proc createDom(): VNode =
   result = buildHtml(tdiv) do:
@@ -47,12 +66,20 @@ proc createDom(): VNode =
       #realtimeInput("by-name", "", onInput)
       #br()
 
-      text "todo"
+      text cstring"todo"
       enterInput("todo-input", "", onTodoEnter)
+    var entriesCount = 0
     table(class = "wl"):
       for i, d in entries:
         if d != nil:
-          createEntry(i, d)
+          createEntry(i, d, i == selectedEntry)
+          inc entriesCount
+    tdiv(id = "footer"):
+      text cstring"Entries: " & &entriesCount
+      proc onAllDone(ev: Event; n: VNode) =
+        entries = @[]
+        selectedEntry = -1
+      button "All done!", onAllDone, entriesCount == 0 or selectedEntry >= 0
 
 setRenderer createDom
 

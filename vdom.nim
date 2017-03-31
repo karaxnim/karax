@@ -9,12 +9,12 @@ type
     tdiv,
     table, tr, td, th, thead, tbody,
     link, span, label, br, select, option,
-    fieldset, input
+    fieldset, input, button
 
 const
   toTag*: array[VNodeKind, cstring] = [
     cstring"#text", "A", "DIV", "TABLE", "TR", "TD", "TH", "THEAD", "TBODY", "LINK",
-    "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT"
+    "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON"
   ]
 
 type
@@ -92,6 +92,12 @@ iterator items*(n: VNode): VNode =
 iterator attrs*(n: VNode): (cstring, cstring) =
   for i in countup(0, n.attrs.len-2, 2):
     yield (n.attrs[i], n.attrs[i+1])
+
+proc sameAttrs*(a, b: VNode): bool =
+  if a.attrs.len == b.attrs.len:
+    result = true
+    for i in 0 ..< a.attrs.len:
+      if a.attrs[i] != b.attrs[i]: return false
 
 proc addEventListener*(n: VNode; event: EventKind; handler: EventHandler) =
   n.events.add((event, handler))

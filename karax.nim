@@ -15,13 +15,17 @@ proc `class=`*(e: Node; v: cstring) {.importcpp: "#.className = #", nodecl.}
 proc value*(e: Element): cstring {.importcpp: "#.value", nodecl.}
 proc `value=`*(e: Element; v: cstring) {.importcpp: "#.value = #", nodecl.}
 
+proc `disabled=`*(e: Element; v: bool) {.importcpp: "#.disabled = #", nodecl.}
+
 proc getElementsByClass*(e: Element; name: cstring): seq[Element] {.
   importcpp: "#.getElementsByClassName(#)", nodecl.}
 
 type
   Timeout* = ref object
 
-var document* {.importc.}: Document
+var
+  document* {.importc.}: Document
+  toFocus: Element
 
 proc vnodeToDom(n: VNode): Element =
   if n.kind == VNodeKind.text:
@@ -37,7 +41,8 @@ proc vnodeToDom(n: VNode): Element =
     result.id = n.id
   if n.class != nil:
     result.class = n.class
-  for k, v in attrs(n): result.setAttribute(k, v)
+  for k, v in attrs(n):
+    result.setAttribute(k, v)
   let myn = n
   for e, h in items(n.events):
     proc wrapper(): proc (ev: Event) =
@@ -45,6 +50,8 @@ proc vnodeToDom(n: VNode): Element =
         assert myn != nil
         h(ev, myn)
     result.addEventListener(toEventName[e], wrapper())
+  if n.kind == VNodeKind.input:
+    toFocus = result
 
 proc same(n: VNode, e: Element): bool =
   if toTag[n.kind] == e.nodename:
@@ -84,8 +91,7 @@ proc equals(a, b: VNode): bool =
   if a.id != b.id: return false
   if a.kind == VNodeKind.text:
     if a.text != b.text: return false
-  #elif a.childNodes.len != b.childNodes.len:
-  #  return false
+  if not sameAttrs(a, b): return false
   # XXX test event listeners here?
   # --> maybe give nodes a hash?
   when false:
@@ -126,6 +132,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
 proc dodraw() =
   let newtree = dorender()
   newtree.id = "ROOT"
+  toFocus = nil
   if currentTree == nil:
     currentTree = newtree
     let asdom = vnodeToDom currentTree
@@ -135,6 +142,9 @@ proc dodraw() =
     updateElement(nil, olddom, newtree, currentTree)
     assert same(newtree, document.getElementById("ROOT"))
     currentTree = newtree
+  # now that it's part of the DOM, give it the focus:
+  if toFocus != nil:
+    toFocus.focus()
 
 proc redraw*() =
   # we buffer redraw requests:
@@ -156,20 +166,6 @@ proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
   asm """
     return s.match(/^[0-9]+$/);
   """
-
-var
-  linkCounter: int
-
-proc link*(id: int): VNode =
-  result = newVNode(VNodeKind.anchor)
-  result.setAttr("href", "#")
-  inc linkCounter
-  result.setAttr("id", $linkCounter & ":" & $id)
-
-proc link*(action: EventHandler): VNode =
-  result = newVNode(VNodeKind.anchor)
-  result.setAttr("href", "#")
-  addEventListener(result, EventKind.onclick, action)
 
 proc suffix*(s, prefix: cstring): cstring =
   if s.startsWith(prefix):
@@ -200,6 +196,28 @@ proc setOnchanged*(e: VNode; action: EventHandler) =
 
 proc setOnscroll*(e: VNode; action: EventHandler) =
   onImpl EventKind.onscroll
+
+var
+  linkCounter: int
+
+proc link*(id: int): VNode =
+  result = newVNode(VNodeKind.anchor)
+  result.setAttr("href", "#")
+  inc linkCounter
+  result.setAttr("id", $linkCounter & ":" & $id)
+
+proc link*(action: EventHandler): VNode =
+  result = newVNode(VNodeKind.anchor)
+  result.setAttr("href", "#")
+  result.setOnclick action
+
+proc button*(caption: cstring; action: EventHandler; disabled=false): VNode =
+  result = newVNode(VNodeKind.button)
+  result.add text(caption)
+  if action != nil:
+    result.setOnClick action
+  if disabled:
+    result.setAttr("disabled", "true")
 
 proc select*(choices: openarray[cstring]): VNode =
   result = newVNode(VNodeKind.select)

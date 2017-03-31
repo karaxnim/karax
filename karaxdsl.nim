@@ -7,6 +7,7 @@ const
     "table", "tr", "td", "th", "thead", "tbody",
     "link", "span", "label", "br"
   ]
+  StmtContext = ["kout", "inc", "echo", "dec"]
 
 proc getName(n: NimNode): string =
   case n.kind
@@ -52,12 +53,13 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     if L > 0:
       result[L-1] = tcall2(result[L-1], tmpContext)
   of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkCaseStmt,
-     nnkVarSection, nnkLetSection, nnkConstSection,
      nnkTryStmt, nnkFinally:
     # recurse for every child:
     result = copyNimNode(n)
     for x in n:
       result.add tcall2(x, tmpContext)
+  of nnkVarSection, nnkLetSection, nnkConstSection:
+    result = n
   of nnkCallKinds:
     let op = getName(n[0])
     let idx = find(SupportedTags, op)
@@ -87,7 +89,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         result.add tmp
       else:
         result.add newCall(bindSym"add", tmpContext, tmp)
-    elif tmpContext != nil and op != "kout":
+    elif tmpContext != nil and op notin StmtContext:
       result = newCall(bindSym"add", tmpContext, n)
     else:
       result = n
