@@ -38,7 +38,7 @@ proc editInput(i: int; d: cstring): VNode =
     entries[i] = val
     selectedEntry = -1
   result = enterInput("todo-edit", d, onTodoChange)
-  #result.setOnfocuslost(proc (ev: Event; n: VNode) = selectedEntry = -1)
+  result.setOnfocuslost(proc (ev: Event; n: VNode) = selectedEntry = -1)
 
 proc createEntry(i: int; d: cstring; selected: bool): VNode =
   # implement caching:

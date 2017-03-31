@@ -46,11 +46,12 @@ proc vnodeToDom(n: VNode): Element =
   let myn = n
   for e, h in items(n.events):
     proc wrapper(): proc (ev: Event) =
+      let hh = h
       result = proc (ev: Event) =
         assert myn != nil
-        h(ev, myn)
+        hh(ev, myn)
     result.addEventListener(toEventName[e], wrapper())
-  if n.kind == VNodeKind.input:
+  if n.kind == VNodeKind.input and toFocus.isNil:
     toFocus = result
 
 proc same(n: VNode, e: Element): bool =
@@ -148,7 +149,7 @@ proc dodraw() =
 
 proc redraw*() =
   # we buffer redraw requests:
-  when false:
+  when true:
     if drawTimeout != nil:
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
