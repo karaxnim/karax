@@ -133,6 +133,8 @@ proc dodraw() =
   else:
     let olddom = document.getElementById("ROOT")
     updateElement(nil, olddom, newtree, currentTree)
+    assert same(newtree, document.getElementById("ROOT"))
+    currentTree = newtree
 
 proc redraw*() =
   # we buffer redraw requests:
