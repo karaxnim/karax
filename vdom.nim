@@ -39,6 +39,21 @@ type
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
 
+proc eq*(a, b: VNode): bool =
+  if a.kind != b.kind: return false
+  if a.id != b.id: return false
+  if a.class != b.class: return false
+  if a.kind != VNodeKind.text:
+    if a.kids.len != b.kids.len: return false
+    for i in 0..<a.kids.len:
+      if not eq(a.kids[i], b.kids[i]): return false
+  else:
+    if a.text != b.text: return false
+  if a.attrs.len != b.attrs.len: return false
+  for i in 0..<a.attrs.len:
+    if a.attrs[i] != b.attrs[i]: return false
+  result = true
+
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
   if n.attrs.isNil:
     n.attrs = @[key, val]
@@ -80,3 +95,32 @@ iterator attrs*(n: VNode): (cstring, cstring) =
 
 proc addEventListener*(n: VNode; event: EventKind; handler: EventHandler) =
   n.events.add((event, handler))
+
+template toStringAttr(field) =
+  if n.field != nil:
+    result.add " " & astToStr(field) & " = " & $n.field
+
+proc toString*(n: VNode; result: var string; indent: int) =
+  for i in 1..indent: result.add ' '
+  if result.len > 0: result.add '\L'
+  result.add "<" & $n.kind
+  toStringAttr(id)
+  toStringAttr(class)
+  for k, v in attrs(n):
+    result.add " " & $k & " = " & $v
+  result.add ">\L"
+  if n.kind == VNodeKind.text:
+    result.add n.text
+  else:
+    if n.text != nil:
+      result.add " value = "
+      result.add n.text
+    for child in items(n):
+      toString(child, result, indent+2)
+  for i in 1..indent: result.add ' '
+  result.add "\L</" & $n.kind & ">"
+
+proc `$`*(n: VNode): cstring =
+  var res = ""
+  toString(n, res, 0)
+  result = cstring(res)

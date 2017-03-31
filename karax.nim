@@ -138,9 +138,12 @@ proc dodraw() =
 
 proc redraw*() =
   # we buffer redraw requests:
-  if drawTimeout != nil:
-    clearTimeout(drawTimeout)
-  drawTimeout = setTimeout(dodraw, 30)
+  when false:
+    if drawTimeout != nil:
+      clearTimeout(drawTimeout)
+    drawTimeout = setTimeout(dodraw, 30)
+  else:
+    dodraw()
 
 #proc prepend*(parent, kid: Element) =
 #  parent.insertBefore(kid, parent.firstChild)

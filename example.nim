@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl
+import vdom, karax, karaxdsl, jdict
 
 when false:
   var plugins {.exportc.}: seq[(string, proc())] = @[]
@@ -21,15 +21,24 @@ proc onTodoEnter(val: cstring) =
 
 proc onclickHandler(ev: Event; n: VNode) =
   let id = suffixAsInt(n.id, "remove:")
-  entries.delete(id)
+  #entries.delete(id)
+  entries[id] = nil
+
+var entryCache = newJDict[int, VNode]()
 
 proc createEntry(i: int; d: cstring): VNode =
+  # implement caching:
+  if entryCache.contains(i):
+    let old = entryCache[i]
+    return old
+
   result = buildHtml(tr) do:
     td:
       text d
     td:
       span(id="remove:" & $i, onclick=onclickHandler):
         text "[remove]"
+  entryCache[i] = result
 
 proc createDom(): VNode =
   result = buildHtml(tdiv) do:
@@ -42,7 +51,8 @@ proc createDom(): VNode =
       enterInput("todo-input", "", onTodoEnter)
     table(class = "wl"):
       for i, d in entries:
-        createEntry(i, d)
+        if d != nil:
+          createEntry(i, d)
 
 setRenderer createDom
 
