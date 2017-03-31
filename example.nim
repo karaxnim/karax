@@ -86,4 +86,4 @@ setRenderer createDom
 proc onload(session: cstring) {.exportc.} =
   for i in 0..10_000:
     entries.add("Entry " & $i)
-  redraw()
+  init()

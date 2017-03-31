@@ -147,14 +147,21 @@ proc dodraw() =
   if toFocus != nil:
     toFocus.focus()
 
+proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
+
 proc redraw*() =
   # we buffer redraw requests:
-  when true:
+  when false:
     if drawTimeout != nil:
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
+  elif true:
+    reqFrame(dodraw)
   else:
     dodraw()
+
+proc init*() =
+  reqFrame(dodraw)
 
 #proc prepend*(parent, kid: Element) =
 #  parent.insertBefore(kid, parent.firstChild)
