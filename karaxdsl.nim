@@ -1,12 +1,8 @@
 
 import macros, karax, vdom
-from strutils import startsWith
+from strutils import startsWith, toLowerAscii
 
 const
-  SupportedTags* = ["tdiv", "div",
-    "table", "tr", "td", "th", "thead", "tbody",
-    "link", "span", "label", "br"
-  ]
   StmtContext = ["kout", "inc", "echo", "dec"]
 
 proc getName(n: NimNode): string =
@@ -23,10 +19,12 @@ proc getName(n: NimNode): string =
     #echo repr n
     expectKind(n, nnkIdent)
 
-var gid {.compileTime.}: int
-
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
+
+proc isTag(s: string): bool =
+  for i in VNodeKind.low.succ..VNodeKind.high:
+    if $i == s: return true
 
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
@@ -62,11 +60,8 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     result = n
   of nnkCallKinds:
     let op = getName(n[0])
-    let idx = find(SupportedTags, op)
-    if idx >= 0:
-      let tag = SupportedTags[idx]
-      inc gid
-      let tmp = genSym(nskLet, "tmp" & $gid)
+    if isTag(op):
+      let tmp = genSym(nskLet, "tmp")
       result = newTree(
         if tmpContext == nil: nnkStmtListExpr else: nnkStmtList,
         newLetStmt(tmp, newCall(bindSym"tree", newDotExpr(bindSym"VNodeKind", n[0]))))
@@ -77,14 +72,14 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           let key = getName x[0]
           if key.startsWith("on"):
             result.add newCall(!("set" & key), tmp, x[1])
-          elif key == "id" or key == "class":
+          elif key == "id" or key == "class" or key == "value":
             result.add newDotAsgn(tmp, key, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
         else:
           result.add tcall2(x, tmp)
-      if tag == "link":
-        result.add newCall(bindSym"setAttr", tmp, newLit"href", newLit"#")
+      #if tag == "link":
+      #  result.add newCall(bindSym"setAttr", tmp, newLit"href", newLit"#")
       if tmpContext == nil:
         result.add tmp
       else:
@@ -98,7 +93,12 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
 
 macro buildHtml*(tag, children: untyped): VNode =
   expectKind children, nnkDo
-  let call = newCall(tag, body(children))
+  var call: NimNode
+  if tag.kind in nnkCallKinds:
+    call = tag
+  else:
+    call = newCall(tag)
+  call.add body(children)
   result = tcall2(call, nil)
   when defined(debugKaraxDsl):
     echo repr result

@@ -22,9 +22,6 @@ proc editHandler(ev: Event; n: VNode) =
   let id = suffixAsInt(n.id, "edit:")
   selectedEntry = id
 
-when defined(usecache):
-  var entryCache = newJDict[int, VNode]()
-
 proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
 
 proc editEntry(ev: Event; n: VNode) =
@@ -45,10 +42,7 @@ proc clearCompleted(ev: Event, n: VNode) =
     if entries[i][1]: entries[i][0] = nil
 
 proc toClass(completed: bool): cstring =
-  (if completed: cstring"completed" else: cstring"")
-
-proc toVis(visible: bool): cstring =
-  (if visible: cstring"visible" else: "hidden")
+  (if completed: cstring"completed" else: cstring(nil))
 
 proc toChecked(checked: bool): cstring =
   (if checked: cstring"checked" else: cstring(nil))
@@ -57,12 +51,6 @@ proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
 proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
-  # implement caching:
-  when defined(usecache):
-    if entryCache.contains(i):
-      let old = entryCache[i]
-      return old
-
   result = buildHtml(tr):
     li(class=toClass(completed)):
       if not selected:
@@ -76,8 +64,6 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
         input(class = "edit", name = "title", id = "todo-edit:" & &id,
           onfocusLost = focusLost,
           onenter = editEntry, value = d)
-  when defined(usecache):
-    entryCache[i] = result
 
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):

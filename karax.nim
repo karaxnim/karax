@@ -42,7 +42,8 @@ proc vnodeToDom(n: VNode): Element =
   if n.class != nil:
     result.class = n.class
   for k, v in attrs(n):
-    result.setAttribute(k, v)
+    if v != nil:
+      result.setAttribute(k, v)
   let myn = n
   for e, h in items(n.events):
     proc wrapper(): proc (ev: Event) =
@@ -90,9 +91,10 @@ proc replaceById(id: cstring; newTree: Node) =
 proc equals(a, b: VNode): bool =
   if a.kind != b.kind: return false
   if a.id != b.id: return false
-  if a.kind == VNodeKind.text:
-    if a.text != b.text: return false
+  #if a.kind == VNodeKind.text:
+  if a.text != b.text: return false
   if not sameAttrs(a, b): return false
+  if a.class != b.class: return false
   # XXX test event listeners here?
   # --> maybe give nodes a hash?
   when false:
@@ -196,6 +198,9 @@ template onImpl(s) {.dirty.} =
 proc setOnclick*(e: VNode; action: EventHandler) =
   onImpl EventKind.onclick
 
+proc setOnDblclick*(e: VNode; action: EventHandler) =
+  onImpl EventKind.onclick
+
 proc setOnfocuslost*(e: VNode; action: EventHandler) =
   onImpl EventKind.onblur
 
@@ -204,6 +209,14 @@ proc setOnchanged*(e: VNode; action: EventHandler) =
 
 proc setOnscroll*(e: VNode; action: EventHandler) =
   onImpl EventKind.onscroll
+
+proc setOnHashChange*(action: proc (hashPart: cstring)) =
+  var onhashChange {.importc: "window.onhashchange".}: proc()
+  var hashPart {.importc: "window.location.hash".}: cstring
+  proc wrapper() =
+    action(hashPart)
+    redraw()
+  onhashchange = wrapper
 
 var
   linkCounter: int
@@ -219,13 +232,14 @@ proc link*(action: EventHandler): VNode =
   result.setAttr("href", "#")
   result.setOnclick action
 
-proc button*(caption: cstring; action: EventHandler; disabled=false): VNode =
-  result = newVNode(VNodeKind.button)
-  result.add text(caption)
-  if action != nil:
-    result.setOnClick action
-  if disabled:
-    result.setAttr("disabled", "true")
+when false:
+  proc button*(caption: cstring; action: EventHandler; disabled=false): VNode =
+    result = newVNode(VNodeKind.button)
+    result.add text(caption)
+    if action != nil:
+      result.setOnClick action
+    if disabled:
+      result.setAttr("disabled", "true")
 
 proc select*(choices: openarray[cstring]): VNode =
   result = newVNode(VNodeKind.select)
@@ -299,29 +313,36 @@ proc tr*(kids: varargs[VNode]): VNode =
 proc getAttr(e: Element; key: cstring): cstring {.
   importcpp: "#.getAttribute(#)", nodecl.}
 
-proc realtimeInput*(id, val: cstring; changed: proc(value: cstring)): VNode =
+template nativeValue(ev): cstring = cast[Element](ev.target).value
+template setNativeValue(ev, val) = cast[Element](ev.target).value = val
+
+proc realtimeInput*(val: cstring; changed: EventHandler): VNode =
   #let oldElem = getElementById(id)
   #if oldElem != nil: return oldElem
   #let newVal = if oldElem.isNil: val else: $oldElem.value
   var timer: Timeout
-  proc wrapper() =
-    changed(document.getElementById(id).value)
-    redraw()
   proc onkeyup(ev: Event; n: VNode) =
+    proc wrapper() =
+      n.value = nativeValue(ev)
+      changed(ev, n)
+      setNativeValue(ev, n.value)
+      redraw()
+
     if timer != nil: clearTimeout(timer)
     timer = setTimeout(wrapper, 400)
   result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
-  result.id = id
   result.value = val
   result.addEventListener(EventKind.onkeyup, onkeyup)
 
-proc enterInput*(id, val: cstring; onenter: proc(value: cstring)): VNode =
+proc enterInput*(id, val: cstring; onenter: EventHandler): VNode =
   #let oldElem = getElementById(id)
   #if oldElem != nil: return oldElem
   #let newVal = if oldElem.isNil: val else: $oldElem.value
   proc onkeyup(ev: Event; n: VNode) =
     if ev.keyCode == 13:
-      onenter(document.getElementById(id).value)
+      n.value = nativeValue(ev)
+      onenter(ev, n)
+      setNativeValue(ev, n.value)
       redraw()
 
   result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
@@ -329,6 +350,14 @@ proc enterInput*(id, val: cstring; onenter: proc(value: cstring)): VNode =
   result.value = val
   result.addEventListener(EventKind.onkeyup, onkeyup)
 
+proc setOnEnter*(n: VNode; onenter: EventHandler) =
+  proc onkeyup(ev: Event; n: VNode) =
+    if ev.keyCode == 13:
+      n.value = nativeValue(ev)
+      onenter(ev, n)
+      setNativeValue(ev, n.value)
+      redraw()
+  n.addEventListener(EventKind.onkeyup, onkeyup)
 
 proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
@@ -366,7 +395,7 @@ proc ajaxGet*(url: string; headers: openarray[(cstring, cstring)];
 proc setupErrorHandler*(useAlert=false) =
   ## Installs an error handler that transforms native JS unhandled
   ## exceptions into Nim based stack traces. If `useAlert` is false,
-  ## the error message it put into the console, otherwise `alert`
+  ## the error message is put into the console, otherwise `alert`
   ## is called.
   proc stackTraceAsCstring(): cstring = cstring(getStackTrace())
   {.emit: """
@@ -381,3 +410,17 @@ proc setupErrorHandler*(useAlert=false) =
   };""".}
 
 {.pop.}
+
+when false:
+  var plugins {.exportc.}: seq[(string, proc())] = @[]
+
+  proc onInput(val: cstring) =
+    kout val
+    if val == "dyn":
+      let body = getElementById("body")
+      body.prepend(tree("script", [("type", "text/javascript"), ("src", "nimcache/dyn.js")]))
+      redraw()
+    kout(plugins.len)
+    if plugins.len > 0:
+      plugins[0][1]()
+

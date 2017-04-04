@@ -9,21 +9,24 @@ type
     tdiv,
     table, tr, td, th, thead, tbody,
     link, span, label, br, select, option,
-    fieldset, input, button
+    fieldset, input, button, ul, li, section, header, footer,
+    h1, h2, h3, h4, h5, strong
 
 const
   toTag*: array[VNodeKind, cstring] = [
     cstring"#text", "A", "DIV", "TABLE", "TR", "TD", "TH", "THEAD", "TBODY", "LINK",
-    "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON"
+    "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON", "UL",
+    "LI", "SECTION", "HEADER", "FOOTER", "H1", "H2", "H3", "H4", "H5", "STRONG"
   ]
 
 type
   EventKind* {.pure.} = enum
-    onclick, onkeyup, onkeydown, onkeypressed, onblur, onchange, onscroll
+    onclick, ondblclick, onkeyup, onkeydown, onkeypressed, onblur, onchange, onscroll
 
 const
   toEventName*: array[EventKind, cstring] = [
-    cstring"click", "keyup", "keydown", "keypressed", "blur", "change", "scroll"
+    cstring"click", "dblclick", "keyup", "keydown", "keypressed", "blur",
+    "change", "scroll"
   ]
 
 type
