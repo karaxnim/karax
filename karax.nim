@@ -119,22 +119,41 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
     let oldLength = oldNode.len
+    let minLength = min(newLength, oldLength)
     assert oldNode.kind == newNode.kind
     when false:
       if current.nodeName != toTag[oldNode.kind]:
         kout current.nodeName
         kout toTag[oldNode.kind]
         assert false
-    for i in 0..min(newLength, oldLength)-1:
-      updateElement(current, current.childNodes[i],
-        newNode[i],
-        oldNode[i])
-    if newLength > oldLength:
-      for i in oldLength..newLength-1:
-        current.appendChild(vnodeToDom(newNode[i]))
-    elif oldLength > newLength:
-      for i in countdown(oldLength-1, newLength):
-        current.removeChild(current.lastChild)
+    
+    var commonPrefix = 0
+    while commonPrefix < minLength and newNode[commonPrefix] == oldNode[commonPrefix]:
+      inc commonPrefix
+
+    var oldPos = oldLength - 1
+    var newPos = newLength - 1
+    while oldPos >= 0 and newPos >= 0 and newNode[newPos] == oldNode[oldPos]:
+      dec oldPos
+      dec newPos
+
+    var pos = commonPrefix
+    while pos <= newPos and pos <= oldPos:
+      updateElement(current, current.childNodes[pos],
+        newNode[pos],
+        oldNode[pos])
+      inc pos
+    
+    while pos <= newPos:
+      if newPos == newLength - 1:
+        current.appendChild(vnodeToDom(newNode[pos]))
+      else:
+        current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[pos + 1])
+      inc pos
+
+    while pos <= oldPos:
+      current.removeChild(current.childNodes[pos])
+      inc pos
 
 proc dodraw() =
   let newtree = dorender()
