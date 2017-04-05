@@ -63,7 +63,7 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
       else:
         input(class = "edit", name = "title", id = "todo-edit:" & &id,
           onfocusLost = focusLost,
-          onenter = editEntry, value = d)
+          onenter = editEntry, value = d, setFocus)
 
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):
@@ -72,7 +72,7 @@ proc createDom(): VNode =
         h1:
           text "todos"
         input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
-              onenter = onTodoEnter)
+              onenter = onTodoEnter, setFocus)
       section(class = "main"):
         input(class = "toggle-all", `type` = "checkbox", name = "toggle")
         label(`for` = "toggle-all", onclick = onAllDone):

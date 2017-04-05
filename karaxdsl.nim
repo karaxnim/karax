@@ -3,7 +3,7 @@ import macros, karax, vdom
 from strutils import startsWith, toLowerAscii
 
 const
-  StmtContext = ["kout", "inc", "echo", "dec"]
+  StmtContext = ["kout", "inc", "echo", "dec", "!"]
 
 proc getName(n: NimNode): string =
   case n.kind
@@ -76,16 +76,18 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newDotAsgn(tmp, key, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
+        elif x.kind == nnkIdent:
+          result.add newCall(x, tmp)
         else:
           result.add tcall2(x, tmp)
-      #if tag == "link":
-      #  result.add newCall(bindSym"setAttr", tmp, newLit"href", newLit"#")
       if tmpContext == nil:
         result.add tmp
       else:
         result.add newCall(bindSym"add", tmpContext, tmp)
     elif tmpContext != nil and op notin StmtContext:
       result = newCall(bindSym"add", tmpContext, n)
+    elif op == "!" and n.len == 2:
+      result = n[1]
     else:
       result = n
   else:

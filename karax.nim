@@ -26,6 +26,10 @@ type
 var
   document* {.importc.}: Document
   toFocus: Element
+  toFocusV: VNode
+
+proc setFocus*(n: VNode) =
+  toFocusV = n
 
 proc vnodeToDom(n: VNode): Element =
   if n.kind == VNodeKind.text:
@@ -52,7 +56,7 @@ proc vnodeToDom(n: VNode): Element =
         assert myn != nil
         hh(ev, myn)
     result.addEventListener(toEventName[e], wrapper())
-  if n.kind == VNodeKind.input and toFocus.isNil:
+  if n == toFocusV and toFocus.isNil:
     toFocus = result
 
 proc same(n: VNode, e: Element): bool =
@@ -91,8 +95,8 @@ proc replaceById(id: cstring; newTree: Node) =
 proc equals(a, b: VNode): bool =
   if a.kind != b.kind: return false
   if a.id != b.id: return false
-  #if a.kind == VNodeKind.text:
-  if a.text != b.text: return false
+  if a.kind == VNodeKind.text:
+    if a.text != b.text: return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
   # XXX test event listeners here?
@@ -316,17 +320,19 @@ proc getAttr(e: Element; key: cstring): cstring {.
 template nativeValue(ev): cstring = cast[Element](ev.target).value
 template setNativeValue(ev, val) = cast[Element](ev.target).value = val
 
-proc realtimeInput*(val: cstring; changed: EventHandler): VNode =
+template keyeventBody() =
+  n.value = nativeValue(ev)
+  action(ev, n)
+  setNativeValue(ev, n.value)
+  redraw()
+
+proc realtimeInput*(val: cstring; action: EventHandler): VNode =
   #let oldElem = getElementById(id)
   #if oldElem != nil: return oldElem
   #let newVal = if oldElem.isNil: val else: $oldElem.value
   var timer: Timeout
   proc onkeyup(ev: Event; n: VNode) =
-    proc wrapper() =
-      n.value = nativeValue(ev)
-      changed(ev, n)
-      setNativeValue(ev, n.value)
-      redraw()
+    proc wrapper() = keyeventBody()
 
     if timer != nil: clearTimeout(timer)
     timer = setTimeout(wrapper, 400)
@@ -334,29 +340,21 @@ proc realtimeInput*(val: cstring; changed: EventHandler): VNode =
   result.value = val
   result.addEventListener(EventKind.onkeyup, onkeyup)
 
-proc enterInput*(id, val: cstring; onenter: EventHandler): VNode =
+proc enterInput*(id, val: cstring; action: EventHandler): VNode =
   #let oldElem = getElementById(id)
   #if oldElem != nil: return oldElem
   #let newVal = if oldElem.isNil: val else: $oldElem.value
   proc onkeyup(ev: Event; n: VNode) =
-    if ev.keyCode == 13:
-      n.value = nativeValue(ev)
-      onenter(ev, n)
-      setNativeValue(ev, n.value)
-      redraw()
+    if ev.keyCode == 13: keyeventBody()
 
   result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
   result.id = id
   result.value = val
   result.addEventListener(EventKind.onkeyup, onkeyup)
 
-proc setOnEnter*(n: VNode; onenter: EventHandler) =
+proc setOnEnter*(n: VNode; action: EventHandler) =
   proc onkeyup(ev: Event; n: VNode) =
-    if ev.keyCode == 13:
-      n.value = nativeValue(ev)
-      onenter(ev, n)
-      setNativeValue(ev, n.value)
-      redraw()
+    if ev.keyCode == 13: keyeventBody()
   n.addEventListener(EventKind.onkeyup, onkeyup)
 
 proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
