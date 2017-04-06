@@ -109,13 +109,32 @@ proc equals(a, b: VNode): bool =
       a.class = b.class
   return true
 
+proc equalsTree(a, b : VNode): bool =
+  # kout cstring("equalsTree: (" & $a.kind & " = " & a.id & ") -> (" &
+  #     $b.kind & " = " & b.id & ")")
+  # assert a != nil and b != nil
+  # kout cstring("equalsTree")
+  if not equals(a, b):
+    return false
+  else:
+    if len(a) != len(b):
+      return false
+    for i in 0..len(a)-1:
+      if not equalsTree(a[i], b[i]):
+        return false
+    return true
+
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
+  #kout cstring("updateElement: (" & current.nodeName & " = " & current.id & ")")
   if not equals(newNode, oldNode):
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById("ROOT", n)
     else:
       parent.replaceChild(n, current)
+    kout cstring("ReplaceChild")
+    #kout cstring("ReplaceChild: (" & current.nodeName & " = " & newNode.id & ") -> (" &
+    #  n.nodeName & " = " & oldNode.id & ")")
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
     let oldLength = oldNode.len
@@ -126,34 +145,152 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         kout current.nodeName
         kout toTag[oldNode.kind]
         assert false
-    
-    var commonPrefix = 0
-    while commonPrefix < minLength and newNode[commonPrefix] == oldNode[commonPrefix]:
-      inc commonPrefix
 
+    var commonPrefix = 0
+    while commonPrefix < minLength and equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
+      inc commonPrefix
+    
     var oldPos = oldLength - 1
     var newPos = newLength - 1
-    while oldPos >= 0 and newPos >= 0 and newNode[newPos] == oldNode[oldPos]:
+    while oldPos >= commonPrefix and newPos >= commonPrefix and equalsTree(newNode[newPos], oldNode[oldPos]):
       dec oldPos
       dec newPos
 
-    var pos = commonPrefix
-    while pos <= newPos and pos <= oldPos:
-      updateElement(current, current.childNodes[pos],
-        newNode[pos],
-        oldNode[pos])
-      inc pos
-    
-    while pos <= newPos:
-      if newPos == newLength - 1:
-        current.appendChild(vnodeToDom(newNode[pos]))
-      else:
-        current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[pos + 1])
-      inc pos
+    if commonPrefix + newLength - newPos > 1000:
+      kout cstring($(commonPrefix + newLength - newPos))
 
-    while pos <= oldPos:
-      current.removeChild(current.childNodes[pos])
+    var pos = min(oldPos, newPos) + 1
+
+    # kout cstring("commonPrefix = " & $commonPrefix)
+    # kout cstring("oldPos = " & $oldPos)
+    # kout cstring("newPos = " & $newPos)
+    # kout cstring("newLength = " & $newLength)
+    # kout cstring("oldLength = " & $oldLength)
+    # kout cstring("-----------")
+    # for i in items(newNode):
+    #   kout cstring(i.id)
+    # kout cstring("-----")
+    # for i in items(oldNode):
+    #   kout cstring(i.id)
+
+    for i in commonPrefix..pos-1:
+      updateElement(current, current.childNodes[i],
+        newNode[i],
+        oldNode[i])
+      #kout cstring(newNode[i].id & " " & oldNode[i].id)
+    #kout cstring("----------")
+
+    var nextChildPos = oldPos + 1
+    while pos <= newPos:
+      if nextChildPos == oldLength:
+        current.appendChild(vnodeToDom(newNode[pos]))
+        kout cstring"appendChild"
+        #kout cstring("pos = " & $pos)
+        #kout cstring("newLength = " & $newLength)
+      else:
+        kout cstring"insertBefore"
+        current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
       inc pos
+      inc nextChildPos
+  
+    for i in 0..oldPos-pos:
+      kout cstring"removeChild"
+      current.removeChild(current.childNodes[pos])
+    
+    # var itNew = newPos + 1
+    # var itOld = oldPos + 1
+    # while itNew < newLength and itOld < oldLength:
+    #   updateElement(current, current.childNodes[itNew],
+    #     newNode[itNew],
+    #     oldNode[itOld])
+
+    # kout cstring("commonPrefix = " & $commonPrefix)
+    # kout cstring("oldPos = " & $oldPos)
+    # kout cstring("newPos = " & $newPos)
+    # kout cstring("newLength = " & $newLength)
+    # kout cstring("oldLength = " & $oldLength)
+
+    # for i in 0..min(newLength, oldLength)-1:
+    #   updateElement(current, current.childNodes[i],
+    #     newNode[i],
+    #     oldNode[i])
+    # if newLength > oldLength:
+    #   for i in oldLength..newLength-1:
+    #     kout cstring"appendChild"
+    #     current.appendChild(vnodeToDom(newNode[i]))
+    # elif oldLength > newLength:
+    #   for i in countdown(oldLength-1, newLength):
+    #     kout cstring"removeChild"
+    #     current.removeChild(current.lastChild)
+
+proc updateElement1(parent, current: Node, newNode, oldNode: VNode) =
+  if not equals(newNode, oldNode):
+    let n = vnodeToDom(newNode)
+    if parent == nil:
+      replaceById("ROOT", n)
+    else:
+      parent.replaceChild(n, current)
+    kout cstring"ReplaceChild"
+  elif newNode.kind != VNodeKind.text:
+    let newLength = newNode.len
+    let oldLength = oldNode.len
+    let minLength = min(newLength, oldLength)
+    assert oldNode.kind == newNode.kind
+    when false:
+      if current.nodeName != toTag[oldNode.kind]:
+        kout current.nodeName
+        kout toTag[oldNode.kind]
+        assert false
+
+    # var commonPrefix = 0
+    # while commonPrefix < minLength and equals(newNode[commonPrefix], oldNode[commonPrefix]):
+    #   inc commonPrefix
+    
+    # var oldPos = oldLength - 1
+    # var newPos = newLength - 1
+    # while oldPos >= commonPrefix and newPos >= commonPrefix and equals(newNode[newPos], oldNode[oldPos]):
+    #   dec oldPos
+    #   dec newPos
+
+    # var pos = min(oldPos, newPos) + 1
+    # var nextChildPos = oldPos + 1
+    # while pos <= newPos:
+    #   if nextChildPos == oldLength:
+    #     current.appendChild(vnodeToDom(newNode[pos]))
+    #     kout cstring"appendChild"
+    #   else:
+    #     kout cstring"insertBefore"
+    #     current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+    #   inc pos
+    #   inc nextChildPos
+
+    # for i in 0..oldPos-pos:
+    #   kout cstring"removeChild"
+    #   current.removeChild(current.childNodes[pos])
+
+    # # kout cstring("commonPrefix = " & $commonPrefix)
+    # # kout cstring("oldPos = " & $oldPos)
+    # # kout cstring("newPos = " & $newPos)
+    # # kout cstring("newLength = " & $newLength)
+    # # kout cstring("oldLength = " & $oldLength)
+
+    # for i in 0..newLength-1:
+    #   updateElement(current, current.childNodes[i],
+    #     newNode[i],
+    #     oldNode[i])
+    
+    for i in 0..min(newLength, oldLength)-1:
+      updateElement(current, current.childNodes[i],
+        newNode[i],
+        oldNode[i])
+    if newLength > oldLength:
+      for i in oldLength..newLength-1:
+        kout cstring"appendChild"
+        current.appendChild(vnodeToDom(newNode[i]))
+    elif oldLength > newLength:
+      for i in countdown(oldLength-1, newLength):
+        kout cstring"removeChild"
+        current.removeChild(current.lastChild)
 
 proc dodraw() =
   let newtree = dorender()
