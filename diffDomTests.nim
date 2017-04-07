@@ -17,17 +17,14 @@ proc test2(ev: Event; n: VNode) =
 
 # result: 2 3 4 1
 proc test3(ev: Event; n: VNode) =
-    entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
     entries = @[cstring("2"), cstring("3"), cstring("4"), cstring("1") ]
 
 # result: 5 6 7 8
 proc test4(ev: Event; n: VNode) =
-    entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
     entries = @[cstring("5"), cstring("6"), cstring("7"), cstring("8") ]
 
 # result: 0 1 3 5 4 5
 proc test5(ev: Event; n: VNode) =
-    entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
     entries = @[cstring("0"), cstring("1"), cstring("3"), cstring("5"), cstring("4"), cstring("5") ]
      
     
