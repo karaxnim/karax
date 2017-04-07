@@ -27,6 +27,13 @@ proc test4(ev: Event; n: VNode) =
 proc test5(ev: Event; n: VNode) =
     entries = @[cstring("0"), cstring("1"), cstring("3"), cstring("5"), cstring("4"), cstring("5") ]
      
+# result: empty
+proc test6(ev: Event; n: VNode) =
+    entries = @[]
+
+# result: 2
+proc test7(ev: Event; n: VNode) =
+    entries = @[cstring("2")]
     
 proc createEntry(id: int): VNode =
   result = buildHtml():
@@ -45,6 +52,10 @@ proc createDom(): VNode =
             text "Test4"
         button(onclick=test5):
             text "Test5"
+        button(onclick=test6):
+            text "Test6"
+        button(onclick=test7):
+            text "Test7"
         ul():
             for e in entries:
                 li:
