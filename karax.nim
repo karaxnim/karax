@@ -137,7 +137,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     #  n.nodeName & " = " & oldNode.id & ")")
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
-    let oldLength = oldNode.len
+    var oldLength = oldNode.len
     let minLength = min(newLength, oldLength)
     assert oldNode.kind == newNode.kind
     when false:
@@ -181,15 +181,27 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     #kout cstring("----------")
 
     var nextChildPos = oldPos + 1
+    # kout cstring("pos = " & $pos) 
+    # kout cstring("nextChildPos = " & $nextChildPos)
     while pos <= newPos:
       if nextChildPos == oldLength:
         current.appendChild(vnodeToDom(newNode[pos]))
-        kout cstring"appendChild"
+        # kout cstring"appendChild " & newNode[pos].id
+        # kout cstring("commonPrefix = " & $commonPrefix)
+        # kout cstring("oldPos = " & $oldPos)
+        # kout cstring("newPos = " & $newPos)
+        # kout cstring("newLength = " & $newLength)
+        # kout cstring("oldLength = " & $oldLength)
+
+        # kout cstring("pos = " & $pos)
+        # kout cstring("nextChildPos = " & $nextChildPos)
+        # kout cstring("-----------")
         #kout cstring("pos = " & $pos)
         #kout cstring("newLength = " & $newLength)
       else:
-        kout cstring"insertBefore"
+        kout cstring"insertBefore " & newNode[pos].id
         current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+      inc oldLength
       inc pos
       inc nextChildPos
   
@@ -223,74 +235,6 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     #     kout cstring"removeChild"
     #     current.removeChild(current.lastChild)
 
-proc updateElement1(parent, current: Node, newNode, oldNode: VNode) =
-  if not equals(newNode, oldNode):
-    let n = vnodeToDom(newNode)
-    if parent == nil:
-      replaceById("ROOT", n)
-    else:
-      parent.replaceChild(n, current)
-    kout cstring"ReplaceChild"
-  elif newNode.kind != VNodeKind.text:
-    let newLength = newNode.len
-    let oldLength = oldNode.len
-    let minLength = min(newLength, oldLength)
-    assert oldNode.kind == newNode.kind
-    when false:
-      if current.nodeName != toTag[oldNode.kind]:
-        kout current.nodeName
-        kout toTag[oldNode.kind]
-        assert false
-
-    # var commonPrefix = 0
-    # while commonPrefix < minLength and equals(newNode[commonPrefix], oldNode[commonPrefix]):
-    #   inc commonPrefix
-    
-    # var oldPos = oldLength - 1
-    # var newPos = newLength - 1
-    # while oldPos >= commonPrefix and newPos >= commonPrefix and equals(newNode[newPos], oldNode[oldPos]):
-    #   dec oldPos
-    #   dec newPos
-
-    # var pos = min(oldPos, newPos) + 1
-    # var nextChildPos = oldPos + 1
-    # while pos <= newPos:
-    #   if nextChildPos == oldLength:
-    #     current.appendChild(vnodeToDom(newNode[pos]))
-    #     kout cstring"appendChild"
-    #   else:
-    #     kout cstring"insertBefore"
-    #     current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
-    #   inc pos
-    #   inc nextChildPos
-
-    # for i in 0..oldPos-pos:
-    #   kout cstring"removeChild"
-    #   current.removeChild(current.childNodes[pos])
-
-    # # kout cstring("commonPrefix = " & $commonPrefix)
-    # # kout cstring("oldPos = " & $oldPos)
-    # # kout cstring("newPos = " & $newPos)
-    # # kout cstring("newLength = " & $newLength)
-    # # kout cstring("oldLength = " & $oldLength)
-
-    # for i in 0..newLength-1:
-    #   updateElement(current, current.childNodes[i],
-    #     newNode[i],
-    #     oldNode[i])
-    
-    for i in 0..min(newLength, oldLength)-1:
-      updateElement(current, current.childNodes[i],
-        newNode[i],
-        oldNode[i])
-    if newLength > oldLength:
-      for i in oldLength..newLength-1:
-        kout cstring"appendChild"
-        current.appendChild(vnodeToDom(newNode[i]))
-    elif oldLength > newLength:
-      for i in countdown(oldLength-1, newLength):
-        kout cstring"removeChild"
-        current.removeChild(current.lastChild)
 
 proc dodraw() =
   let newtree = dorender()
