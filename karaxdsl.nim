@@ -4,6 +4,7 @@ from strutils import startsWith, toLowerAscii
 
 const
   StmtContext = ["kout", "inc", "echo", "dec", "!"]
+  SpecialAttrs = ["id", "class", "value", "key"]
 
 proc getName(n: NimNode): string =
   case n.kind
@@ -72,7 +73,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           let key = getName x[0]
           if key.startsWith("on"):
             result.add newCall(!("set" & key), tmp, x[1])
-          elif key == "id" or key == "class" or key == "value":
+          elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])

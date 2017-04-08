@@ -31,8 +31,10 @@ const
 
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
+  VKey* = int
   VNode* = ref object
     kind*: VNodeKind
+    key*: VKey
     id*, class*, text*: cstring
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
