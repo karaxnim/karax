@@ -11,18 +11,23 @@ proc reset() =
     redraw()
     kout cstring"reset finished"
 
-proc checkOrder(order : seq[int]) = 
+proc checkOrder(order : seq[int]): bool = 
     var ul = getElementById("ul")
-    assert ul != nil
-    assert len(ul.children) == len(order)
+    if ul == nil or len(ul.children) != len(order):
+        return false
     var pos = 0
     for child in ul.children:
-        assert child.id == $order[pos]
+        if child.id != $order[pos]:
+            return false
         inc pos
+    return true
 
 proc check1() =
-    checkOrder(@[0, 1, 2, 3, 4, 7, 5])
-    kout cstring"test1 finished"
+    let result = checkOrder(@[0, 1, 2, 3, 4, 7, 5])
+    if result:
+        kout cstring"test1 - OK"
+    else:
+        kout cstring"test1 - FAIL"
 
 # result: 0 1 2 3 4 7 5
 proc test1() =
@@ -33,8 +38,11 @@ proc test1() =
     timeout = setTimeout(check1, 20)
 
 proc check2() =
-    checkOrder(@[8, 0, 1, 2, 3, 4, 7, 5])
-    kout cstring"test2 finished"
+    let result = checkOrder(@[8, 0, 1, 2, 3, 4, 7, 5])
+    if result:
+        kout cstring"test1 - OK"
+    else:
+        kout cstring"test2 - FAIL"
 
 # result: 8 0 1 2 3 4 7 5
 proc test2() =
@@ -46,8 +54,11 @@ proc test2() =
     timeout = setTimeout(check2, 20)
 
 proc check3() =
-    checkOrder(@[2, 3, 4, 1])
-    kout cstring"test3 finished"
+    let result = checkOrder(@[2, 3, 4, 1])
+    if result:
+        kout cstring"test3 - OK"
+    else:
+        kout cstring"test3 - FAIL"
 
 # result: 2 3 4 1
 proc test3() =
@@ -57,8 +68,11 @@ proc test3() =
     timeout = setTimeout(check3, 20)
 
 proc check4() =
-    checkOrder(@[5, 6, 7, 8])
-    kout cstring"test4 finished"
+    let result = checkOrder(@[5, 6, 7, 8])
+    if result:
+        kout cstring"test4 - OK"
+    else:
+        kout cstring"test4 - FAIL"
 
 # result: 5 6 7 8
 proc test4() =
@@ -68,8 +82,11 @@ proc test4() =
     timeout = setTimeout(check4, 20)
 
 proc check5() =
-    checkOrder(@[0, 1, 3, 5, 4, 5])
-    kout cstring"test5 finished"
+    let result = checkOrder(@[0, 1, 3, 5, 4, 5])
+    if result:
+        kout cstring"test5 - OK"
+    else:
+        kout cstring"test5 - FAIL"
 
 # result: 0 1 3 5 4 5
 proc test5() =
@@ -79,8 +96,11 @@ proc test5() =
     timeout = setTimeout(check5, 20)
      
 proc check6() =
-    checkOrder(@[])
-    kout cstring"test6 finished"
+    let result = checkOrder(@[])
+    if result:
+        kout cstring"test6 - OK"
+    else:
+        kout cstring"test6 - FAIL"
 
 # result: empty
 proc test6() =
@@ -90,8 +110,11 @@ proc test6() =
     timeout = setTimeout(check6, 20)
 
 proc check7() =
-    checkOrder(@[2])
-    kout cstring"test7 finished"
+    let result = checkOrder(@[2])
+    if result:
+        kout cstring"test7 - OK"
+    else:
+        kout cstring"test7 - FAIL"
 
 # result: 2
 proc test7() =

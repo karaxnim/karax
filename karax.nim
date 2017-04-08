@@ -132,7 +132,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       replaceById("ROOT", n)
     else:
       parent.replaceChild(n, current)
-    kout cstring("---- replaceChild")
+    #kout cstring("---- replaceChild")
     #kout cstring("ReplaceChild: (" & current.nodeName & " = " & newNode.id & ") -> (" &
     #  n.nodeName & " = " & oldNode.id & ")")
   elif newNode.kind != VNodeKind.text:
@@ -155,9 +155,6 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     while oldPos >= commonPrefix and newPos >= commonPrefix and equalsTree(newNode[newPos], oldNode[oldPos]):
       dec oldPos
       dec newPos
-
-    if commonPrefix + newLength - newPos > 1000:
-      kout cstring($(commonPrefix + newLength - newPos))
 
     var pos = min(oldPos, newPos) + 1
 
@@ -186,7 +183,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     while pos <= newPos:
       if nextChildPos == oldLength:
         current.appendChild(vnodeToDom(newNode[pos]))
-        kout cstring"---- appendChild"
+        #kout cstring"---- appendChild"
         # kout cstring("commonPrefix = " & $commonPrefix)
         # kout cstring("oldPos = " & $oldPos)
         # kout cstring("newPos = " & $newPos)
@@ -199,14 +196,14 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         #kout cstring("pos = " & $pos)
         #kout cstring("newLength = " & $newLength)
       else:
-        kout cstring"---- insertBefore"
+        #kout cstring"---- insertBefore"
         current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
       inc oldLength
       inc pos
       inc nextChildPos
   
     for i in 0..oldPos-pos:
-      kout cstring"---- removeChild"
+      #kout cstring"---- removeChild"
       current.removeChild(current.childNodes[pos])
     
     # var itNew = newPos + 1
