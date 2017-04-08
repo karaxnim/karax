@@ -79,7 +79,7 @@ proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
 proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 #proc targetElem*(e: Event): Element = cast[Element](e.target)
 
-#proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
+proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
 
 #proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
 #  "document.getElementsByClassName", nodecl.}
@@ -132,7 +132,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       replaceById("ROOT", n)
     else:
       parent.replaceChild(n, current)
-    kout cstring("ReplaceChild")
+    kout cstring("---- replaceChild")
     #kout cstring("ReplaceChild: (" & current.nodeName & " = " & newNode.id & ") -> (" &
     #  n.nodeName & " = " & oldNode.id & ")")
   elif newNode.kind != VNodeKind.text:
@@ -186,7 +186,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     while pos <= newPos:
       if nextChildPos == oldLength:
         current.appendChild(vnodeToDom(newNode[pos]))
-        # kout cstring"appendChild " & newNode[pos].id
+        kout cstring"---- appendChild"
         # kout cstring("commonPrefix = " & $commonPrefix)
         # kout cstring("oldPos = " & $oldPos)
         # kout cstring("newPos = " & $newPos)
@@ -199,14 +199,14 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         #kout cstring("pos = " & $pos)
         #kout cstring("newLength = " & $newLength)
       else:
-        kout cstring"insertBefore " & newNode[pos].id
+        kout cstring"---- insertBefore"
         current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
       inc oldLength
       inc pos
       inc nextChildPos
   
     for i in 0..oldPos-pos:
-      kout cstring"removeChild"
+      kout cstring"---- removeChild"
       current.removeChild(current.childNodes[pos])
     
     # var itNew = newPos + 1
