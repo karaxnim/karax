@@ -16,3 +16,8 @@ proc `&`*(s: int): cstring {.importcpp: "((#)+'')", nodecl.}
 proc `&`*(s: bool): cstring {.importcpp: "((#)+'')", nodecl.}
 
 proc `&`*(s: cstring): cstring {.importcpp: "(#)", nodecl.}
+
+proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
+  asm """
+    return s.match(/^[0-9]+$/);
+  """
