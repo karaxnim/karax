@@ -176,6 +176,3 @@ proc onload(session: cstring) {.exportc.} =
     t += dtReset
 
     timeout = setTimeout(test7, t)
-    t += dtTest
-    timeout = setTimeout(reset, t)
-    t += dtReset

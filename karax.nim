@@ -109,16 +109,65 @@ proc equals(a, b: VNode): bool =
       a.class = b.class
   return true
 
+proc getStringHash(s: string): uint64 =
+  result = 0
+  for c in s:
+    result = (result * 257 + uint64(c)) mod 1000000007
+
+proc calcHash(a : VNode) = 
+  if a.validHash:
+    return
+  var result : uint64 = 0
+  for i in a:
+    i.calcHash()
+    result = result + i.hash
+  a.validHash = true
+  a.hash = (getStringHash(getVNodeData(a)) * 71 + result) mod 1000000007
+
 proc equalsTree(a, b : VNode): bool =
-  if not equals(a, b):
-    return false
-  else:
-    if len(a) != len(b):
-      return false
-    for i in 0..len(a)-1:
-      if not equalsTree(a[i], b[i]):
-        return false
-    return true
+  if not a.validHash:
+    a.calcHash()
+  if not b.validHash:
+    b.calcHash()
+
+  return a.hash == b.hash
+
+  # if not equals(a, b):
+  #   return false
+  # else:
+  #   if len(a) != len(b):
+  #     return false
+  #   for i in 0..len(a)-1:
+  #     if not equalsTree(a[i], b[i]):
+  #       return false
+  #   return true
+  
+  # kout cstring("a " & $int64(a.hash) & " " & "b " & $int64(b.hash))
+
+  # if not equals(a, b):
+  #   if a.hash == b.hash:
+  #     kout cstring("false " & getVNodeData(a) & " " & $int64(a.hash) & " " & getVNodeData(b) & " " & $int64(b.hash))
+  #     kout cstring($int64(getStringHash(getVNodeData(a))) & " " & $int64(getStringHash(getVNodeData(b))))
+  #     for c in getVNodeData(a):
+  #       kout cstring($int64(uint64(c)))
+  #     kout "-------"
+  #     for c in getVNodeData(b):
+  #       kout cstring($int64(uint64(c)))
+      
+  #   return false
+  # else:
+  #   if len(a) != len(b):
+  #     if a.hash == b.hash:
+  #         kout cstring("false " & getVNodeData(a) & " " & $int64(a.hash) & " " & getVNodeData(b) & " " & $int64(b.hash))
+  #     return false
+  #   for i in 0..len(a)-1:
+  #     if not equalsTree(a[i], b[i]):
+  #       if a.hash == b.hash:
+  #         kout cstring("false " & getVNodeData(a) & " " & $int64(a.hash) & " " & getVNodeData(b) & " " & $int64(b.hash))
+  #       return false
+  #   if a.hash != b.hash:
+  #       kout cstring("true " & getVNodeData(a) & " " & getVNodeData(b))
+  #   return true
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   if not equals(newNode, oldNode):
@@ -137,7 +186,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         kout current.nodeName
         kout toTag[oldNode.kind]
         assert false
-
+      
     var commonPrefix = 0
     while commonPrefix < minLength and equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
       inc commonPrefix

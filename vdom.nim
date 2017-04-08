@@ -38,6 +38,8 @@ type
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
     events*: seq[(EventKind, EventHandler)]
+    hash*: uint64
+    validHash*: bool
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -128,6 +130,24 @@ proc toString*(n: VNode; result: var string; indent: int) =
       toString(child, result, indent+2)
   for i in 1..indent: result.add ' '
   result.add "\L</" & $n.kind & ">"
+
+proc getVNodeData*(n: VNode): string =
+  result.add "<" & $n.kind
+  toStringAttr(id)
+  toStringAttr(class)
+  
+  #for k, v in attrs(n):
+  #  result.add " " & $k & " = " & $v
+  
+  result.add ">"
+  if n.kind == VNodeKind.text:
+    result.add n.text
+  else:
+    if n.text != nil:
+      result.add " value = "
+      result.add n.text
+  result.add "</" & $n.kind & ">"
+  
 
 proc `$`*(n: VNode): cstring =
   var res = ""
