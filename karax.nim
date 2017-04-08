@@ -2,7 +2,10 @@
 
 import dom, vdom, jstrutils
 
-export dom.Element, dom.Event, dom.cloneNode, dom
+export dom.Event, dom.cloneNode, dom
+
+proc len(x: Node): int {.importcpp: "#.childNodes.length".}
+proc `[]`(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
 
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## the preferred way of debugging karax applications.
@@ -12,28 +15,52 @@ proc `id=`*(e: Node; x: cstring) {.importcpp: "#.id = #", nodecl.}
 proc class*(e: Node): cstring {.importcpp: "#.className", nodecl.}
 proc `class=`*(e: Node; v: cstring) {.importcpp: "#.className = #", nodecl.}
 
-proc value*(e: Element): cstring {.importcpp: "#.value", nodecl.}
-proc `value=`*(e: Element; v: cstring) {.importcpp: "#.value = #", nodecl.}
+proc value*(e: Node): cstring {.importcpp: "#.value", nodecl.}
+proc `value=`*(e: Node; v: cstring) {.importcpp: "#.value = #", nodecl.}
 
-proc `disabled=`*(e: Element; v: bool) {.importcpp: "#.disabled = #", nodecl.}
+proc `disabled=`*(e: Node; v: bool) {.importcpp: "#.disabled = #", nodecl.}
 
-proc getElementsByClass*(e: Element; name: cstring): seq[Element] {.
+proc getElementsByClass*(e: Node; name: cstring): seq[Node] {.
   importcpp: "#.getElementsByClassName(#)", nodecl.}
+
+proc hasProp(e: Node; prop: cstring): bool {.importcpp: "(#.hasOwnProperty(#))".}
+proc rawkey(e: Node): VKey {.importcpp: "#.karaxKey", nodecl.}
+proc key*(e: Node): VKey =
+  if e.hasProp"karaxKey": result = e.rawkey
+proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
+
+type
+  BoundingRect {.importc.} = object
+    top, bottom, left, right: int
+
+proc getBoundingClientRect(e: Node): BoundingRect {.
+  importcpp: "getBoundingClientRect", nodecl.}
+proc clientHeight(): int {.
+  importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl}
+proc clientWidth(): int {.
+  importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl}
 
 type
   Timeout* = ref object
 
 var
   document* {.importc.}: Document
-  toFocus: Element
+  toFocus: Node
   toFocusV: VNode
 
 proc setFocus*(n: VNode) =
   toFocusV = n
 
-proc vnodeToDom(n: VNode): Element =
+proc isElementInViewport(el: Node; h: var int): bool =
+  let rect = el.getBoundingClientRect()
+  h = rect.bottom - rect.top
+  result = rect.top >= 0 and rect.left >= 0 and
+           rect.bottom <= clientHeight() and
+           rect.right <= clientWidth()
+
+proc vnodeToDom(n: VNode): Node =
   if n.kind == VNodeKind.text:
-    result = cast[Element](document.createTextNode(n.text))
+    result = document.createTextNode(n.text)
   else:
     result = document.createElement(toTag[n.kind])
     for k in n:
@@ -45,6 +72,8 @@ proc vnodeToDom(n: VNode): Element =
     result.id = n.id
   if n.class != nil:
     result.class = n.class
+  if n.key != 0:
+    result.key = n.key
   for k, v in attrs(n):
     if v != nil:
       result.setAttribute(k, v)
@@ -59,13 +88,13 @@ proc vnodeToDom(n: VNode): Element =
   if n == toFocusV and toFocus.isNil:
     toFocus = result
 
-proc same(n: VNode, e: Element): bool =
+proc same(n: VNode, e: Node): bool =
   if toTag[n.kind] == e.nodename:
     result = true
     if n.kind != VNodeKind.text:
-      if e.childNodes.len != n.len: return false
+      if e.len != n.len: return false
       for i in 0 ..< n.len:
-        if not same(n[i], cast[Element](e.childNodes[i])): return false
+        if not same(n[i], e[i]): return false
 
 var
   dorender: proc (): VNode {.closure.}
@@ -84,7 +113,7 @@ proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 #proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
 #  "document.getElementsByClassName", nodecl.}
 
-proc textContent(e: Element): cstring {.
+proc textContent(e: Node): cstring {.
   importcpp: "#.textContent", nodecl.}
 
 proc replaceById(id: cstring; newTree: Node) =
@@ -95,6 +124,7 @@ proc replaceById(id: cstring; newTree: Node) =
 proc equals(a, b: VNode): bool =
   if a.kind != b.kind: return false
   if a.id != b.id: return false
+  if a.key != b.key: return false
   if a.kind == VNodeKind.text:
     if a.text != b.text: return false
   if not sameAttrs(a, b): return false
@@ -126,9 +156,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         kout toTag[oldNode.kind]
         assert false
     for i in 0..min(newLength, oldLength)-1:
-      updateElement(current, current.childNodes[i],
-        newNode[i],
-        oldNode[i])
+      updateElement(current, current[i], newNode[i], oldNode[i])
     if newLength > oldLength:
       for i in oldLength..newLength-1:
         current.appendChild(vnodeToDom(newNode[i]))
@@ -153,6 +181,20 @@ proc dodraw() =
   if toFocus != nil:
     toFocus.focus()
 
+proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
+  # we only care about nodes that have a key:
+  var hh = 0
+  # do not recurse if there is a 'key' field already:
+  if e.key != 0:
+    if isElementInViewport(e, hh):
+      inc count
+      inc h, hh
+      a = min(a, e.key)
+      b = max(b, e.key)
+  else:
+    for i in 0..<e.len:
+      visibleKeys(e[i], a, b, h, count)
+
 proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
 
 proc redraw*() =
@@ -173,14 +215,6 @@ proc init*() =
 #  parent.insertBefore(kid, parent.firstChild)
 #  prependChild(parent, kid)
 
-proc len(x: Element): int {.importcpp: "#.childNodes.length".}
-proc `[]`(x: Element; idx: int): Element {.importcpp: "#.childNodes[#]".}
-
-proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
-  asm """
-    return s.match(/^[0-9]+$/);
-  """
-
 proc suffix*(s, prefix: cstring): cstring =
   if s.startsWith(prefix):
     result = s.substr(prefix.len)
@@ -189,9 +223,9 @@ proc suffix*(s, prefix: cstring): cstring =
 
 proc suffixAsInt*(s, prefix: cstring): int = parseInt(suffix(s, prefix))
 
-proc scrollTop*(e: Element): int {.importcpp: "#.scrollTop", nodecl.}
-proc offsetHeight*(e: Element): int {.importcpp: "#.offsetHeight", nodecl.}
-proc offsetTop*(e: Element): int {.importcpp: "#.offsetTop", nodecl.}
+proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
+proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
+proc offsetTop*(e: Node): int {.importcpp: "#.offsetTop", nodecl.}
 
 template onImpl(s) {.dirty.} =
   proc wrapper(ev: Event; n: VNode) =
@@ -203,7 +237,7 @@ proc setOnclick*(e: VNode; action: EventHandler) =
   onImpl EventKind.onclick
 
 proc setOnDblclick*(e: VNode; action: EventHandler) =
-  onImpl EventKind.onclick
+  onImpl EventKind.ondblclick
 
 proc setOnfocuslost*(e: VNode; action: EventHandler) =
   onImpl EventKind.onblur
@@ -213,6 +247,27 @@ proc setOnchanged*(e: VNode; action: EventHandler) =
 
 proc setOnscroll*(e: VNode; action: EventHandler) =
   onImpl EventKind.onscroll
+
+#proc ceil(f: float): int {.importc: "Math.ceil", nodecl.}
+
+proc setOnscroll*(action: proc(min, max: VKey; diff: int)) =
+  var oldY = window.pageYOffset
+
+  proc wrapper(ev: Event) =
+    let dir = window.pageYOffset - oldY
+    if dir == 0: return
+
+    var a, b: VKey
+    var h, count: int
+    document.visibleKeys(a, b, h, count)
+    let avgh = h / count
+    let diff = toInt(dir.float / avgh)
+    if diff != 0:
+      oldY = window.pageYOffset
+      action(a, b, diff)
+      redraw()
+
+  document.addEventListener("scroll", wrapper)
 
 proc setOnHashChange*(action: proc (hashPart: cstring)) =
   var onhashChange {.importc: "window.onhashchange".}: proc()
@@ -283,7 +338,7 @@ proc tag*(kind: VNodeKind; id=cstring(nil), class=cstring(nil)): VNode =
 proc tdiv*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.tdiv, id, class)
 proc span*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.span, id, class)
 
-proc valueAsInt*(e: Element): int = parseInt(e.value)
+proc valueAsInt*(e: Node): int = parseInt(e.value)
 
 proc th*(s: cstring): VNode =
   result = newVNode(VNodeKind.th)
@@ -314,7 +369,7 @@ proc tr*(kids: varargs[VNode]): VNode =
     else:
       result.add td(k)
 
-proc getAttr(e: Element; key: cstring): cstring {.
+proc getAttr(e: Node; key: cstring): cstring {.
   importcpp: "#.getAttribute(#)", nodecl.}
 
 template nativeValue(ev): cstring = cast[Element](ev.target).value
