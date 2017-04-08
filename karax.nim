@@ -110,10 +110,6 @@ proc equals(a, b: VNode): bool =
   return true
 
 proc equalsTree(a, b : VNode): bool =
-  # kout cstring("equalsTree: (" & $a.kind & " = " & a.id & ") -> (" &
-  #     $b.kind & " = " & b.id & ")")
-  # assert a != nil and b != nil
-  # kout cstring("equalsTree")
   if not equals(a, b):
     return false
   else:
@@ -125,16 +121,12 @@ proc equalsTree(a, b : VNode): bool =
     return true
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
-  #kout cstring("updateElement: (" & current.nodeName & " = " & current.id & ")")
   if not equals(newNode, oldNode):
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById("ROOT", n)
     else:
       parent.replaceChild(n, current)
-    #kout cstring("---- replaceChild")
-    #kout cstring("ReplaceChild: (" & current.nodeName & " = " & newNode.id & ") -> (" &
-    #  n.nodeName & " = " & oldNode.id & ")")
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
     var oldLength = oldNode.len
@@ -157,68 +149,26 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       dec newPos
 
     var pos = min(oldPos, newPos) + 1
-
-    # kout cstring("commonPrefix = " & $commonPrefix)
-    # kout cstring("oldPos = " & $oldPos)
-    # kout cstring("newPos = " & $newPos)
-    # kout cstring("newLength = " & $newLength)
-    # kout cstring("oldLength = " & $oldLength)
-    # kout cstring("-----------")
-    # for i in items(newNode):
-    #   kout cstring(i.id)
-    # kout cstring("-----")
-    # for i in items(oldNode):
-    #   kout cstring(i.id)
-
     for i in commonPrefix..pos-1:
       updateElement(current, current.childNodes[i],
         newNode[i],
         oldNode[i])
-      #kout cstring(newNode[i].id & " " & oldNode[i].id)
-    #kout cstring("----------")
 
     var nextChildPos = oldPos + 1
-    # kout cstring("pos = " & $pos) 
-    # kout cstring("nextChildPos = " & $nextChildPos)
     while pos <= newPos:
       if nextChildPos == oldLength:
         current.appendChild(vnodeToDom(newNode[pos]))
-        #kout cstring"---- appendChild"
-        # kout cstring("commonPrefix = " & $commonPrefix)
-        # kout cstring("oldPos = " & $oldPos)
-        # kout cstring("newPos = " & $newPos)
-        # kout cstring("newLength = " & $newLength)
-        # kout cstring("oldLength = " & $oldLength)
-
-        # kout cstring("pos = " & $pos)
-        # kout cstring("nextChildPos = " & $nextChildPos)
-        # kout cstring("-----------")
-        #kout cstring("pos = " & $pos)
-        #kout cstring("newLength = " & $newLength)
       else:
-        #kout cstring"---- insertBefore"
         current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+      # added new Node, so old state of VDOM have one more Node 
       inc oldLength
       inc pos
       inc nextChildPos
   
     for i in 0..oldPos-pos:
-      #kout cstring"---- removeChild"
       current.removeChild(current.childNodes[pos])
     
-    # var itNew = newPos + 1
-    # var itOld = oldPos + 1
-    # while itNew < newLength and itOld < oldLength:
-    #   updateElement(current, current.childNodes[itNew],
-    #     newNode[itNew],
-    #     oldNode[itOld])
-
-    # kout cstring("commonPrefix = " & $commonPrefix)
-    # kout cstring("oldPos = " & $oldPos)
-    # kout cstring("newPos = " & $newPos)
-    # kout cstring("newLength = " & $newLength)
-    # kout cstring("oldLength = " & $oldLength)
-
+    # previous version of DOM diff algorithm
     # for i in 0..min(newLength, oldLength)-1:
     #   updateElement(current, current.childNodes[i],
     #     newNode[i],
@@ -231,7 +181,6 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     #   for i in countdown(oldLength-1, newLength):
     #     kout cstring"removeChild"
     #     current.removeChild(current.lastChild)
-
 
 proc dodraw() =
   let newtree = dorender()
