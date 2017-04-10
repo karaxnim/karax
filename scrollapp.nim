@@ -11,8 +11,7 @@ const
 var
   entries: seq[(cstring, bool)]
   visibleA = 0
-  visibleB = WindowSize-1
-  middle = WindowSize div 2
+  visibleB = 10_000
   selectedEntry = -1
   filter: Filter
 
@@ -21,22 +20,19 @@ proc onTodoEnter(ev: Event; n: VNode) =
   n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "remove:")
-  entries[id] = (cstring(nil), false)
+  entries[n.key] = (cstring(nil), false)
 
 proc editHandler(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "edit:")
-  selectedEntry = id
+  selectedEntry = n.key
 
 proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
 
 proc editEntry(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "todo-edit:")
-  entries[id][0] = n.value
+  entries[n.key][0] = n.value
   selectedEntry = -1
 
 proc toggleEntry(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "toggle:")
+  let id = n.key
   entries[id][1] = not entries[id][1]
 
 proc onAllDone(ev: Event; n: VNode) =
@@ -56,20 +52,43 @@ proc toChecked(checked: bool): cstring =
 proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
-proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
+when false:
+  proc entry(id: int, d: cstring; completed, selected: bool): proc (): VNode =
+    var lastid: type(id)
+    var lastd: type(d)
+    var lastCompleted: type(completed)
+    var lastSelected: type(selected)
+    proc inner(): VNode =
+      if lastid != id or lastd != d or lastCompleted != completed or lastSelected != selected:
+        result = logic(id, d, completed, selected)
+        lastid = id
+        lastd = d
+        lastCompleted = completed
+        lastSelected = selected
+
+    result = inner
+
+proc lazyEntry(args: seq[VNode]): VNode =
+  let id = args[0].intValue
+  let d = args[1].text
+  let completed = args[2].intValue != 0
+  let selected = args[3].intValue != 0
   result = buildHtml(tr):
     li(class=toClass(completed), key = id):
       if not selected:
         tdiv(class = "view"):
           input(class = "toggle", `type` = "checkbox", checked = toChecked(completed),
-                onclick=toggleEntry, id="toggle:" & &id)
-          label(onDblClick=editHandler, id="edit:" & &id):
+                onclick=toggleEntry, key = id)
+          label(onDblClick=editHandler, key = id):
             text d
-          button(class = "destroy", id="remove:" & $id, onclick=removeHandler)
+          button(class = "destroy", key = id, onclick = removeHandler)
       else:
-        input(class = "edit", name = "title", id = "todo-edit:" & &id,
+        input(class = "edit", name = "title", key = id,
           onfocusLost = focusLost,
           onenter = editEntry, value = d, setFocus)
+
+proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
+  result = thunk(lazyEntry, id, d, completed, selected)
 
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):
@@ -116,23 +135,21 @@ proc createDom(): VNode =
           text "Clear completed (" & &completedCount & ")"
 
 
-setOnscroll(proc(a, b: VKey; diff: int) =
-  const overshoot = 10
-  # scroll downwards:
-  if diff > 0:
-    #visibleA = a #max(a-diff, 0)
-    visibleB = min(b+diff+overshoot, entries.len-1)
-    visibleA = max(a-overshoot, 0)
-  else:
-    visibleA = max(a-diff-overshoot, 0)
-    visibleB = min(b+overshoot, entries.len-1)
-  #  visibleB = min(entries.len-1, visibleB + diff)
-  #  visibleA = max(0, visibleB - WindowSize*2)
-  #else:
-  #  visibleA = max(0, visibleA + diff)
-  #  visibleB = min(entries.len-1, visibleA + WindowSize - 1)
-  kout cstring"scrolling ", a, b, diff, visibleA, visibleB
-)
+when false:
+  setOnscroll(proc(a, b: VKey; diff: int) =
+    const
+      overshoot1 = 50
+      overshoot2 = 5
+    if diff > 0:
+      # scroll downwards:
+      visibleA = max(a-overshoot2, 0)
+      visibleB = min(b+diff+overshoot1, entries.len-1)
+    elif diff < 0:
+      # scroll upwards:
+      visibleA = max(a+diff-overshoot1, 0)
+      visibleB = min(b+overshoot2, entries.len-1)
+  )
+
 setOnHashChange(proc(hash: cstring) =
   if hash == cstring"#/": filter = all
   elif hash == cstring"#/completed": filter = completed
@@ -141,6 +158,6 @@ setOnHashChange(proc(hash: cstring) =
 setRenderer createDom
 
 proc onload(session: cstring) {.exportc.} =
-  for i in 0..1000:
+  for i in 0..visibleB:
     entries.add((cstring"Entry " & &i, false))
   init()
