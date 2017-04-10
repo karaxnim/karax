@@ -27,6 +27,7 @@ proc hasProp(e: Node; prop: cstring): bool {.importcpp: "(#.hasOwnProperty(#))".
 proc rawkey(e: Node): VKey {.importcpp: "#.karaxKey", nodecl.}
 proc key*(e: Node): VKey =
   if e.hasProp"karaxKey": result = e.rawkey
+  else: result = -1
 proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
 
 type
@@ -39,6 +40,12 @@ proc clientHeight(): int {.
   importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl}
 proc clientWidth(): int {.
   importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl}
+
+when false:
+  proc pageYOffset(): int {.
+    importcpp: "(window.pageYOffset)@", nodecl}
+  proc pageXOffset(): int {.
+    importcpp: "(window.pageXOffset)@", nodecl}
 
 type
   Timeout* = ref object
@@ -61,6 +68,8 @@ proc isElementInViewport(el: Node; h: var int): bool =
 proc vnodeToDom(n: VNode): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
+  elif n.kind == VNodeKind.thunk:
+    return vnodeToDom(n.callThunk)
   else:
     result = document.createElement(toTag[n.kind])
     for k in n:
@@ -72,7 +81,7 @@ proc vnodeToDom(n: VNode): Node =
     result.id = n.id
   if n.class != nil:
     result.class = n.class
-  if n.key != 0:
+  if n.key >= 0:
     result.key = n.key
   for k, v in attrs(n):
     if v != nil:
@@ -127,16 +136,15 @@ proc equals(a, b: VNode): bool =
   if a.key != b.key: return false
   if a.kind == VNodeKind.text:
     if a.text != b.text: return false
+  elif a.kind == VNodeKind.thunk:
+    if a.thunk != b.thunk: return false
+    if a.len != b.len: return false
+    for i in 0..<a.len:
+      if not equals(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
   # XXX test event listeners here?
   # --> maybe give nodes a hash?
-  when false:
-    # this needs to be done differently in a virtual DOM:
-    if a.class != b.class:
-      # style differences are updated in place and we pretend
-      # it's still the same node
-      a.class = b.class
   return true
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
@@ -175,7 +183,7 @@ proc dodraw() =
   else:
     let olddom = document.getElementById("ROOT")
     updateElement(nil, olddom, newtree, currentTree)
-    assert same(newtree, document.getElementById("ROOT"))
+    #assert same(newtree, document.getElementById("ROOT"))
     currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
@@ -185,7 +193,7 @@ proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
   # we only care about nodes that have a key:
   var hh = 0
   # do not recurse if there is a 'key' field already:
-  if e.key != 0:
+  if e.key >= 0:
     if isElementInViewport(e, hh):
       inc count
       inc h, hh
@@ -257,7 +265,8 @@ proc setOnscroll*(action: proc(min, max: VKey; diff: int)) =
     let dir = window.pageYOffset - oldY
     if dir == 0: return
 
-    var a, b: VKey
+    var a = VKey high(int)
+    var b = VKey 0
     var h, count: int
     document.visibleKeys(a, b, h, count)
     let avgh = h / count
