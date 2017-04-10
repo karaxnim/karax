@@ -4,7 +4,7 @@ from dom import Event
 
 type
   VNodeKind* {.pure.} = enum
-    text,
+    text, int, bool, thunk,
     anchor,
     tdiv,
     table, tr, td, th, thead, tbody,
@@ -14,7 +14,9 @@ type
 
 const
   toTag*: array[VNodeKind, cstring] = [
-    cstring"#text", "A", "DIV", "TABLE", "TR", "TD", "TH", "THEAD", "TBODY", "LINK",
+    cstring"#text", "#int", "#bool", "#thunk", "A", "DIV", "TABLE", "TR", "TD",
+    "TH", "THEAD",
+    "TBODY", "LINK",
     "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON", "UL",
     "LI", "SECTION", "HEADER", "FOOTER", "H1", "H2", "H3", "H4", "H5", "STRONG"
   ]
@@ -40,9 +42,22 @@ type
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
     events*: seq[(EventKind, EventHandler)]
+    thunk*: proc (args: seq[VNode]): VNode
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
+
+proc intValue*(n: VNode): int = n.key
+proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, key: i)
+proc vn*(b: bool): VNode = VNode(kind: VNodeKind.int, key: ord(b))
+proc vn*(x: cstring): VNode = VNode(kind: VNodeKind.text, key: -1, text: x)
+
+proc callThunk*(n: VNode): VNode =
+  assert n.kind == VNodeKind.thunk
+  result = n.thunk(n.kids)
+
+proc thunk*(cb: proc(args: seq[VNode]): VNode; args: varargs[VNode, vn]): VNode =
+  VNode(kind: VNodeKind.thunk, thunk: cb, kids: @args)
 
 proc eq*(a, b: VNode): bool =
   if a.kind != b.kind: return false
@@ -77,7 +92,7 @@ proc getAttr*(n: VNode; key: cstring): cstring =
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc add*(parent, kid: VNode) = parent.kids.add kid
-proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind)
+proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, key: -1)
 
 proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =
   result = newVNode(kind)
@@ -88,8 +103,8 @@ proc tree*(kind: VNodeKind; attrs: openarray[(cstring, cstring)];
   result = tree(kind, kids)
   for a in attrs: result.setAttr(a[0], a[1])
 
-proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s))
-proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s)
+proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), key: -1)
+proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, key: -1)
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]
