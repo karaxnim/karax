@@ -1,6 +1,7 @@
 # Virtual DOM implementation
 
 from dom import Event
+import shash
 
 type
   VNodeKind* {.pure.} = enum
@@ -43,6 +44,8 @@ type
     attrs: seq[cstring]
     events*: seq[(EventKind, EventHandler)]
     thunk*: proc (args: seq[VNode]): VNode
+    hash*: Hash
+    validHash*: bool
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -145,6 +148,33 @@ proc toString*(n: VNode; result: var string; indent: int) =
       toString(child, result, indent+2)
   for i in 1..indent: result.add ' '
   result.add "\L</" & $n.kind & ">"
+
+proc calcHash*(n: VNode) =
+  if n.validHash: return
+  n.validHash = true
+  var h: Hash = ord n.kind
+  if n.id != nil:
+    h &= "id"
+    h &= n.id
+  if n.class != nil:
+    h &= "class"
+    h &= n.class
+  if n.key >= 0:
+    h &= "k"
+    h &= n.key
+  for k, v in attrs(n):
+    h &= " "
+    h &= k
+    h &= "="
+    h &= v
+  if n.kind == VNodeKind.text or n.text != nil:
+    h &= "t"
+    h &= n.text
+  else:
+    for child in items(n):
+      calcHash(child)
+      h &= child.hash
+  n.hash = h
 
 proc `$`*(n: VNode): cstring =
   var res = ""

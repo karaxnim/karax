@@ -119,3 +119,6 @@ proc onload(session: cstring) {.exportc.} =
   for i in 0..1: # 0_000:
     entries.add((cstring"Entry " & &i, false))
   init()
+
+for i in 0..10_000:
+    entries.add((cstring"Entry " & &i, false))

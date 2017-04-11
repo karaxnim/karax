@@ -90,6 +90,9 @@ proc lazyEntry(args: seq[VNode]): VNode =
 proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
   result = thunk(lazyEntry, id, d, completed, selected)
 
+proc myscroll(ev: Event; n: VNode) =
+  kout cstring"scrolling event here"
+
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):
     section(class = "todoapp"):
@@ -102,6 +105,11 @@ proc createDom(): VNode =
         input(class = "toggle-all", `type` = "checkbox", name = "toggle")
         label(`for` = "toggle-all", onclick = onAllDone):
           text "Mark all as complete"
+        tdiv(onscroll = myscroll, style = "overflow: visible; width: 0px; display: block; max-height: 1em"):
+          for i in 0..4:
+            tdiv:
+              text entries[i][0]
+
         var entriesCount = 0
         var completedCount = 0
         ul(class = "todo-list"):

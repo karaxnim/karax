@@ -117,7 +117,7 @@ proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
 proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 #proc targetElem*(e: Event): Element = cast[Element](e.target)
 
-#proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
+proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
 
 #proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
 #  "document.getElementsByClassName", nodecl.}
@@ -147,6 +147,13 @@ proc equals(a, b: VNode): bool =
   # --> maybe give nodes a hash?
   return true
 
+proc equalsTree(a, b: VNode): bool =
+  if not a.validHash:
+    a.calcHash()
+  if not b.validHash:
+    b.calcHash()
+  return a.hash == b.hash
+
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   if not equals(newNode, oldNode):
     let n = vnodeToDom(newNode)
@@ -156,21 +163,49 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       parent.replaceChild(n, current)
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
-    let oldLength = oldNode.len
+    var oldLength = oldNode.len
+    let minLength = min(newLength, oldLength)
     assert oldNode.kind == newNode.kind
-    when false:
-      if current.nodeName != toTag[oldNode.kind]:
-        kout current.nodeName
-        kout toTag[oldNode.kind]
-        assert false
-    for i in 0..min(newLength, oldLength)-1:
-      updateElement(current, current[i], newNode[i], oldNode[i])
-    if newLength > oldLength:
-      for i in oldLength..newLength-1:
-        current.appendChild(vnodeToDom(newNode[i]))
-    elif oldLength > newLength:
-      for i in countdown(oldLength-1, newLength):
-        current.removeChild(current.lastChild)
+    when defined(simpleDiff):
+      for i in 0..min(newLength, oldLength)-1:
+        updateElement(current, current[i], newNode[i], oldNode[i])
+      if newLength > oldLength:
+        for i in oldLength..newLength-1:
+          current.appendChild(vnodeToDom(newNode[i]))
+      elif oldLength > newLength:
+        for i in countdown(oldLength-1, newLength):
+          current.removeChild(current.lastChild)
+    else:
+      var commonPrefix = 0
+      while commonPrefix < minLength and equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
+        inc commonPrefix
+
+      var oldPos = oldLength - 1
+      var newPos = newLength - 1
+      while oldPos >= commonPrefix and newPos >= commonPrefix and equalsTree(newNode[newPos], oldNode[oldPos]):
+        dec oldPos
+        dec newPos
+
+      var pos = min(oldPos, newPos) + 1
+      for i in commonPrefix..pos-1:
+        updateElement(current, current.childNodes[i],
+          newNode[i],
+          oldNode[i])
+
+      var nextChildPos = oldPos + 1
+      while pos <= newPos:
+        if nextChildPos == oldLength:
+          current.appendChild(vnodeToDom(newNode[pos]))
+        else:
+          current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+        # added new Node, so old state of VDOM have one more Node
+        inc oldLength
+        inc pos
+        inc nextChildPos
+
+      for i in 0..oldPos-pos:
+        current.removeChild(current.childNodes[pos])
+
 
 proc dodraw() =
   let newtree = dorender()
@@ -187,7 +222,7 @@ proc dodraw() =
     currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
-    toFocus.focus()
+    discard "toFocus.focus()"
 
 proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
   # we only care about nodes that have a key:
