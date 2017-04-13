@@ -222,7 +222,7 @@ proc dodraw() =
     currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
-    discard "toFocus.focus()"
+    toFocus.focus()
 
 proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
   # we only care about nodes that have a key:

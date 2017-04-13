@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jdict, jstrutils
+import vdom, karax, karaxdsl, jstrutils
 
 type
   Filter = enum
@@ -15,22 +15,19 @@ proc onTodoEnter(ev: Event; n: VNode) =
   n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "remove:")
-  entries[id] = (cstring(nil), false)
+  entries[n.key] = (cstring(nil), false)
 
 proc editHandler(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "edit:")
-  selectedEntry = id
+  selectedEntry = n.key
 
 proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
 
 proc editEntry(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "todo-edit:")
-  entries[id][0] = n.value
+  entries[n.key][0] = n.value
   selectedEntry = -1
 
 proc toggleEntry(ev: Event; n: VNode) =
-  let id = suffixAsInt(n.id, "toggle:")
+  let id = n.key
   entries[id][1] = not entries[id][1]
 
 proc onAllDone(ev: Event; n: VNode) =
@@ -56,12 +53,12 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
       if not selected:
         tdiv(class = "view"):
           input(class = "toggle", `type` = "checkbox", checked = toChecked(completed),
-                onclick=toggleEntry, id="toggle:" & &id)
-          label(onDblClick=editHandler, id="edit:" & &id):
+                onclick=toggleEntry, key=id)
+          label(onDblClick=editHandler, key=id):
             text d
-          button(class = "destroy", id="remove:" & $id, onclick=removeHandler)
+          button(class = "destroy", key=id, onclick=removeHandler)
       else:
-        input(class = "edit", name = "title", id = "todo-edit:" & &id,
+        input(class = "edit", name = "title", key=id,
           onfocusLost = focusLost,
           onenter = editEntry, value = d, setFocus)
 
@@ -115,10 +112,5 @@ setOnHashChange(proc(hash: cstring) =
 )
 setRenderer createDom
 
-proc onload(session: cstring) {.exportc.} =
-  for i in 0..1: # 0_000:
-    entries.add((cstring"Entry " & &i, false))
+proc onload() {.exportc.} =
   init()
-
-for i in 0..10_000:
-    entries.add((cstring"Entry " & &i, false))
