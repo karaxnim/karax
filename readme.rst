@@ -15,7 +15,7 @@ To try it out, run::
 It uses a virtual DOM like React, but is much smaller than the existing
 frameworks plus of course it's written in Nim for Nim. No external
 dependencies! And thanks to Nim's whole program optimization only what
-is used ends up producing JavaScript code.
+is used ends up in the generated JavaScript code.
 
 
 Goals
