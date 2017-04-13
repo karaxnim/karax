@@ -1,17 +1,14 @@
 
-import vdom, karax, karaxdsl, jdict, jstrutils
+import vdom, karax, karaxdsl, jdict, jstrutils, components
 
 type
   Filter = enum
     all, active, completed
 
-const
-  WindowSize = 50 # overestimating it does not harm
-
 var
   entries: seq[(cstring, bool)]
   visibleA = 0
-  visibleB = 10_000
+  visibleB = 10
   selectedEntry = -1
   filter: Filter
 
@@ -52,43 +49,21 @@ proc toChecked(checked: bool): cstring =
 proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
-when false:
-  proc entry(id: int, d: cstring; completed, selected: bool): proc (): VNode =
-    var lastid: type(id)
-    var lastd: type(d)
-    var lastCompleted: type(completed)
-    var lastSelected: type(selected)
-    proc inner(): VNode =
-      if lastid != id or lastd != d or lastCompleted != completed or lastSelected != selected:
-        result = logic(id, d, completed, selected)
-        lastid = id
-        lastd = d
-        lastCompleted = completed
-        lastSelected = selected
-
-    result = inner
-
-proc lazyEntry(args: seq[VNode]): VNode =
-  let id = args[0].intValue
-  let d = args[1].text
-  let completed = args[2].intValue != 0
-  let selected = args[3].intValue != 0
+proc createEntry(id: int; d: cstring;
+                 completed: bool, selected: bool): VNode {.component.} =
   result = buildHtml(tr):
     li(class=toClass(completed), key = id):
       if not selected:
         tdiv(class = "view"):
           input(class = "toggle", `type` = "checkbox", checked = toChecked(completed),
                 onclick=toggleEntry, key = id)
-          label(onDblClick=editHandler, key = id):
+          label(onclick=editHandler, key = id):
             text d
           button(class = "destroy", key = id, onclick = removeHandler)
       else:
         input(class = "edit", name = "title", key = id,
           onfocusLost = focusLost,
           onenter = editEntry, value = d, setFocus)
-
-proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
-  result = thunk(lazyEntry, id, d, completed, selected)
 
 proc myscroll(ev: Event; n: VNode) =
   kout cstring"scrolling event here"
@@ -105,10 +80,6 @@ proc createDom(): VNode =
         input(class = "toggle-all", `type` = "checkbox", name = "toggle")
         label(`for` = "toggle-all", onclick = onAllDone):
           text "Mark all as complete"
-        tdiv(onscroll = myscroll, style = "overflow: visible; width: 0px; display: block; max-height: 1em"):
-          for i in 0..4:
-            tdiv:
-              text entries[i][0]
 
         var entriesCount = 0
         var completedCount = 0

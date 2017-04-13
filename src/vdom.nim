@@ -5,7 +5,7 @@ import shash
 
 type
   VNodeKind* {.pure.} = enum
-    text, int, bool, thunk,
+    text, int, bool, vthunk, dthunk,
     anchor,
     tdiv,
     table, tr, td, th, thead, tbody,
@@ -15,7 +15,8 @@ type
 
 const
   toTag*: array[VNodeKind, cstring] = [
-    cstring"#text", "#int", "#bool", "#thunk", "A", "DIV", "TABLE", "TR", "TD",
+    cstring"#text", "#int", "#bool", "#vthunk", "#dthunk",
+    "A", "DIV", "TABLE", "TR", "TD",
     "TH", "THEAD",
     "TBODY", "LINK",
     "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON", "UL",
@@ -43,7 +44,6 @@ type
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
     events*: seq[(EventKind, EventHandler)]
-    thunk*: proc (args: seq[VNode]): VNode
     hash*: Hash
     validHash*: bool
 
@@ -55,23 +55,26 @@ proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, key: i)
 proc vn*(b: bool): VNode = VNode(kind: VNodeKind.int, key: ord(b))
 proc vn*(x: cstring): VNode = VNode(kind: VNodeKind.text, key: -1, text: x)
 
-proc callThunk*(n: VNode): VNode =
-  assert n.kind == VNodeKind.thunk
-  result = n.thunk(n.kids)
+template callThunk*(fn: typed; n: VNode): untyped =
+  ## for internal usage only.
+  fn(n.kids)
 
-proc thunk*(cb: proc(args: seq[VNode]): VNode; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.thunk, thunk: cb, kids: @args)
+proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
+  VNode(kind: VNodeKind.vthunk, text: name, kids: @args)
+
+proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
+  VNode(kind: VNodeKind.dthunk, text: name, kids: @args)
 
 proc eq*(a, b: VNode): bool =
   if a.kind != b.kind: return false
   if a.id != b.id: return false
   if a.class != b.class: return false
+  if a.key != b.key: return false
   if a.kind != VNodeKind.text:
     if a.kids.len != b.kids.len: return false
     for i in 0..<a.kids.len:
       if not eq(a.kids[i], b.kids[i]): return false
-  else:
-    if a.text != b.text: return false
+  if a.text != b.text: return false
   if a.attrs.len != b.attrs.len: return false
   for i in 0..<a.attrs.len:
     if a.attrs[i] != b.attrs[i]: return false

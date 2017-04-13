@@ -1,5 +1,5 @@
 
-import macros, karax, vdom
+import macros, karax, vdom, components
 from strutils import startsWith, toLowerAscii
 
 const
@@ -61,11 +61,19 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     result = n
   of nnkCallKinds:
     let op = getName(n[0])
-    if isTag(op):
+    let ck = isComponent(op)
+    let isTag = isTag(op)
+    if isTag or ck != ComponentKind.None:
       let tmp = genSym(nskLet, "tmp")
+      let call = if isTag:
+                   newCall(bindSym"tree", newDotExpr(bindSym"VNodeKind", n[0]))
+                 elif ck == ComponentKind.VNode:
+                   newCall(bindSym"vthunk", newLit(op))
+                 else:
+                   newCall(bindSym"dthunk", newLit(op))
       result = newTree(
         if tmpContext == nil: nnkStmtListExpr else: nnkStmtList,
-        newLetStmt(tmp, newCall(bindSym"tree", newDotExpr(bindSym"VNodeKind", n[0]))))
+        newLetStmt(tmp, call))
       for i in 1 ..< n.len:
         # named parameters are transformed into attributes or events:
         let x = n[i]
@@ -77,7 +85,9 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newDotAsgn(tmp, key, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
-        elif x.kind == nnkIdent:
+        elif not isTag:
+          call.add x
+        elif eqIdent(x, "setFocus"):
           result.add newCall(x, tmp)
         else:
           result.add tcall2(x, tmp)

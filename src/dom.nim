@@ -520,6 +520,8 @@ proc item*(list: TouchList, i: int): Touch
 
 {.pop.}
 
+proc setAttr*(n: Node; key, val: cstring) {.importcpp: "#.setAttribute(@)".}
+
 var
   window* {.importc, nodecl.}: Window
   document* {.importc, nodecl.}: Document

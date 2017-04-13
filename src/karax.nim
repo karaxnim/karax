@@ -1,6 +1,6 @@
 # Simple lib to write JS UIs
 
-import dom, vdom, jstrutils
+import dom, vdom, jstrutils, components, jdict
 
 export dom.Event, dom.cloneNode, dom
 
@@ -68,8 +68,12 @@ proc isElementInViewport(el: Node; h: var int): bool =
 proc vnodeToDom(n: VNode): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
-  elif n.kind == VNodeKind.thunk:
-    return vnodeToDom(n.callThunk)
+  elif n.kind == VNodeKind.vthunk:
+    let x = callThunk(vcomponents[n.text], n)
+    return vnodeToDom(x)
+  elif n.kind == VNodeKind.dthunk:
+    let x = callThunk(dcomponents[n.text], n)
+    return x
   else:
     result = document.createElement(toTag[n.kind])
     for k in n:
@@ -85,7 +89,7 @@ proc vnodeToDom(n: VNode): Node =
     result.key = n.key
   for k, v in attrs(n):
     if v != nil:
-      result.setAttribute(k, v)
+      result.setAttr(k, v)
   let myn = n
   for e, h in items(n.events):
     proc wrapper(): proc (ev: Event) =
@@ -136,23 +140,26 @@ proc equals(a, b: VNode): bool =
   if a.key != b.key: return false
   if a.kind == VNodeKind.text:
     if a.text != b.text: return false
-  elif a.kind == VNodeKind.thunk:
-    if a.thunk != b.thunk: return false
+  elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
+    if a.text != b.text: return false
     if a.len != b.len: return false
     for i in 0..<a.len:
       if not equals(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
   # XXX test event listeners here?
-  # --> maybe give nodes a hash?
   return true
 
 proc equalsTree(a, b: VNode): bool =
-  if not a.validHash:
-    a.calcHash()
-  if not b.validHash:
-    b.calcHash()
-  return a.hash == b.hash
+  when false:
+    # hashing is too fragile now with component support:
+    if not a.validHash:
+      a.calcHash()
+    if not b.validHash:
+      b.calcHash()
+    return a.hash == b.hash
+  else:
+    return eq(a, b)
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   if not equals(newNode, oldNode):
@@ -177,12 +184,14 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
           current.removeChild(current.lastChild)
     else:
       var commonPrefix = 0
-      while commonPrefix < minLength and equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
+      while commonPrefix < minLength and
+          equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
         inc commonPrefix
 
       var oldPos = oldLength - 1
       var newPos = newLength - 1
-      while oldPos >= commonPrefix and newPos >= commonPrefix and equalsTree(newNode[newPos], oldNode[oldPos]):
+      while oldPos >= commonPrefix and newPos >= commonPrefix and
+          equalsTree(newNode[newPos], oldNode[oldPos]):
         dec oldPos
         dec newPos
 
@@ -254,18 +263,6 @@ proc redraw*() =
 proc init*() =
   reqFrame(dodraw)
 
-#proc prepend*(parent, kid: Element) =
-#  parent.insertBefore(kid, parent.firstChild)
-#  prependChild(parent, kid)
-
-proc suffix*(s, prefix: cstring): cstring =
-  if s.startsWith(prefix):
-    result = s.substr(prefix.len)
-  else:
-    kout(cstring"bug! " & s & cstring" does not start with " & prefix)
-
-proc suffixAsInt*(s, prefix: cstring): int = parseInt(suffix(s, prefix))
-
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
 proc offsetTop*(e: Node): int {.importcpp: "#.offsetTop", nodecl.}
@@ -290,8 +287,6 @@ proc setOnchanged*(e: VNode; action: EventHandler) =
 
 proc setOnscroll*(e: VNode; action: EventHandler) =
   onImpl EventKind.onscroll
-
-#proc ceil(f: float): int {.importc: "Math.ceil", nodecl.}
 
 proc setOnscroll*(action: proc(min, max: VKey; diff: int)) =
   var oldY = window.pageYOffset
@@ -321,98 +316,6 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
     redraw()
   onhashchange = wrapper
 
-var
-  linkCounter: int
-
-proc link*(id: int): VNode =
-  result = newVNode(VNodeKind.anchor)
-  result.setAttr("href", "#")
-  inc linkCounter
-  result.setAttr("id", $linkCounter & ":" & $id)
-
-proc link*(action: EventHandler): VNode =
-  result = newVNode(VNodeKind.anchor)
-  result.setAttr("href", "#")
-  result.setOnclick action
-
-when false:
-  proc button*(caption: cstring; action: EventHandler; disabled=false): VNode =
-    result = newVNode(VNodeKind.button)
-    result.add text(caption)
-    if action != nil:
-      result.setOnClick action
-    if disabled:
-      result.setAttr("disabled", "true")
-
-proc select*(choices: openarray[cstring]): VNode =
-  result = newVNode(VNodeKind.select)
-  var i = 0
-  for c in choices:
-    result.add tree(VNodeKind.option, [(cstring"value", toCstr(i))], text(c))
-    inc i
-
-proc select*(choices: openarray[(int, cstring)]): VNode =
-  result = newVNode(VNodeKind.select)
-  for c in choices:
-    result.add tree(VNodeKind.option, [(cstring"value", toCstr(c[0]))], text(c[1]))
-
-var radioCounter: int
-
-proc radio*(choices: openarray[(int, cstring)]): VNode =
-  result = newVNode(VNodeKind.fieldset)
-  var i = 0
-  inc radioCounter
-  for c in choices:
-    let id = cstring"radio_" & c[1] & toCstr(i)
-    var kid = tree(VNodeKind.input, [(cstring"type", cstring"radio"),
-      (cstring"id", id), (cstring"name", cstring"radio" & toCStr(radioCounter)),
-      (cstring"value", toCStr(c[0]))])
-    if i == 0:
-      kid.setAttr(cstring"checked", cstring"checked")
-    var lab = tree(VNodeKind.label, [(cstring"for", id)], text(c[1]))
-    kid.add lab
-    result.add kid
-    inc i
-
-proc tag*(kind: VNodeKind; id=cstring(nil), class=cstring(nil)): VNode =
-  result = newVNode(kind)
-  result.id = id
-  result.class = class
-
-proc tdiv*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.tdiv, id, class)
-proc span*(id=cstring(nil), class=cstring(nil)): VNode = tag(VNodeKind.span, id, class)
-
-proc valueAsInt*(e: Node): int = parseInt(e.value)
-
-proc th*(s: cstring): VNode =
-  result = newVNode(VNodeKind.th)
-  result.add text(s)
-
-proc td*(s: string): VNode =
-  result = newVNode(VNodeKind.td)
-  result.add text(s)
-
-proc td*(s: VNode): VNode =
-  result = newVNode(VNodeKind.td)
-  result.add s
-
-proc td*(class: cstring; s: VNode): VNode =
-  result = newVNode(VNodeKind.td)
-  result.add s
-  result.class = class
-
-proc table*(class=cstring(nil), kids: varargs[VNode]): VNode =
-  result = tag(VNodeKind.table, nil, class)
-  for k in kids: result.add k
-
-proc tr*(kids: varargs[VNode]): VNode =
-  result = newVNode(VNodeKind.tr)
-  for k in kids:
-    if k.kind in {VNodeKind.td, VNodeKind.th}:
-      result.add k
-    else:
-      result.add td(k)
-
 proc getAttr(e: Node; key: cstring): cstring {.
   importcpp: "#.getAttribute(#)", nodecl.}
 
@@ -426,9 +329,6 @@ template keyeventBody() =
   redraw()
 
 proc realtimeInput*(val: cstring; action: EventHandler): VNode =
-  #let oldElem = getElementById(id)
-  #if oldElem != nil: return oldElem
-  #let newVal = if oldElem.isNil: val else: $oldElem.value
   var timer: Timeout
   proc onkeyup(ev: Event; n: VNode) =
     proc wrapper() = keyeventBody()
@@ -440,9 +340,6 @@ proc realtimeInput*(val: cstring; action: EventHandler): VNode =
   result.addEventListener(EventKind.onkeyup, onkeyup)
 
 proc enterInput*(id, val: cstring; action: EventHandler): VNode =
-  #let oldElem = getElementById(id)
-  #if oldElem != nil: return oldElem
-  #let newVal = if oldElem.isNil: val else: $oldElem.value
   proc onkeyup(ev: Event; n: VNode) =
     if ev.keyCode == 13: keyeventBody()
 
@@ -508,16 +405,13 @@ proc setupErrorHandler*(useAlert=false) =
 
 {.pop.}
 
-when false:
-  var plugins {.exportc.}: seq[(string, proc())] = @[]
+proc prepend*(parent, kid: Element) =
+  parent.insertBefore(kid, parent.firstChild)
 
-  proc onInput(val: cstring) =
-    kout val
-    if val == "dyn":
-      let body = getElementById("body")
-      body.prepend(tree("script", [("type", "text/javascript"), ("src", "nimcache/dyn.js")]))
-      redraw()
-    kout(plugins.len)
-    if plugins.len > 0:
-      plugins[0][1]()
-
+proc loadScript*(jsfilename: cstring) =
+  let body = getElementById("body")
+  let s = document.createElement("script")
+  s.setAttr "type", "text/javascript"
+  s.setAttr "src", jsfilename
+  body.prepend(s)
+  redraw()
