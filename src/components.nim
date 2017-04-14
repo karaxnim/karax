@@ -91,21 +91,29 @@ macro component*(prc: untyped): untyped =
       unpackCall.add unpack(typ, counter)
       inc counter
 
-  template vwrapper(pname, cname, nameStrLit, unpackCall) {.dirty.} =
+  template vwrapper(pname, unpackCall) {.dirty.} =
     proc pname(args: seq[VNode]): VNode =
       unpackCall
-    vcomponents[cstring(nameStrLit)] = cname
 
-  template dwrapper(pname, cname, nameStrLit, unpackCall) {.dirty.} =
+  template dwrapper(pname, unpackCall) {.dirty.} =
     proc pname(args: seq[VNode]): Node =
       unpackCall
-    dcomponents[cstring(nameStrLit)] = cname
+
+  template vregister(key, val) =
+    bind jdict.`[]=`
+    `[]=`(vcomponents, cstring(key), val)
+
+  template dregister(key, val) =
+    bind jdict.`[]=`
+    `[]=`(dcomponents, cstring(key), val)
 
   result = newTree(nnkStmtList, n)
   if isvirtual == ComponentKind.VNode:
-    result.add getAst(vwrapper(newname name, realName, newLit(nn), unpackCall))
+    result.add getAst(vwrapper(newname name, unpackCall))
+    result.add getAst(vregister(newLit(nn), realName))
   else:
-    result.add getAst(dwrapper(newname name, realName, newLit(nn), unpackCall))
+    result.add getAst(dwrapper(newname name, unpackCall))
+    result.add getAst(dregister(newLit(nn), realName))
   allcomponents[nn] = isvirtual
   when defined(debugKaraxDsl):
     echo repr result
