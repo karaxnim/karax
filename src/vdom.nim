@@ -1,37 +1,81 @@
-# Virtual DOM implementation
+## Virtual DOM implementation for Karax.
 
 from dom import Event
-import shash
+import shash, macros
+from strutils import toUpperAscii
 
 type
   VNodeKind* {.pure.} = enum
-    text, int, bool, vthunk, dthunk,
-    anchor,
-    tdiv,
-    table, tr, td, th, thead, tbody,
-    link, span, label, br, select, option,
-    fieldset, input, button, ul, li, section, header, footer,
-    h1, h2, h3, h4, h5, strong
+    text = "#text", int = "#int", bool = "#bool",
+    vthunk = "#vthunk", dthunk = "#dthunk",
 
-const
-  toTag*: array[VNodeKind, cstring] = [
-    cstring"#text", "#int", "#bool", "#vthunk", "#dthunk",
-    "A", "DIV", "TABLE", "TR", "TD",
-    "TH", "THEAD",
-    "TBODY", "LINK",
-    "SPAN", "LABEL", "BR", "SELECT", "OPTION", "FIELDSET", "INPUT", "BUTTON", "UL",
-    "LI", "SECTION", "HEADER", "FOOTER", "H1", "H2", "H3", "H4", "H5", "STRONG"
-  ]
+    html, head, title, base, link, meta, style,
+    script, noscript,
+    body, section, nav, article, aside,
+    h1, h2, h3, h4, h5, h6,
+    header, footer, address, main
+
+    p, hr, pre, blockquote, ol, ul, li,
+    dl, dt, dd,
+    figure, figcaption,
+
+    tdiv = "div",
+
+    anchor, em, strong, small,
+    strikethrough = "s", cite, quote,
+    dfn, abbr, data, time, code, `var` = "var", samp,
+    kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
+    mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
+    ins, del, img, iframe, embed, `object` = "object",
+    param, video, audio, source, track, canvas, map,
+    area, svg, math,
+
+    table, caption, colgroup, col, tbody, thead,
+    tfoot, tr, td, th,
+
+    form, fieldset, legend, label, input, button,
+    select, datalist, optgroup, option, textarea,
+    keygen, output, progress, meter,
+    details, summary, command, menu
 
 type
-  EventKind* {.pure.} = enum
-    onclick, ondblclick, onkeyup, onkeydown, onkeypressed, onblur, onchange, onscroll
+  EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
+    onclick, ## An element is clicked.
+    ondblclick, ## An element is double clicked.
+    onkeyup, ## A key was released.
+    onkeydown, ## A key is pressed.
+    onkeypressed, # A key was pressed.
+    onblur, ## An element lost the focus.
+    onchange, ## The selected value of an element was changed.
+    onscroll, ## The user scrolled within an element.
+    ondrag,  ## An element or text selection is being dragged (every 350ms).
+    ondragend, ## A drag operation is being ended (by releasing a mouse button
+               ## or hitting the escape key).
+    ondragenter, ## A dragged element or text selection enters a valid drop target.
+    ondragleave, ## A dragged element or text selection leaves a valid drop target.
+    ondragover, ## An element or text selection is being dragged over a valid
+                ## drop target (every 350ms).
+    ondragstart, ## The user starts dragging an element or text selection.
+    ondrop ## An element is dropped on a valid drop target.
 
-const
-  toEventName*: array[EventKind, cstring] = [
-    cstring"click", "dblclick", "keyup", "keydown", "keypressed", "blur",
-    "change", "scroll"
-  ]
+macro buildLookupTables(): untyped =
+  var a = newTree(nnkBracket)
+  for i in low(VNodeKind)..high(VNodeKind):
+    let x = $i
+    let y = if x[0] == '#': x else: toUpperAscii(x)
+    a.add(newCall("cstring", newLit(y)))
+  var e = newTree(nnkBracket)
+  for i in low(EventKind)..high(EventKind):
+    e.add(newCall("cstring", newLit(substr($i, 2))))
+
+  template tmpl(a, e) {.dirty.} =
+    const
+      toTag*: array[VNodeKind, cstring] = a
+      toEventName*: array[EventKind, cstring] = e
+
+  result = getAst tmpl(a, e)
+
+buildLookupTables()
 
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}

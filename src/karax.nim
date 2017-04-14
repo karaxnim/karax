@@ -111,7 +111,6 @@ proc same(n: VNode, e: Node): bool =
 
 var
   dorender: proc (): VNode {.closure.}
-  drawTimeout: Timeout
   currentTree: VNode
 
 proc setRenderer*(renderer: proc (): VNode) =
@@ -125,9 +124,8 @@ proc getElementById*(id: cstring): Element {.importc: "document.getElementById",
 
 #proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
 #  "document.getElementsByClassName", nodecl.}
-
-proc textContent(e: Node): cstring {.
-  importcpp: "#.textContent", nodecl.}
+#proc textContent(e: Node): cstring {.
+#  importcpp: "#.textContent", nodecl.}
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -215,6 +213,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       for i in 0..oldPos-pos:
         current.removeChild(current.childNodes[pos])
 
+when false:
+  var drawTimeout: Timeout
 
 proc dodraw() =
   let newtree = dorender()
@@ -315,9 +315,6 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
     action(hashPart)
     redraw()
   onhashchange = wrapper
-
-proc getAttr(e: Node; key: cstring): cstring {.
-  importcpp: "#.getAttribute(#)", nodecl.}
 
 template nativeValue(ev): cstring = cast[Element](ev.target).value
 template setNativeValue(ev, val) = cast[Element](ev.target).value = val
