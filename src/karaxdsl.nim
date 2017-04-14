@@ -23,10 +23,6 @@ proc getName(n: NimNode): string =
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
 
-proc isTag(s: string): bool =
-  for i in VNodeKind.low.succ..VNodeKind.high:
-    if $i == s: return true
-
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
   # every call statement 's' needs to be transformed to 'dest.add s'.
@@ -62,10 +58,9 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   of nnkCallKinds:
     let op = getName(n[0])
     let ck = isComponent(op)
-    let isTag = isTag(op)
-    if isTag or ck != ComponentKind.None:
+    if ck != ComponentKind.None:
       let tmp = genSym(nskLet, "tmp")
-      let call = if isTag:
+      let call = if ck == ComponentKind.Tag:
                    newCall(bindSym"tree", newDotExpr(bindSym"VNodeKind", n[0]))
                  elif ck == ComponentKind.VNode:
                    newCall(bindSym"vthunk", newLit(op))
@@ -85,7 +80,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newDotAsgn(tmp, key, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
-        elif not isTag:
+        elif ck != ComponentKind.Tag:
           call.add x
         elif eqIdent(x, "setFocus"):
           result.add newCall(x, tmp)
