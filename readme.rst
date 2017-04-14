@@ -11,6 +11,9 @@ To try it out, run::
   nim js todoapp.nim
   open todoapp.html
 
+  cd ../mediaplayer
+  nim js playerapp.nim
+  open playerapp.html
 
 It uses a virtual DOM like React, but is much smaller than the existing
 frameworks plus of course it's written in Nim for Nim. No external
@@ -24,3 +27,11 @@ Goals
 - Leverage Nim's macro system to produce a framework that allows
   for the development of applications that are boilerplate free.
 - Keep it small, keep it fast, keep it flexible.
+
+
+Todo
+====
+
+- Expose a way to access the attached real DOM element so that scroll
+  positions etc can be used.
+- Expose a nice API to do Ajax requests.
