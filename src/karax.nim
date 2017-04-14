@@ -51,7 +51,6 @@ type
   Timeout* = ref object
 
 var
-  document* {.importc.}: Document
   toFocus: Node
   toFocusV: VNode
 

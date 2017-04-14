@@ -78,7 +78,9 @@ macro component*(prc: untyped): untyped =
     isvirtual = ComponentKind.Node
   else:
     error "component must return VNode or Node"
-  n[0] = ident("inner" & $name)
+  let realName = if name.kind == nnkPostfix: name[1] else: name
+  let nn = $realName
+  n[0] = ident("inner" & nn)
   var unpackCall = newCall(n[0])
   var counter = 0
   for i in 1.. <params.len:
@@ -89,27 +91,28 @@ macro component*(prc: untyped): untyped =
       unpackCall.add unpack(typ, counter)
       inc counter
 
-  template vwrapper(wname, nameStrLit, unpackCall) {.dirty.} =
-    proc wname*(args: seq[VNode]): VNode =
+  template vwrapper(pname, cname, nameStrLit, unpackCall) {.dirty.} =
+    proc pname(args: seq[VNode]): VNode =
       unpackCall
-    vcomponents[cstring(nameStrLit)] = wname
+    vcomponents[cstring(nameStrLit)] = cname
 
-  template dwrapper(wname, nameStrLit, unpackCall) {.dirty.} =
-    proc wname(args: seq[VNode]): Node =
+  template dwrapper(pname, cname, nameStrLit, unpackCall) {.dirty.} =
+    proc pname(args: seq[VNode]): Node =
       unpackCall
-    dcomponents[cstring(nameStrLit)] = wname
+    dcomponents[cstring(nameStrLit)] = cname
 
   result = newTree(nnkStmtList, n)
   if isvirtual == ComponentKind.VNode:
-    result.add getAst(vwrapper(newname name, newLit($name), unpackCall))
+    result.add getAst(vwrapper(newname name, realName, newLit(nn), unpackCall))
   else:
-    result.add getAst(dwrapper(newname name, newLit($name), unpackCall))
-  allcomponents[$name] = isvirtual
+    result.add getAst(dwrapper(newname name, realName, newLit(nn), unpackCall))
+  allcomponents[nn] = isvirtual
   when defined(debugKaraxDsl):
     echo repr result
 
 when isMainModule:
-  proc foo(x, y: int, b: bool; s: cstring): VNode {.component.} =
+  proc public*(x, y: int, b: bool; s: cstring): VNode {.component.} =
     discard
-
+  proc private(x, y: int, b: bool; s: cstring): VNode {.component.} =
+    discard
 
