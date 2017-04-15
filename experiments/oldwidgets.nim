@@ -111,3 +111,22 @@ when false:
     if plugins.len > 0:
       plugins[0][1]()
 
+var
+  images: seq[cstring] = @[cstring"a", "b", "c", "d"]
+
+proc carousel*(): VNode =
+  var currentIndex = 0
+
+  proc next(ev: Event; n: VNode) =
+    currentIndex = (currentIndex + 1) mod images.len
+
+  proc prev(ev: Event; n: VNode) =
+    currentIndex = (currentIndex - 1) mod images.len
+
+  result = buildHtml(tdiv):
+    text images[currentIndex]
+    button(onclick = next):
+      text "Next"
+    button(onclick = prev):
+      text "Previous"
+
