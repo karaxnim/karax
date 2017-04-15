@@ -48,6 +48,20 @@ type
     onblur, ## An element lost the focus.
     onchange, ## The selected value of an element was changed.
     onscroll, ## The user scrolled within an element.
+
+    onmousedown, ## A pointing device button (usually a mouse) is pressed
+                 ## on an element.
+    onmouseenter, ## A pointing device is moved onto the element that
+                  ## has the listener attached.
+    onmouseleave, ## A pointing device is moved off the element that
+                  ## has the listener attached.
+    onmousemove, ## A pointing device is moved over an element.
+    onmouseout, ## A pointing device is moved off the element that
+                ## has the listener attached or off one of its children.
+    onmouseover, ## A pointing device is moved onto the element that has
+                 ## the listener attached or onto one of its children.
+    onmouseup, ## A pointing device button is released over an element.
+
     ondrag,  ## An element or text selection is being dragged (every 350ms).
     ondragend, ## A drag operation is being ended (by releasing a mouse button
                ## or hitting the escape key).
