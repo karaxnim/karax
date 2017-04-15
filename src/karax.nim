@@ -112,14 +112,11 @@ var
   dorender: proc (): VNode {.closure.}
   currentTree: VNode
 
-proc setRenderer*(renderer: proc (): VNode) =
-  dorender = renderer
-
 proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
 proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 #proc targetElem*(e: Event): Element = cast[Element](e.target)
 
-proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
+proc getElementById(id: cstring): Element {.importc: "document.getElementById", nodecl.}
 
 #proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
 #  "document.getElementsByClassName", nodecl.}
@@ -259,8 +256,12 @@ proc redraw*() =
   else:
     dodraw()
 
-proc init*() =
+proc init(ev: Event) =
   reqFrame(dodraw)
+
+proc setRenderer*(renderer: proc (): VNode) =
+  dorender = renderer
+  window.onload = init
 
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}

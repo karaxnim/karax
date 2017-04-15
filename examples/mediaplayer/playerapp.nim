@@ -19,6 +19,3 @@ proc createDom(): VNode =
         mplayer("vid4", url)
 
 setRenderer createDom
-
-proc onload() {.exportc.} =
-  init()

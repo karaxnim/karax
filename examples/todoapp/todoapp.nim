@@ -106,11 +106,8 @@ proc createDom(): VNode =
           text "Clear completed (" & &completedCount & ")"
 
 setOnHashChange(proc(hash: cstring) =
-  if hash == cstring"#/": filter = all
-  elif hash == cstring"#/completed": filter = completed
-  elif hash == cstring"#/active": filter = active
+  if hash == "#/": filter = all
+  elif hash == "#/completed": filter = completed
+  elif hash == "#/active": filter = active
 )
 setRenderer createDom
-
-proc onload() {.exportc.} =
-  init()
