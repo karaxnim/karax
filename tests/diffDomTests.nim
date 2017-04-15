@@ -1,10 +1,10 @@
 
-import vdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
+import dom, vdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
 
 var
     entries: seq[cstring]
     results: seq[cstring]
-    timeout : Timeout
+    timeout: Timeout
 
 proc reset() =
     results.add cstring"reset started"
@@ -139,12 +139,9 @@ proc createDom(): VNode =
             tdiv:
                 text r
 
-setRenderer createDom
-
-proc onload(session: cstring) {.exportc.} =
+proc onload() =
     for i in 0..5: # 0_000:
         entries.add(cstring($i))
-    init()
 
     var dtReset = 100
     var dtTest = 500
@@ -181,3 +178,6 @@ proc onload(session: cstring) {.exportc.} =
     t += dtReset
 
     timeout = setTimeout(test7, t)
+
+onload()
+setRenderer createDom

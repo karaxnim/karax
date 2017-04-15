@@ -33,6 +33,4 @@ Goals
 Todo
 ====
 
-- Expose a way to access the attached real DOM element so that scroll
-  positions etc can be used.
 - Expose a nice API to do Ajax requests.

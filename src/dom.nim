@@ -46,17 +46,17 @@ type
     closed*: bool
     defaultStatus*: cstring
     innerHeight*, innerWidth*: int
-    locationbar*: ref TLocationBar
-    menubar*: ref TMenuBar
+    locationbar*: ref LocationBar
+    menubar*: ref MenuBar
     name*: cstring
     outerHeight*, outerWidth*: int
     pageXOffset*, pageYOffset*: int
-    personalbar*: ref TPersonalBar
-    scrollbars*: ref TScrollBars
-    statusbar*: ref TStatusBar
+    personalbar*: ref PersonalBar
+    scrollbars*: ref ScrollBars
+    statusbar*: ref StatusBar
     status*: cstring
-    toolbar*: ref TToolBar
-    frames*: seq[TFrame]
+    toolbar*: ref ToolBar
+    frames*: seq[Frame]
 
   Frame* = ref FrameObj
   FrameObj {.importc.} = object of WindowObj
@@ -360,26 +360,26 @@ type
     language*: cstring
     platform*: cstring
     userAgent*: cstring
-    mimeTypes*: seq[ref TMimeType]
+    mimeTypes*: seq[ref MimeType]
 
-  TPlugin* {.importc.} = object of RootObj
+  Plugin* {.importc.} = object of RootObj
     description*: cstring
     filename*: cstring
     name*: cstring
 
-  TMimeType* {.importc.} = object of RootObj
+  MimeType* {.importc.} = object of RootObj
     description*: cstring
-    enabledPlugin*: ref TPlugin
+    enabledPlugin*: ref Plugin
     suffixes*: seq[cstring]
     `type`*: cstring
 
-  TLocationBar* {.importc.} = object of RootObj
+  LocationBar* {.importc.} = object of RootObj
     visible*: bool
-  TMenuBar* = TLocationBar
-  TPersonalBar* = TLocationBar
-  TScrollBars* = TLocationBar
-  TToolBar* = TLocationBar
-  TStatusBar* = TLocationBar
+  MenuBar* = LocationBar
+  PersonalBar* = LocationBar
+  ScrollBars* = LocationBar
+  ToolBar* = LocationBar
+  StatusBar* = LocationBar
 
   Screen = ref ScreenObj
   ScreenObj {.importc.} = object of RootObj
@@ -390,8 +390,15 @@ type
     pixelDepth*: int
     width*: int
 
-  TTimeOut* {.importc.} = object of RootObj
-  TInterval* {.importc.} = object of RootObj
+  TimeOut* {.importc.} = ref object of RootObj
+  Interval* {.importc.} = object of RootObj
+
+proc len*(x: Node): int {.importcpp: "#.childNodes.length".}
+proc `[]`*(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
+
+proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
+proc clearTimeout*(t: Timeout) {.importc, nodecl.}
+proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
 
 {.push importcpp.}
 
@@ -403,8 +410,8 @@ proc alert*(w: Window, msg: cstring)
 proc back*(w: Window)
 proc blur*(w: Window)
 proc captureEvents*(w: Window, eventMask: int) {.deprecated.}
-proc clearInterval*(w: Window, interval: ref TInterval)
-proc clearTimeout*(w: Window, timeout: ref TTimeOut)
+proc clearInterval*(w: Window, interval: ref Interval)
+proc clearTimeout*(w: Window, timeout: TimeOut)
 proc close*(w: Window)
 proc confirm*(w: Window, msg: cstring): bool
 proc disableExternalCapture*(w: Window)
@@ -427,10 +434,10 @@ proc resizeTo*(w: Window, x, y: int)
 proc routeEvent*(w: Window, event: Event)
 proc scrollBy*(w: Window, x, y: int)
 proc scrollTo*(w: Window, x, y: int)
-proc setInterval*(w: Window, code: cstring, pause: int): ref TInterval
-proc setInterval*(w: Window, function: proc (), pause: int): ref TInterval
-proc setTimeout*(w: Window, code: cstring, pause: int): ref TTimeOut
-proc setTimeout*(w: Window, function: proc (), pause: int): ref TInterval
+proc setInterval*(w: Window, code: cstring, pause: int): ref Interval
+proc setInterval*(w: Window, function: proc (), pause: int): ref Interval
+proc setTimeout*(w: Window, code: cstring, pause: int): TimeOut
+proc setTimeout*(w: Window, function: proc (), pause: int): ref Interval
 proc stop*(w: Window)
 proc requestAnimationFrame*(w: Window, function: proc (time: float)): int
 proc cancelAnimationFrame*(w: Window, id: int)
@@ -543,24 +550,37 @@ proc parseInt*(s: cstring): int {.importc, nodecl.}
 proc parseInt*(s: cstring, radix: int):int {.importc, nodecl.}
 
 
+proc id*(n: Node): cstring {.importcpp: "#.id", nodecl.}
+proc `id=`*(n: Node; x: cstring) {.importcpp: "#.id = #", nodecl.}
+proc class*(n: Node): cstring {.importcpp: "#.className", nodecl.}
+proc `class=`*(n: Node; v: cstring) {.importcpp: "#.className = #", nodecl.}
+
+proc value*(n: Node): cstring {.importcpp: "#.value", nodecl.}
+proc `value=`*(n: Node; v: cstring) {.importcpp: "#.value = #", nodecl.}
+
+proc `disabled=`*(n: Node; v: bool) {.importcpp: "#.disabled = #", nodecl.}
+
+proc getElementsByClass*(n: Node; name: cstring): seq[Node] {.
+  importcpp: "#.getElementsByClassName(#)", nodecl.}
+
+
 type
-  TEventHandlers* {.deprecated.} = EventTargetObj
-  TWindow* {.deprecated.} = WindowObj
-  TFrame* {.deprecated.} = FrameObj
-  TNode* {.deprecated.} = NodeObj
-  TDocument* {.deprecated.} = DocumentObj
-  TElement* {.deprecated.} = ElementObj
-  TLink* {.deprecated.} = LinkObj
-  TEmbed* {.deprecated.} = EmbedObj
-  TAnchor* {.deprecated.} = AnchorObj
-  TOption* {.deprecated.} = OptionObj
-  TForm* {.deprecated.} = FormObj
-  TImage* {.deprecated.} = ImageObj
-  TNodeType* {.deprecated.} = NodeType
-  TEvent* {.deprecated.} = EventObj
-  TLocation* {.deprecated.} = LocationObj
-  THistory* {.deprecated.} = HistoryObj
-  TNavigator* {.deprecated.} = NavigatorObj
-  TStyle* {.deprecated.} = StyleObj
-  TScreen* {.deprecated.} = ScreenObj
-  TApplet* {.importc, deprecated.} = object of RootObj
+  BoundingRect* {.importc.} = object
+    top*, bottom*, left*, right*: int
+
+proc getBoundingClientRect*(e: Node): BoundingRect {.
+  importcpp: "getBoundingClientRect", nodecl.}
+proc clientHeight*(): int {.
+  importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl}
+proc clientWidth*(): int {.
+  importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl}
+
+proc inViewport*(el: Node): bool =
+  let rect = el.getBoundingClientRect()
+  result = rect.top >= 0 and rect.left >= 0 and
+           rect.bottom <= clientHeight() and
+           rect.right <= clientWidth()
+
+proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
+proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
+proc offsetTop*(e: Node): int {.importcpp: "#.offsetTop", nodecl.}

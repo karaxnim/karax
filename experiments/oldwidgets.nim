@@ -100,6 +100,50 @@ proc suffixAsInt*(s, prefix: cstring): int = parseInt(suffix(s, prefix))
 
 #proc ceil(f: float): int {.importc: "Math.ceil", nodecl.}
 
+proc realtimeInput*(val: cstring; action: EventHandler): VNode =
+  var timer: Timeout
+  proc onkeyup(ev: Event; n: VNode) =
+    proc wrapper() = keyeventBody()
+
+    if timer != nil: clearTimeout(timer)
+    timer = setTimeout(wrapper, 400)
+  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
+  result.value = val
+  result.addEventListener(EventKind.onkeyup, onkeyup)
+
+proc enterInput*(id, val: cstring; action: EventHandler): VNode =
+  proc onkeyup(ev: Event; n: VNode) =
+    if ev.keyCode == 13: keyeventBody()
+
+  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
+  result.id = id
+  result.value = val
+  result.addEventListener(EventKind.onkeyup, onkeyup)
+
+proc setOnEnter*(n: VNode; action: EventHandler) =
+  proc onkeyup(ev: Event; n: VNode) =
+    if ev.keyCode == 13: keyeventBody()
+  n.addEventListener(EventKind.onkeyup, onkeyup)
+
+proc setOnscroll*(action: proc(min, max: VKey; diff: int)) =
+  var oldY = window.pageYOffset
+
+  proc wrapper(ev: Event) =
+    let dir = window.pageYOffset - oldY
+    if dir == 0: return
+
+    var a = VKey high(int)
+    var b = VKey 0
+    var h, count: int
+    document.visibleKeys(a, b, h, count)
+    let avgh = h / count
+    let diff = toInt(dir.float / avgh)
+    if diff != 0:
+      oldY = window.pageYOffset
+      action(a, b, diff)
+      redraw()
+
+  document.addEventListener("scroll", wrapper)
 
 when false:
   var plugins {.exportc.}: seq[(string, proc())] = @[]
@@ -130,3 +174,30 @@ proc carousel*(): VNode =
     button(onclick = prev):
       text "Previous"
 
+#proc targetElem*(e: Event): Element = cast[Element](e.target)
+
+#proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
+#  "document.getElementsByClassName", nodecl.}
+#proc textContent(e: Node): cstring {.
+#  importcpp: "#.textContent", nodecl.}
+
+proc isElementInViewport(el: Node; h: var int): bool =
+  let rect = el.getBoundingClientRect()
+  h = rect.bottom - rect.top
+  result = rect.top >= 0 and rect.left >= 0 and
+           rect.bottom <= clientHeight() and
+           rect.right <= clientWidth()
+
+proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
+  # we only care about nodes that have a key:
+  var hh = 0
+  # do not recurse if there is a 'key' field already:
+  if e.key >= 0:
+    if isElementInViewport(e, hh):
+      inc count
+      inc h, hh
+      a = min(a, e.key)
+      b = max(b, e.key)
+  else:
+    for i in 0..<e.len:
+      visibleKeys(e[i], a, b, h, count)

@@ -1,6 +1,6 @@
 ## Virtual DOM implementation for Karax.
 
-from dom import Event
+from dom import Event, Node
 import shash, macros
 from strutils import toUpperAscii
 
@@ -21,7 +21,7 @@ type
 
     tdiv = "div",
 
-    anchor, em, strong, small,
+    a, em, strong, small,
     strikethrough = "s", cite, quote,
     dfn, abbr, data, time, code, `var` = "var", samp,
     kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
@@ -70,7 +70,11 @@ type
     ondragover, ## An element or text selection is being dragged over a valid
                 ## drop target (every 350ms).
     ondragstart, ## The user starts dragging an element or text selection.
-    ondrop ## An element is dropped on a valid drop target.
+    ondrop, ## An element is dropped on a valid drop target.
+
+    onkeyupenter, ## vdom extension: an input field received the ENTER key press
+    onkeyuplater  ## vdom extension: a key was pressed and some time
+                  ## passed (useful for on-the-fly text completions)
 
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
@@ -104,6 +108,8 @@ type
     events*: seq[(EventKind, EventHandler)]
     hash*: Hash
     validHash*: bool
+    dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
+               ## is not part of the virtual DOM anymore.
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v

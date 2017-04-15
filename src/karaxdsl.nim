@@ -75,7 +75,8 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         if x.kind == nnkExprEqExpr:
           let key = getName x[0]
           if key.startsWith("on"):
-            result.add newCall(!("set" & key), tmp, x[1])
+            result.add newCall(bindSym"addEventHandler",
+              tmp, newDotExpr(bindSym"EventKind", x[0]), x[1])
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           else:

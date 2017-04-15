@@ -1,27 +1,11 @@
-# Simple lib to write JS UIs
+## Karax -- Single page applications for Nim.
 
 import dom, vdom, jstrutils, components, jdict
 
-export dom.Event, dom.cloneNode, dom
-
-proc len(x: Node): int {.importcpp: "#.childNodes.length".}
-proc `[]`(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
+export dom.Event #, dom.cloneNode, dom
 
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## the preferred way of debugging karax applications.
-
-proc id*(e: Node): cstring {.importcpp: "#.id", nodecl.}
-proc `id=`*(e: Node; x: cstring) {.importcpp: "#.id = #", nodecl.}
-proc class*(e: Node): cstring {.importcpp: "#.className", nodecl.}
-proc `class=`*(e: Node; v: cstring) {.importcpp: "#.className = #", nodecl.}
-
-proc value*(e: Node): cstring {.importcpp: "#.value", nodecl.}
-proc `value=`*(e: Node; v: cstring) {.importcpp: "#.value = #", nodecl.}
-
-proc `disabled=`*(e: Node; v: bool) {.importcpp: "#.disabled = #", nodecl.}
-
-proc getElementsByClass*(e: Node; name: cstring): seq[Node] {.
-  importcpp: "#.getElementsByClassName(#)", nodecl.}
 
 proc hasProp(e: Node; prop: cstring): bool {.importcpp: "(#.hasOwnProperty(#))".}
 proc rawkey(e: Node): VKey {.importcpp: "#.karaxKey", nodecl.}
@@ -30,26 +14,6 @@ proc key*(e: Node): VKey =
   else: result = -1
 proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
 
-type
-  BoundingRect {.importc.} = object
-    top, bottom, left, right: int
-
-proc getBoundingClientRect(e: Node): BoundingRect {.
-  importcpp: "getBoundingClientRect", nodecl.}
-proc clientHeight(): int {.
-  importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl}
-proc clientWidth(): int {.
-  importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl}
-
-when false:
-  proc pageYOffset(): int {.
-    importcpp: "(window.pageYOffset)@", nodecl}
-  proc pageXOffset(): int {.
-    importcpp: "(window.pageXOffset)@", nodecl}
-
-type
-  Timeout* = ref object
-
 var
   toFocus: Node
   toFocusV: VNode
@@ -57,24 +21,69 @@ var
 proc setFocus*(n: VNode) =
   toFocusV = n
 
-proc isElementInViewport(el: Node; h: var int): bool =
-  let rect = el.getBoundingClientRect()
-  h = rect.bottom - rect.top
-  result = rect.top >= 0 and rect.left >= 0 and
-           rect.bottom <= clientHeight() and
-           rect.right <= clientWidth()
+# ----------------- event wrapping ---------------------------------------
+
+template nativeValue(ev): cstring = cast[Element](ev.target).value
+template setNativeValue(ev, val) = cast[Element](ev.target).value = val
+
+template keyeventBody() =
+  n.value = nativeValue(ev)
+  action(ev, n)
+  setNativeValue(ev, n.value)
+  # Do not call redraw() here! That is already done
+  # by ``karax.addEventHandler``.
+
+proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
+  proc stdWrapper(): (proc (ev: Event)) =
+    let action = action
+    let n = n
+    result = proc (ev: Event) =
+      action(ev, n)
+
+  proc enterWrapper(): (proc (ev: Event)) =
+    let action = action
+    let n = n
+    result = proc (ev: Event) =
+      if ev.keyCode == 13: keyeventBody()
+
+  proc laterWrapper(): (proc (ev: Event)) =
+    let action = action
+    let n = n
+    var timer: Timeout
+    result = proc (ev: Event) =
+      proc wrapper() = keyeventBody()
+      if timer != nil: clearTimeout(timer)
+      timer = setTimeout(wrapper, 400)
+
+  case k
+  of EventKind.onkeyuplater:
+    d.addEventListener("keyup", laterWrapper())
+  of EventKind.onkeyupenter:
+    d.addEventListener("keyup", enterWrapper())
+  else:
+    d.addEventListener(toEventName[k], stdWrapper())
+
+# --------------------- DOM diff -----------------------------------------
+
+template detach(n: VNode) = n.dom = nil
+template attach(n: Vnode) = n.dom = result
 
 proc vnodeToDom(n: VNode): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
+    attach n
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
-    return vnodeToDom(x)
+    result = vnodeToDom(x)
+    attach n
+    return result
   elif n.kind == VNodeKind.dthunk:
-    let x = callThunk(dcomponents[n.text], n)
-    return x
+    result = callThunk(dcomponents[n.text], n)
+    attach n
+    return result
   else:
     result = document.createElement(toTag[n.kind])
+    attach n
     for k in n:
       appendChild(result, vnodeToDom(k))
     # text is mapped to 'value':
@@ -89,14 +98,8 @@ proc vnodeToDom(n: VNode): Node =
   for k, v in attrs(n):
     if v != nil:
       result.setAttr(k, v)
-  let myn = n
   for e, h in items(n.events):
-    proc wrapper(): proc (ev: Event) =
-      let hh = h
-      result = proc (ev: Event) =
-        assert myn != nil
-        hh(ev, myn)
-    result.addEventListener(toEventName[e], wrapper())
+    wrapEvent(result, n, e, h)
   if n == toFocusV and toFocus.isNil:
     toFocus = result
 
@@ -112,23 +115,12 @@ var
   dorender: proc (): VNode {.closure.}
   currentTree: VNode
 
-proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
-proc clearTimeout*(t: Timeout) {.importc, nodecl.}
-#proc targetElem*(e: Event): Element = cast[Element](e.target)
-
-proc getElementById(id: cstring): Element {.importc: "document.getElementById", nodecl.}
-
-#proc getElementsByClassName*(cls: cstring): seq[Element] {.importc:
-#  "document.getElementsByClassName", nodecl.}
-#proc textContent(e: Node): cstring {.
-#  importcpp: "#.textContent", nodecl.}
-
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
   x.parentNode.replaceChild(newTree, x)
   #newTree.id = id
 
-proc equals(a, b: VNode): bool =
+proc equalsShallow(a, b: VNode): bool =
   if a.kind != b.kind: return false
   if a.id != b.id: return false
   if a.key != b.key: return false
@@ -138,7 +130,7 @@ proc equals(a, b: VNode): bool =
     if a.text != b.text: return false
     if a.len != b.len: return false
     for i in 0..<a.len:
-      if not equals(a[i], b[i]): return false
+      if not equalsShallow(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
   # XXX test event listeners here?
@@ -156,7 +148,8 @@ proc equalsTree(a, b: VNode): bool =
     return eq(a, b)
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
-  if not equals(newNode, oldNode):
+  if not equalsShallow(newNode, oldNode):
+    detach(oldNode)
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById("ROOT", n)
@@ -175,6 +168,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
           current.appendChild(vnodeToDom(newNode[i]))
       elif oldLength > newLength:
         for i in countdown(oldLength-1, newLength):
+          detach(oldNode[i])
           current.removeChild(current.lastChild)
     else:
       var commonPrefix = 0
@@ -191,9 +185,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
 
       var pos = min(oldPos, newPos) + 1
       for i in commonPrefix..pos-1:
-        updateElement(current, current.childNodes[i],
-          newNode[i],
-          oldNode[i])
+        updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
 
       var nextChildPos = oldPos + 1
       while pos <= newPos:
@@ -206,7 +198,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         inc pos
         inc nextChildPos
 
-      for i in 0..oldPos-pos:
+      for i in pos..oldPos:
+        detach(oldNode[i])
         current.removeChild(current.childNodes[pos])
 
 when false:
@@ -229,20 +222,6 @@ proc dodraw() =
   if toFocus != nil:
     toFocus.focus()
 
-proc visibleKeys(e: Node; a, b: var VKey; h, count: var int) =
-  # we only care about nodes that have a key:
-  var hh = 0
-  # do not recurse if there is a 'key' field already:
-  if e.key >= 0:
-    if isElementInViewport(e, hh):
-      inc count
-      inc h, hh
-      a = min(a, e.key)
-      b = max(b, e.key)
-  else:
-    for i in 0..<e.len:
-      visibleKeys(e[i], a, b, h, count)
-
 proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
 
 proc redraw*() =
@@ -263,50 +242,16 @@ proc setRenderer*(renderer: proc (): VNode) =
   dorender = renderer
   window.onload = init
 
-proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
-proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
-proc offsetTop*(e: Node): int {.importcpp: "#.offsetTop", nodecl.}
-
-template onImpl(s) {.dirty.} =
+proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
+  ## Implements the foundation of Karax's event management.
+  ## Karax DSL transforms ``tag(onEvent = handler)`` to
+  ## ``tempNode.addEventHandler(tagNode, EventKind.onEvent, wrapper)``
+  ## where ``wrapper`` calls the passed ``action`` and then triggers
+  ## a ``redraw``.
   proc wrapper(ev: Event; n: VNode) =
     action(ev, n)
     redraw()
-  addEventListener(e, s, wrapper)
-
-proc setOnclick*(e: VNode; action: EventHandler) =
-  onImpl EventKind.onclick
-
-proc setOnDblclick*(e: VNode; action: EventHandler) =
-  onImpl EventKind.ondblclick
-
-proc setOnfocuslost*(e: VNode; action: EventHandler) =
-  onImpl EventKind.onblur
-
-proc setOnchanged*(e: VNode; action: EventHandler) =
-  onImpl EventKind.onchange
-
-proc setOnscroll*(e: VNode; action: EventHandler) =
-  onImpl EventKind.onscroll
-
-proc setOnscroll*(action: proc(min, max: VKey; diff: int)) =
-  var oldY = window.pageYOffset
-
-  proc wrapper(ev: Event) =
-    let dir = window.pageYOffset - oldY
-    if dir == 0: return
-
-    var a = VKey high(int)
-    var b = VKey 0
-    var h, count: int
-    document.visibleKeys(a, b, h, count)
-    let avgh = h / count
-    let diff = toInt(dir.float / avgh)
-    if diff != 0:
-      oldY = window.pageYOffset
-      action(a, b, diff)
-      redraw()
-
-  document.addEventListener("scroll", wrapper)
+  addEventListener(n, k, wrapper)
 
 proc setOnHashChange*(action: proc (hashPart: cstring)) =
   var onhashChange {.importc: "window.onhashchange".}: proc()
@@ -315,40 +260,6 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
     action(hashPart)
     redraw()
   onhashchange = wrapper
-
-template nativeValue(ev): cstring = cast[Element](ev.target).value
-template setNativeValue(ev, val) = cast[Element](ev.target).value = val
-
-template keyeventBody() =
-  n.value = nativeValue(ev)
-  action(ev, n)
-  setNativeValue(ev, n.value)
-  redraw()
-
-proc realtimeInput*(val: cstring; action: EventHandler): VNode =
-  var timer: Timeout
-  proc onkeyup(ev: Event; n: VNode) =
-    proc wrapper() = keyeventBody()
-
-    if timer != nil: clearTimeout(timer)
-    timer = setTimeout(wrapper, 400)
-  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
-  result.value = val
-  result.addEventListener(EventKind.onkeyup, onkeyup)
-
-proc enterInput*(id, val: cstring; action: EventHandler): VNode =
-  proc onkeyup(ev: Event; n: VNode) =
-    if ev.keyCode == 13: keyeventBody()
-
-  result = tree(VNodeKind.input, [(cstring"type", cstring"text")])
-  result.id = id
-  result.value = val
-  result.addEventListener(EventKind.onkeyup, onkeyup)
-
-proc setOnEnter*(n: VNode; action: EventHandler) =
-  proc onkeyup(ev: Event; n: VNode) =
-    if ev.keyCode == 13: keyeventBody()
-  n.addEventListener(EventKind.onkeyup, onkeyup)
 
 proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
@@ -402,7 +313,7 @@ proc setupErrorHandler*(useAlert=false) =
 
 {.pop.}
 
-proc prepend*(parent, kid: Element) =
+proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
 proc loadScript*(jsfilename: cstring) =

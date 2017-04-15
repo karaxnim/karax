@@ -59,8 +59,8 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
           button(class = "destroy", key=id, onclick=removeHandler)
       else:
         input(class = "edit", name = "title", key=id,
-          onfocusLost = focusLost,
-          onenter = editEntry, value = d, setFocus)
+          onblur = focusLost,
+          onkeyupenter = editEntry, value = d, setFocus)
 
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):
@@ -69,7 +69,7 @@ proc createDom(): VNode =
         h1:
           text "todos"
         input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
-              onenter = onTodoEnter, setFocus)
+              onkeyupenter = onTodoEnter, setFocus)
       section(class = "main"):
         input(class = "toggle-all", `type` = "checkbox", name = "toggle")
         label(`for` = "toggle-all", onclick = onAllDone):
@@ -94,13 +94,13 @@ proc createDom(): VNode =
           text cstring" item" & &(if entriesCount != 1: "s left" else: " left")
         ul(class = "filters"):
           li:
-            anchor(class = selected(all), href = "#/"):
+            a(class = selected(all), href = "#/"):
               text "All"
           li:
-            anchor(class = selected(active), href = "#/active"):
+            a(class = selected(active), href = "#/active"):
               text "Active"
           li:
-            anchor(class = selected(completed), href = "#/completed"):
+            a(class = selected(completed), href = "#/completed"):
               text "Completed"
         button(class = "clear-completed", onclick = clearCompleted):
           text "Clear completed (" & &completedCount & ")"
