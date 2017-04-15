@@ -10,8 +10,9 @@ To try it out, run::
   cd examples/todoapp
   nim js todoapp.nim
   open todoapp.html
+  cd ../..
 
-  cd ../mediaplayer
+  cd examples/mediaplayer
   nim js playerapp.nim
   open playerapp.html
 
