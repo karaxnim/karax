@@ -30,6 +30,53 @@ proc addTags() {.compileTime.} =
 static:
   addTags()
 
+template toState(x): untyped = "state" & x
+proc accessState(sv: string): NimNode {.compileTime.} =
+  newTree(nnkBracketExpr, newIdentNode(sv), newIdentNode("key"))
+
+proc stateDecl(n: NimNode; names: TableRef[string, bool]; decl, init: NimNode) =
+  case n.kind
+  of nnkVarSection, nnkLetSection:
+    for c in n:
+      expectKind c, nnkIdentDefs
+      let typ = c[^2]
+      let val = c[^1]
+      let usedType = if typ.kind != nnkEmpty: typ else: val
+      if usedType.kind == nnkEmpty:
+        error(c, "cannot determine the variable's type")
+      for i in 0 .. c.len-3:
+        let v = $c[i]
+        let sv = toState v
+        decl.add quote do:
+          var `sv` = newJDict[VKey, `usedType`]()
+        if val.kind != nnkEmpty:
+          init.add newTree(nnkAsgn, accessState(sv), val)
+        names[v] = true
+  of nnkStmtList, nnkStmtListExpr:
+    for x in n: stateDecl(x, names, decl, init)
+  of nnkDo:
+    stateDecl(n.body, names, decl, init)
+  of nnkCommentStmt: discard
+  else:
+    error(n, "invalid 'state' declaration")
+
+proc doState(n: NimNode; names: TableRef[string, bool]; decl, init: NimNode): NimNode =
+  result = n
+  case n.kind
+  of nnkCallKinds:
+    # handle 'state' declaration and remove it from the AST:
+    if n.len == 2 and repr(n[0]) == "state":
+      stateDecl(n[1], names, decl, init)
+      result = newTree(nnkEmpty)
+  of nnkSym, nnkIdent:
+    let v = $n
+    if v in names:
+      let sv = toState v
+      result = accessState(sv)
+  else:
+    for i in 0..<n.len:
+      result[i] = doState(n[i], names, decl, init)
+
 proc unpack(symbolicType: NimNode; index: int): NimNode {.compileTime.} =
   #let t = symbolicType.getTypeImpl
   let t = repr(symbolicType)
