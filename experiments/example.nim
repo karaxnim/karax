@@ -10,7 +10,6 @@ proc carousel*(key: VKey): VNode {.component.} =
 
   proc next(ev: Event; n: VNode) =
     counter = (counter + 1) mod images.len
-    markDirty key
 
   result = buildHtml(tdiv(key=key)):
     text images[counter]

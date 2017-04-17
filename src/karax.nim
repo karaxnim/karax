@@ -116,8 +116,6 @@ proc same(n: VNode, e: Node): bool =
 var
   dorender: proc (): VNode {.closure.}
   currentTree: VNode
-  dirty = newJDict[cstring, bool]()
-  dirtyCount: int
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -151,14 +149,9 @@ proc equalsTree(a, b: VNode): bool =
   else:
     result = eq(a, b)
 
-proc markDirty*(key: VKey) =
-  dirty[&key] = true
-  inc dirtyCount
-
 proc updateDirtyElements(parent, current: Node, newNode: VNode) =
-  if newNode.key >= 0 and dirty.contains(&newNode.key):
-    dirty.del(&newNode.key)
-    dec dirtyCount
+  if newNode.key >= 0 and isDirty(newNode.key):
+    unmarkDirty(newNode.key)
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById("ROOT", n)
@@ -241,9 +234,9 @@ proc dodraw() =
     let olddom = document.getElementById("ROOT")
     updateElement(nil, olddom, newtree, currentTree)
     #assert same(newtree, document.getElementById("ROOT"))
-    if dirtyCount > 0:
+    if someDirty:
       updateDirtyElements(nil, olddom, newtree)
-      dirtyCount = 0
+      someDirty = false
     currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
