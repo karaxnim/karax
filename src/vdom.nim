@@ -124,10 +124,10 @@ template callThunk*(fn: typed; n: VNode): untyped =
   fn(n.kids)
 
 proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.vthunk, text: name, kids: @args)
+  VNode(kind: VNodeKind.vthunk, text: name, key: -1, kids: @args)
 
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.dthunk, text: name, kids: @args)
+  VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
 proc eq*(a, b: VNode): bool =
   if a.kind != b.kind: return false

@@ -75,10 +75,12 @@ proc vnodeToDom(n: VNode): Node =
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = vnodeToDom(x)
+    n.key = result.key
     attach n
     return result
   elif n.kind == VNodeKind.dthunk:
     result = callThunk(dcomponents[n.text], n)
+    n.key = result.key
     attach n
     return result
   else:
@@ -145,7 +147,22 @@ proc equalsTree(a, b: VNode): bool =
       b.calcHash()
     return a.hash == b.hash
   else:
-    return eq(a, b)
+    result = eq(a, b)
+
+proc updateDirtyElements(parent, current: Node, newNode: VNode) =
+  if newNode.key >= 0 and isDirty(newNode.key):
+    unmarkDirty(newNode.key)
+    let n = vnodeToDom(newNode)
+    if parent == nil:
+      replaceById("ROOT", n)
+    else:
+      parent.replaceChild(n, current)
+  elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
+       newNode.kind != VNodeKind.dthunk:
+    for i in 0..newNode.len-1:
+      updateDirtyElements(current, current[i], newNode[i])
+      # leave early if we know there cannot be anything left to do:
+      #if dirtyCount <= 0: return
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   if not equalsShallow(newNode, oldNode):
@@ -217,6 +234,9 @@ proc dodraw() =
     let olddom = document.getElementById("ROOT")
     updateElement(nil, olddom, newtree, currentTree)
     #assert same(newtree, document.getElementById("ROOT"))
+    if someDirty:
+      updateDirtyElements(nil, olddom, newtree)
+      someDirty = false
     currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
