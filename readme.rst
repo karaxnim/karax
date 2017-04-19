@@ -7,6 +7,8 @@ to change.
 
 To try it out, run::
 
+  nimble install # For first time
+
   cd examples/todoapp
   nim js todoapp.nim
   open todoapp.html
