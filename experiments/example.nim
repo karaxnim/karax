@@ -6,7 +6,7 @@ var
 
 proc carousel*(key: VKey): VNode {.component.} =
   state:
-    var counter = 0
+    var counter: int = 0
 
   proc next(ev: Event; n: VNode) =
     counter = (counter + 1) mod images.len

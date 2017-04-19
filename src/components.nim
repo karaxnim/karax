@@ -4,8 +4,9 @@ import macros, jdict, dom, vdom, tables, strutils
 
 type
   StateDict*[V] = ref object
+    defaultValue*: V
 
-proc `[]`*[V](d: StateDict[V], k: VKey): V {.importcpp: "#[#]".}
+proc get[V](d: StateDict[V], k: VKey): V {.importcpp: "#[#]".}
 proc put[V](d: StateDict[V], k: VKey, v: V) {.importcpp: "#[#] = #".}
 
 proc contains*[V](d: StateDict[V], k: VKey): bool {.importcpp: "#.hasOwnProperty(#)".}
@@ -23,6 +24,10 @@ proc markDirty*(key: VKey) =
 
 proc unmarkDirty*(key: VKey) = dirty.del key
 proc isDirty*(key: VKey): bool = dirty.contains(key)
+
+proc `[]`*[V](d: StateDict[V], k: VKey): V =
+  if d.contains(k): result = d.get(k)
+  else: result = d.defaultValue
 
 proc `[]=`*[V](d: StateDict[V], k: VKey, v: V) =
   d.put(k, v)
@@ -56,50 +61,62 @@ proc addTags() {.compileTime.} =
 static:
   addTags()
 
-proc stateDecl(n: NimNode; names: TableRef[string, bool]) =
+
+template toState(x): untyped = newIdentNode("state" & x)
+proc accessState(sv: NimNode): NimNode {.compileTime.} =
+  newTree(nnkBracketExpr, sv, newIdentNode("key"))
+
+proc stateDecl(n: NimNode; names: TableRef[string, bool]; decl: NimNode) =
   case n.kind
   of nnkVarSection, nnkLetSection:
     for c in n:
       expectKind c, nnkIdentDefs
+      let typ = c[^2]
+      let val = c[^1]
+      let usedType = if typ.kind != nnkEmpty: typ else: newCall("type", val)
+      if usedType.kind == nnkEmpty:
+        error("cannot determine the variable's type", c)
       for i in 0 .. c.len-3:
         let v = $c[i]
+        let sv = toState v
+        decl.add quote do:
+          var `sv` = newStateDict[`usedType`]()
+        if val.kind != nnkEmpty:
+          decl.add newTree(nnkAsgn, newDotExpr(sv, newIdentNode"defaultValue"),
+                           val)
+        else:
+          error("component state must have a primitive initializer")
         names[v] = true
   of nnkStmtList, nnkStmtListExpr:
-    for x in n: stateDecl(x, names)
+    for x in n: stateDecl(x, names, decl)
   of nnkDo:
-    stateDecl(n.body, names)
-  else: discard
-
-proc accessesState(n: NimNode; names: TableRef[string, bool]): bool =
-  case n.kind
-  of nnkSym, nnkIdent:
-    result = $n in names
-  of nnkBracketExpr, nnkDotExpr:
-    result = accessesState(n[0], names)
+    stateDecl(n.body, names, decl)
+  of nnkCommentStmt: discard
   else:
-    for i in 0..<n.len:
-      if accessesState(n[i], names): return true
+    error("invalid 'state' declaration", n)
 
 proc doState(n: NimNode; names: TableRef[string, bool];
-             outer: NimNode): NimNode =
-  result = n
+             decl: NimNode): NimNode =
   case n.kind
   of nnkCallKinds:
-    # handle 'state' declaration and move it to the outer block:
+    # handle 'state' declaration and remove it from the AST:
     if n.len == 2 and repr(n[0]) == "state":
-      stateDecl(n[1], names)
-      outer.add n[1]
-      result = newEmptyNode()
-  of nnkAsgn, nnkFastAsgn:
-    if accessesState(n[0], names):
-      result = newStmtList(n, newCall(bindSym"markDirty", newIdentNode"key"))
-  else:
-    for i in 0..<n.len:
-      result[i] = doState(n[i], names, outer)
+      stateDecl(n[1], names, decl)
+      return nil #newTree(nnkEmpty)
+  of nnkSym, nnkIdent:
+    let v = $n
+    if v in names:
+      let sv = toState v
+      return accessState(sv)
+  else: discard
+  result = copyNimNode(n)
+  for i in 0..<n.len:
+    let x = doState(n[i], names, decl)
+    if x != nil: result.add x
 
-proc compBody(body, outer: NimNode): NimNode =
+proc compBody(body, decl: NimNode): NimNode =
   var names = newTable[string, bool]()
-  result = doState(body, names, outer)
+  result = doState(body, names, decl)
 
 proc unpack(symbolicType: NimNode; index: int): NimNode {.compileTime.} =
   #let t = symbolicType.getTypeImpl
@@ -162,8 +179,8 @@ macro component*(prc: untyped): untyped =
       unpackCall.add unpack(typ, counter)
       inc counter
 
-  let outer = newTree(nnkStmtList)
-  discard compBody(n.body, outer)
+  let decl = newTree(nnkStmtList)
+  let newBody = compBody(n, decl)
 
   template vwrapper(pname, unpackCall) {.dirty.} =
     proc pname(args: seq[VNode]): VNode =
@@ -181,15 +198,13 @@ macro component*(prc: untyped): untyped =
     bind jdict.`[]=`
     `[]=`(dcomponents, cstring(key), val)
 
-  outer.add n
-  #outer.add body
-  outer.add unpackCall
-  result = newTree(nnkStmtList)
+  result = newTree(nnkStmtList, decl, newBody)
+
   if isvirtual == ComponentKind.VNode:
-    result.add getAst(vwrapper(newname name, outer))
+    result.add getAst(vwrapper(newname name, unpackCall))
     result.add getAst(vregister(newLit(nn), realName))
   else:
-    result.add getAst(dwrapper(newname name, outer))
+    result.add getAst(dwrapper(newname name, unpackCall))
     result.add getAst(dregister(newLit(nn), realName))
   allcomponents[nn] = isvirtual
   when defined(debugKaraxDsl):
@@ -205,6 +220,6 @@ when isMainModule:
 
     let cc = callback
 
-  proc private(x, y: int, b: bool; s: cstring): VNode {.component.} =
-    discard
-
+  when false:
+    proc private(x, y: int, b: bool; s: cstring): VNode {.component.} =
+      discard
