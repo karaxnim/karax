@@ -102,7 +102,7 @@ proc doState(n: NimNode; names: TableRef[string, bool];
     # handle 'state' declaration and remove it from the AST:
     if n.len == 2 and repr(n[0]) == "state":
       stateDecl(n[1], names, decl)
-      return nil #newTree(nnkEmpty)
+      return newTree(nnkNone)
   of nnkSym, nnkIdent:
     let v = $n
     if v in names:
@@ -112,7 +112,7 @@ proc doState(n: NimNode; names: TableRef[string, bool];
   result = copyNimNode(n)
   for i in 0..<n.len:
     let x = doState(n[i], names, decl)
-    if x != nil: result.add x
+    if x.kind != nnkNone: result.add x
 
 proc compBody(body, decl: NimNode): NimNode =
   var names = newTable[string, bool]()
