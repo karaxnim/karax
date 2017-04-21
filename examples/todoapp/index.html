@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Todo app</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+
+<body id="body">
+<div id="ROOT" />
+
+<script type="text/javascript" src="nimcache/todoapp.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.3.js"></script>
+<script type="text/javascript">
+
+function inputTodo(doc) {
+	var inputEvent = document.createEvent('Event');
+	inputEvent.initEvent('input', true, true);
+	doc.value = 'Do task';
+  doc.dispatchEvent(inputEvent);
+  //node.click();
+}
+
+function pressEnter1() {
+  var e = jQuery.Event("keypress");
+  e.which = 13; //choose the one you want
+  e.keyCode = 13;
+  $("#test").trigger(e);
+}
+
+function pressEnter(doc) {
+  var kEvent = document.createEvent("KeyboardEvent");
+  kEvent.initKeyboardEvent("keydown", 
+                  false, 
+                  false, 
+                  null, 
+                  13, 
+                  13, 
+                  false,
+                  false, 
+                  false, 
+                  false, 
+                  false);
+ 
+  doc.dispatchEvent(kEvent);
+}
+
+
+function test() {
+  var t = document.getElementsByClassName('a')[0];
+  t.click();
+}
+
+function main() {
+  var doc = document.getElementsByClassName('new-todo')[0];
+  if (doc == null) {
+    alert("a");
+  }
+  //var doc = getFacts(document);
+  inputTodo(doc);
+  //doc = getFacts(document);
+  pressEnter(doc);
+  //test();
+}
+
+setTimeout(main, 500);
+</script>
+</body>
+</html>
+

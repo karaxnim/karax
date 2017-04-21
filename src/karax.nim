@@ -5,7 +5,7 @@ import dom, vdom, jstrutils, components, jdict
 export dom.Event #, dom.cloneNode, dom
 
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
-  ## the preferred way of debugging karax applications.
+## the preferred way of debugging karax applications.
 
 proc hasProp(e: Node; prop: cstring): bool {.importcpp: "(#.hasOwnProperty(#))".}
 proc rawkey(e: Node): VKey {.importcpp: "#.karaxKey", nodecl.}
@@ -35,18 +35,21 @@ template keyeventBody() =
 
 proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
   proc stdWrapper(): (proc (ev: Event)) =
+    kout cstring"wrapEvent"
     let action = action
     let n = n
     result = proc (ev: Event) =
       action(ev, n)
 
   proc enterWrapper(): (proc (ev: Event)) =
+    kout cstring"enterWrapper"
     let action = action
     let n = n
     result = proc (ev: Event) =
       if ev.keyCode == 13: keyeventBody()
 
   proc laterWrapper(): (proc (ev: Event)) =
+    kout cstring"laterWrapper"
     let action = action
     let n = n
     var timer: Timeout
@@ -268,6 +271,7 @@ proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
   ## ``tempNode.addEventHandler(tagNode, EventKind.onEvent, wrapper)``
   ## where ``wrapper`` calls the passed ``action`` and then triggers
   ## a ``redraw``.
+  kout cstring"fdfdfdfdf"
   proc wrapper(ev: Event; n: VNode) =
     action(ev, n)
     redraw()
