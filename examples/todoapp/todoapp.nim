@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jstrutils
+import vdom, karax, karaxdsl, jstrutils, components
 
 type
   Filter = enum
@@ -47,7 +47,7 @@ proc toChecked(checked: bool): cstring =
 proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
-proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
+proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.component.} =
   result = buildHtml(tr):
     li(class=toClass(completed)):
       if not selected:
@@ -62,14 +62,36 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode =
           onblur = focusLost,
           onkeyupenter = editEntry, value = d, setFocus)
 
+proc makeFooter(entriesCount, completedCount: int): VNode {.component.} =
+  result = buildHtml(footer(class = "footer")):
+    span(class = "todo-count"):
+      strong:
+        text(&entriesCount)
+      text cstring" item" & &(if entriesCount != 1: "s left" else: " left")
+    ul(class = "filters"):
+      li:
+        a(class = selected(all), href = "#/"):
+          text "All"
+      li:
+        a(class = selected(active), href = "#/active"):
+          text "Active"
+      li:
+        a(class = selected(completed), href = "#/completed"):
+          text "Completed"
+    button(class = "clear-completed", onclick = clearCompleted):
+      text "Clear completed (" & &completedCount & ")"
+
+proc makeHeader(): VNode {.component.} =
+  result = buildHtml(header(class = "header")):
+    h1:
+      text "todos"
+    input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
+          onkeyupenter = onTodoEnter, setFocus)
+
 proc createDom(): VNode =
   result = buildHtml(tdiv(class="todomvc-wrapper")):
     section(class = "todoapp"):
-      header(class = "header"):
-        h1:
-          text "todos"
-        input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
-              onkeyupenter = onTodoEnter, setFocus)
+      makeHeader()
       section(class = "main"):
         input(class = "toggle-all", `type` = "checkbox", name = "toggle")
         label(`for` = "toggle-all", onclick = onAllDone):
@@ -87,23 +109,7 @@ proc createDom(): VNode =
                 createEntry(i, d[0], d[1], i == selectedEntry)
               inc completedCount, ord(d[1])
               inc entriesCount
-      footer(class = "footer"):
-        span(class = "todo-count"):
-          strong:
-            text(&entriesCount)
-          text cstring" item" & &(if entriesCount != 1: "s left" else: " left")
-        ul(class = "filters"):
-          li:
-            a(class = selected(all), href = "#/"):
-              text "All"
-          li:
-            a(class = selected(active), href = "#/active"):
-              text "Active"
-          li:
-            a(class = selected(completed), href = "#/completed"):
-              text "Completed"
-        button(class = "clear-completed", onclick = clearCompleted):
-          text "Clear completed (" & &completedCount & ")"
+      makeFooter(entriesCount, completedCount)
 
 setOnHashChange(proc(hash: cstring) =
   if hash == "#/": filter = all
