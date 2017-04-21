@@ -2,7 +2,7 @@
 
 import dom, vdom, jstrutils, components, jdict
 
-export dom.Event #, dom.cloneNode, dom
+export dom.Event
 
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## the preferred way of debugging karax applications.
@@ -280,37 +280,6 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
     action(hashPart)
     redraw()
   onhashchange = wrapper
-
-proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
-          data: cstring;
-          cont: proc (httpStatus: int; response: cstring)) =
-  proc setRequestHeader(a, b: cstring) {.importc: "ajax.setRequestHeader".}
-  {.emit: """
-  var ajax = new XMLHttpRequest();
-  ajax.open(`meth`,`url`,true);""".}
-  for a, b in items(headers):
-    setRequestHeader(a, b)
-  {.emit: """
-  ajax.onreadystatechange = function(){
-    if(this.readyState == 4){
-      if(this.status == 200){
-        `cont`(this.status, this.responseText);
-      } else {
-        `cont`(this.status, this.statusText);
-      }
-    }
-  }
-  ajax.send(`data`);
-  """.}
-
-proc ajaxPut*(url: string; headers: openarray[(cstring, cstring)];
-          data: cstring;
-          cont: proc (httpStatus: int, response: cstring)) =
-  ajax("PUT", url, headers, data, cont)
-
-proc ajaxGet*(url: string; headers: openarray[(cstring, cstring)];
-          cont: proc (httpStatus: int, response: cstring)) =
-  ajax("GET", url, headers, nil, cont)
 
 {.push stackTrace:off.}
 
