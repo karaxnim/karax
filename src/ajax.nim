@@ -31,11 +31,14 @@ proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
   ajax.send(`data`);
   """.}
 
-proc ajaxPut*(url: string; headers: openarray[(cstring, cstring)];
+proc ajaxPut*(url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int, response: cstring)) =
   ajax("PUT", url, headers, data, cont)
 
-proc ajaxGet*(url: string; headers: openarray[(cstring, cstring)];
+proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring)) =
   ajax("GET", url, headers, nil, cont)
+
+proc toJson*[T](data: T): cstring {.importc: "JSON.stringify".}
+proc fromJson*[T](blob: cstring): T {.importc: "JSON.parse".}

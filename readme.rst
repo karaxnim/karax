@@ -30,9 +30,3 @@ Goals
 - Leverage Nim's macro system to produce a framework that allows
   for the development of applications that are boilerplate free.
 - Keep it small, keep it fast, keep it flexible.
-
-
-Todo
-====
-
-- Expose a nice API to do Ajax requests.
