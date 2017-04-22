@@ -6,16 +6,47 @@ type
     all, active, completed
 
 var
-  entries: seq[(cstring, bool)]
   selectedEntry = -1
   filter: Filter
+  entriesLen: int
+
+proc getItem(key : cstring ): cstring {.importc: "localStorage.getItem"}
+proc setItem(key, value : cstring ) {.importc: "localStorage.setItem"}
+proc clearEntries() {.importc: "localStorage.clear"}
+
+proc getEntryCstring(pos: int): cstring =
+  result = getItem(&pos & cstring"cstring")
+  if result == cstring"null":
+    result = nil
+
+proc isCompleted(pos: int): bool =
+  var value = getItem(cstring($pos & "bool"))
+  result = value == cstring"true"
+
+proc setEntryCstring(pos: int, value: cstring) =
+  setItem(cstring($pos & "cstring"), value)
+
+proc markAsCompleted(pos: int, value : bool) =
+  var val = cstring"true"
+  if not value:
+    val = cstring"false"
+  setItem(cstring($pos & "bool"), val)
+
+proc addEntry(str: cstring, bval : bool) =
+  setEntryCstring(entriesLen, str)
+  markAsCompleted(entriesLen, bval)
+  inc entriesLen
+
+proc updateEntry(pos: int, str: cstring, bval: bool) =
+  setEntryCstring(pos, str)
+  markAsCompleted(pos, bval)
 
 proc onTodoEnter(ev: Event; n: VNode) =
-  entries.add((n.value, false))
+  addEntry(n.value, false)
   n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
-  entries[n.key] = (cstring(nil), false)
+  updateEntry(n.key, cstring(nil), false)
 
 proc editHandler(ev: Event; n: VNode) =
   selectedEntry = n.key
@@ -23,20 +54,20 @@ proc editHandler(ev: Event; n: VNode) =
 proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
 
 proc editEntry(ev: Event; n: VNode) =
-  entries[n.key][0] = n.value
+  setEntryCstring(n.key, n.value)
   selectedEntry = -1
 
 proc toggleEntry(ev: Event; n: VNode) =
   let id = n.key
-  entries[id][1] = not entries[id][1]
+  markAsCompleted(id, not isCompleted(id))
 
 proc onAllDone(ev: Event; n: VNode) =
-  entries = @[]
+  clearEntries()
   selectedEntry = -1
 
 proc clearCompleted(ev: Event, n: VNode) =
-  for i in 0..<entries.len:
-    if entries[i][1]: entries[i][0] = nil
+  for i in 0..<entriesLen:
+    if isCompleted(i): setEntryCstring(i, nil)
 
 proc toClass(completed: bool): cstring =
   (if completed: cstring"completed" else: cstring(nil))
@@ -99,15 +130,19 @@ proc createDom(): VNode =
         var entriesCount = 0
         var completedCount = 0
         ul(class = "todo-list"):
-          for i, d in pairs(entries):
-            if d[0] != nil:
+          #for i, d in pairs(entries):
+          for i in 0..entriesLen-1:
+  
+            var d0 = getEntryCstring(i)
+            var d1 = isCompleted(i)
+            if d0 != nil:
               let b = case filter
                       of all: true
-                      of active: not d[1]
-                      of completed: d[1]
+                      of active: not d1
+                      of completed: d1
               if b:
-                createEntry(i, d[0], d[1], i == selectedEntry)
-              inc completedCount, ord(d[1])
+                createEntry(i, d0, d1, i == selectedEntry)
+              inc completedCount, ord(d1)
               inc entriesCount
       makeFooter(entriesCount, completedCount)
 
@@ -116,4 +151,5 @@ setOnHashChange(proc(hash: cstring) =
   elif hash == "#/completed": filter = completed
   elif hash == "#/active": filter = active
 )
+entriesLen = 0
 setRenderer createDom
