@@ -15,18 +15,18 @@ proc setItem(key, value : cstring ) {.importc: "localStorage.setItem"}
 proc clearEntries() {.importc: "localStorage.clear"}
 
 proc getEntryCstring(pos: int): cstring =
-  result = getItem(cstring($pos & "cstring"))
+  result = getItem(&pos & cstring"cstring")
   if result == cstring"null":
     result = nil
 
-proc getEntryBool(pos: int): bool =
+proc isCompleted(pos: int): bool =
   var value = getItem(cstring($pos & "bool"))
   result = value == cstring"true"
 
 proc setEntryCstring(pos: int, value: cstring) =
   setItem(cstring($pos & "cstring"), value)
 
-proc setEntryBool(pos: int, value : bool) =
+proc markAsCompleted(pos: int, value : bool) =
   var val = cstring"true"
   if not value:
     val = cstring"false"
@@ -34,19 +34,19 @@ proc setEntryBool(pos: int, value : bool) =
 
 proc addEntry(str: cstring, bval : bool) =
   setEntryCstring(entriesLen, str)
-  setEntryBool(entriesLen, bval)
+  markAsCompleted(entriesLen, bval)
   inc entriesLen
 
-proc setEntry(pos: int, str: cstring, bval: bool) =
+proc updateEntry(pos: int, str: cstring, bval: bool) =
   setEntryCstring(pos, str)
-  setEntryBool(pos, bval)
+  markAsCompleted(pos, bval)
 
 proc onTodoEnter(ev: Event; n: VNode) =
   addEntry(n.value, false)
   n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
-  setEntry(n.key, cstring(nil), false)
+  updateEntry(n.key, cstring(nil), false)
 
 proc editHandler(ev: Event; n: VNode) =
   selectedEntry = n.key
@@ -59,7 +59,7 @@ proc editEntry(ev: Event; n: VNode) =
 
 proc toggleEntry(ev: Event; n: VNode) =
   let id = n.key
-  setEntryBool(id, not getEntryBool(id))
+  markAsCompleted(id, not isCompleted(id))
 
 proc onAllDone(ev: Event; n: VNode) =
   clearEntries()
@@ -67,7 +67,7 @@ proc onAllDone(ev: Event; n: VNode) =
 
 proc clearCompleted(ev: Event, n: VNode) =
   for i in 0..<entriesLen:
-    if getEntryBool(i): setEntryCstring(i, nil)
+    if isCompleted(i): setEntryCstring(i, nil)
 
 proc toClass(completed: bool): cstring =
   (if completed: cstring"completed" else: cstring(nil))
@@ -134,7 +134,7 @@ proc createDom(): VNode =
           for i in 0..entriesLen-1:
   
             var d0 = getEntryCstring(i)
-            var d1 = getEntryBool(i)
+            var d1 = isCompleted(i)
             if d0 != nil:
               let b = case filter
                       of all: true
