@@ -8,36 +8,36 @@ type
 var
   selectedEntry = -1
   filter: Filter
-  entriesSize: int
+  entriesLen: int
 
 proc getItem(key : cstring ): cstring {.importc: "localStorage.getItem"}
 proc setItem(key, value : cstring ) {.importc: "localStorage.setItem"}
 proc clearEntries() {.importc: "localStorage.clear"}
 
-proc getEntryCstring(pos : int): cstring =
-    result = getItem(cstring($pos & "cstring"))
-    if result == cstring"null":
-      result = nil
+proc getEntryCstring(pos: int): cstring =
+  result = getItem(cstring($pos & "cstring"))
+  if result == cstring"null":
+    result = nil
 
-proc getEntryBool(pos : int): bool =
-    var value = getItem(cstring($pos & "bool"))
-    result = value == cstring"true"
+proc getEntryBool(pos: int): bool =
+  var value = getItem(cstring($pos & "bool"))
+  result = value == cstring"true"
 
-proc setEntryCstring(pos : int, value : cstring) =
-    setItem(cstring($pos & "cstring"), value)
+proc setEntryCstring(pos: int, value: cstring) =
+  setItem(cstring($pos & "cstring"), value)
 
-proc setEntryBool(pos : int, value  : bool) =
-    var val = cstring"true"
-    if not value:
-        val = cstring"false"
-    setItem(cstring($pos & "bool"), val)
+proc setEntryBool(pos: int, value : bool) =
+  var val = cstring"true"
+  if not value:
+    val = cstring"false"
+  setItem(cstring($pos & "bool"), val)
 
-proc addEntry(str : cstring, bval : bool) =
-  setEntryCstring(entriesSize, str)
-  setEntryBool(entriesSize, bval)
-  inc entriesSize
+proc addEntry(str: cstring, bval : bool) =
+  setEntryCstring(entriesLen, str)
+  setEntryBool(entriesLen, bval)
+  inc entriesLen
 
-proc setEntry(pos : int, str : cstring, bval : bool) =
+proc setEntry(pos: int, str: cstring, bval: bool) =
   setEntryCstring(pos, str)
   setEntryBool(pos, bval)
 
@@ -66,7 +66,7 @@ proc onAllDone(ev: Event; n: VNode) =
   selectedEntry = -1
 
 proc clearCompleted(ev: Event, n: VNode) =
-  for i in 0..<entriesSize:
+  for i in 0..<entriesLen:
     if getEntryBool(i): setEntryCstring(i, nil)
 
 proc toClass(completed: bool): cstring =
@@ -131,7 +131,7 @@ proc createDom(): VNode =
         var completedCount = 0
         ul(class = "todo-list"):
           #for i, d in pairs(entries):
-          for i in 0..entriesSize-1:
+          for i in 0..entriesLen-1:
   
             var d0 = getEntryCstring(i)
             var d1 = getEntryBool(i)
@@ -151,5 +151,5 @@ setOnHashChange(proc(hash: cstring) =
   elif hash == "#/completed": filter = completed
   elif hash == "#/active": filter = active
 )
-entriesSize = 0
+entriesLen = 0
 setRenderer createDom
