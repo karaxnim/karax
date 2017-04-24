@@ -1,0 +1,37 @@
+
+body {
+  padding: 0;
+  margin: 0;
+  background-color: rgb(253, 253, 253);
+  font-family: 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
+}
+
+#benchmark-frame {
+  width: 800px;
+  height: 600px;
+  border: 1px solid black;
+  margin: 20px;
+  display: none;
+}
+
+#sidebar {
+  top: 20px;
+  right: 20px;
+  position: absolute;
+  padding: 10px;
+  background-color: rgb(240, 240, 240);
+  border-radius: 4px;
+}
+
+#sidebar ul {
+  list-style-type: none;
+  padding: 2px;
+  margin: 2px;
+}
+
+#benchmark-results {
+  width: 800px;
+  margin: 20px;
+  border-radius: 4px;
+  display: block;
+}

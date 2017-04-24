@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" ng-app="todomvc" data-framework="angularjs">
+
+<head>
+	<meta charset="utf-8">
+	<title>AngularJS • TodoMVC</title>
+	<link rel="stylesheet" href="node_modules/todomvc-common/base.css">
+	<link rel="stylesheet" href="node_modules/todomvc-app-css/index.css">
+	<style>
+		[ng-cloak] {
+			display: none;
+		}
+	</style>
+</head>
+
+<body>
+	<section class="todoapp" ng-controller="TodoCtrl as TC">
+		<header class="header">
+			<h1>todos</h1>
+			<form id="todo-form">
+				<input class="new-todo" placeholder="What needs to be done?" ng-model="TC.newTodo.title" autofocus ng-keydown="($event.keyCode === 13) && TC.addTodo()">
+			</form>
+		</header>
+		<section class="main" ng-show="TC.todos.length" ng-cloak>
+			<input class="toggle-all" type="checkbox" ng-model="TC.allChecked" ng-click="TC.markAll(TC.allChecked)">
+			<label for="toggle-all">Mark all as complete</label>
+			<ul class="todo-list">
+				<li ng-repeat="todo in TC.todos | filter:TC.statusFilter" ng-class="{completed: todo.completed, editing: todo === TC.editedTodo}">
+					<div class="view">
+						<input class="toggle" type="checkbox" ng-model="todo.completed" ng-change="TC.updateAndStore()">
+						<label ng-dblclick="TC.editTodo(todo)">{{todo.title}}</label>
+						<button class="destroy" ng-click="TC.removeTodo($index)"></button>
+					</div>
+					<form ng-submit="TC.doneEditing(todo, $index)">
+						<input class="edit" ng-trim="false" ng-model="todo.title" ng-blur="TC.doneEditing(todo, $index)" ng-keydown="($event.keyCode === TC.ESCAPE_KEY) && TC.revertEditing($index)" todo-focus="todo === TC.editedTodo">
+					</form>
+				</li>
+			</ul>
+		</section>
+		<footer class="footer" ng-show="TC.todos.length" ng-cloak>
+			<span class="todo-count"><strong>{{TC.remainingCount}}</strong>
+					<ng-pluralize count="TC.remainingCount" when="{ one: 'item left', other: 'items left' }"></ng-pluralize>
+				</span>
+			<ul class="filters">
+				<li>
+					<a ng-class="{selected: TC.location.path() == '/'} " href="#/">All</a>
+				</li>
+				<li>
+					<a ng-class="{selected: TC.location.path() == '/active'}" href="#/active">Active</a>
+				</li>
+				<li>
+					<a ng-class="{selected: TC.location.path() == '/completed'}" href="#/completed">Completed</a>
+				</li>
+			</ul>
+			<button class="clear-completed" ng-click="TC.clearCompletedTodos()" ng-show="TC.remainingCount < TC.todos.length">Clear completed</button>
+		</footer>
+	</section>
+	<footer class="info">
+		<p>Double-click to edit a todo</p>
+		<p>Credits:
+			<a href="http://twitter.com/cburgdorf">Christoph Burgdorf</a>,
+			<a href="http://ericbidelman.com">Eric Bidelman</a>,
+			<a href="http://jacobmumm.com">Jacob Mumm</a> and
+			<a href="http://blog.igorminar.com">Igor Minar</a>
+		</p>
+		<p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
+	</footer>
+	<script>
+		window.requestAnimationFrame = window.webkitRequestAnimationFrame = function(callback) {
+			callback();
+		};
+	</script>
+	<script src="node_modules/angular/angular.js"></script>
+	<script src="build.min.js"></script>
+</body>
+
+</html>

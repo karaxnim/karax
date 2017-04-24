@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Performance Comparison</title>
+  <link rel="stylesheet" href="src/theme.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.6/Chart.min.js"></script>
+  <script src="src/picker.js"></script>
+  <script src="src/runner.js"></script>
+  <script src="src/add-complete-delete.js"></script>
+</head>
+
+<body>
+  <iframe id="benchmark-frame"></iframe>
+  <div id="sidebar"></div>
+  <div id="benchmark-results">
+    <h1>Performance Comparison of Elm, React, Angular, and Ember</h1>
+    <p>This is the benchmark behind <a href="http://elm-lang.org/blog/blazing-fast-html-round-two">Blazing Fast HTML, Round Two</a>, so you can try it out for yourself.
+    </p>
+    <p>Controls are on the right. Pick which implementations you want to race and press &ldquo;Run&rdquo;.
+    </p>
+    <p>Between <a href="http://elm-lang.org/blog/blazing-fast-html-round-two">the full writeup</a> and <a href="https://github.com/evancz/react-angular-ember-elm-performance-comparison">the repo for this runner</a>, there is a bunch more information on the methodology and results of these benchmarks. Check them out!
+    </p>
+  </div>
+
+  <script type="text/javascript">
+    function impl(name, version, optimized, url)
+    {
+      return {
+        name: name,
+        version: version,
+        optimized: optimized,
+        url: 'implementations/' + url
+      };
+    }
+
+    var div = document.getElementById('sidebar');
+    var picker = Elm.Picker.embed(div, [
+      impl('Ember', '2.6.3', false, 'ember-2.6.3/dist/index.html'),
+      impl('React', '15.3.1', false, 'react-15.3.1/index.html'),
+      impl('Angular', '1.5.8', false, 'angular-1.5.8/index.html'),
+      impl('Angular', '2', false, 'angular-2/index.html'),
+      impl('Elm', '0.16', false, 'elm-0.16/index.html'),
+      impl('Elm', '0.17', false, 'elm-0.17/index.html'),
+      impl('React', '15.3.1', true, 'react-15.3.1-optimized/index.html'),
+      impl('Angular', '1.5.8', true, 'angular-1.5.8-optimized/index.html'),
+      impl('Angular', '2', true, 'angular-2-optimized/index.html'),
+      impl('Elm', '0.16', true, 'elm-0.16-optimized/index.html'),
+      impl('Elm', '0.17', true, 'elm-0.17-optimized/index.html'),
+      impl('Nim-karax', '1.0', false, 'nim-karax/examples/todoapp/index.html'),
+      impl('Nim-karax-component', '1.0', false, 'nim-karax-comp/examples/todoapp/index.html'),
+      impl('Nim-karax-component-local', '1.0', false, 'nim-karax-comp-local/examples/todoapp/index.html')
+    ]);
+
+    picker.ports.start.subscribe(function(impls) {
+      runBenchmarks(impls, suite, function() {
+        picker.ports.end.send(null);
+      });
+    });
+  </script>
+
+</body>
+
+</html>
