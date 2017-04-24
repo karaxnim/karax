@@ -223,6 +223,7 @@ when false:
   var drawTimeout: Timeout
 
 proc dodraw() =
+  if dorender.isNil: return
   let newtree = dorender()
   newtree.id = "ROOT"
   toFocus = nil
