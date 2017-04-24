@@ -37,10 +37,10 @@ proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
         contWrapper(this.status, this.statusText)
   ajax.send(data)
 
-proc ajaxPut*(url: cstring; headers: openarray[(cstring, cstring)];
+proc ajaxPost*(url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int, response: cstring)) =
-  ajax("PUT", url, headers, data, cont)
+  ajax("POST", url, headers, data, cont)
 
 proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring)) =
