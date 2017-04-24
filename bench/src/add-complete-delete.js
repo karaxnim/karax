@@ -81,7 +81,7 @@ function click(className, index)
 
 return {
 	getFacts: getFacts,
-	steps: addCompleteDeleteSteps(500)
+	steps: addCompleteDeleteSteps(150)
 };
 
 
