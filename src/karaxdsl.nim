@@ -117,3 +117,8 @@ macro buildHtml*(children: untyped): VNode =
   result = tcall2(body(children), nil)
   when defined(debugKaraxDsl):
     echo repr result
+
+macro flatHtml*(tag: untyped): VNode =
+  result = tcall2(tag, nil)
+  when defined(debugKaraxDsl):
+    echo repr result
