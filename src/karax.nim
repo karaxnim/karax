@@ -284,23 +284,17 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
 
 {.push stackTrace:off.}
 
-proc setupErrorHandler*(useAlert=false) =
+proc setupErrorHandler*() =
   ## Installs an error handler that transforms native JS unhandled
   ## exceptions into Nim based stack traces. If `useAlert` is false,
   ## the error message is put into the console, otherwise `alert`
   ## is called.
   proc stackTraceAsCstring(): cstring = cstring(getStackTrace())
-  {.emit: """
-  window.onerror = function(msg, url, line, col, error) {
-    var x = "Error: " + msg + "\n" + `stackTraceAsCstring`()
-    if (`useAlert`)
-      alert(x);
-    else
-      console.log(x);
-    var suppressErrorAlert = true;
-    return suppressErrorAlert;
-  };""".}
-
+  var onerror {.importc: "window.onerror".} =
+    proc (msg, url: cstring, line, col: int, error: cstring): bool =
+      var x = cstring"Error: " & msg & "\n" & stackTraceAsCstring()
+      kout(x)
+      return true # suppressErrorAlert
 {.pop.}
 
 proc prepend(parent, kid: Element) =
