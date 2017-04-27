@@ -26,11 +26,6 @@ type
         anim: AnimState
         tree: TreeState
 
-proc init*(a: cstring, b: cstring) {.importc: "uibench.init", nodecl.}
-proc run*(a: proc(state: AppState), b: proc(samples: RootRef)) {.importc: "uibench.run", nodecl.}
-
-init(cstring"Nim-karax", cstring"0.6.1")
-
 var container = document.getElementById("#App")
 var appState: AppState
 
@@ -98,7 +93,9 @@ proc treeCreateVNode(data: TreeState): VNode =
 
 
 proc update(): VNode =
-    if appState == nil: return newVNode(VNodeKind.tdiv)
+    if appState == nil:
+      kout cstring"stupid fuck"
+      return newVNode(VNodeKind.tdiv)
     let location = appState.location
     var children: VNode = nil
     if location == cstring"table":
@@ -113,15 +110,22 @@ proc update(): VNode =
             children
 
 proc a(state: AppState) =
+    kout cstring"setting state here"
     appState = state
-    redraw()
+    redrawForce()
 
 proc b(samples: RootRef) =
+    kout cstring"end called"
     #document.body.innerHTML = cstring"<pre>" & toJson(samples) & cstring"</pre>"
     #redraw()
     discard
 
-kout cstring"updating"
-setRenderer update
+proc init*(a: cstring, b: cstring) {.importc: "uibench.init", nodecl.}
+proc run*(a: proc(state: AppState), b: proc(samples: RootRef)) {.importc: "uibench.run", nodecl.}
+
+init(cstring"Nim-karax", cstring"0.6.1")
+
+setRendererOnly update
 kout cstring"running"
+
 run(a, b)

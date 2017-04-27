@@ -256,11 +256,19 @@ proc redraw*() =
   else:
     dodraw()
 
+proc redrawForce*() = dodraw()
+
 proc init(ev: Event) =
   reqFrame(dodraw)
 
 proc setRenderer*(renderer: proc (): VNode) =
   dorender = renderer
+  window.onload = init
+
+proc setRendererOnly*(renderer: proc (): VNode) =
+  dorender = renderer
+
+proc setOnloadOnly*() =
   window.onload = init
 
 proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
