@@ -35,7 +35,7 @@ proc createTableCell(id: cstring): VNode =
         kout cstring"tableCellClick"
         kout "Clicked" & id
         # ev.stopPropogation()
-    result = buildHtml(td(className="TableCell", onclick=tableCellClick)):
+    result = buildHtml(td(class="TableCell", onclick=tableCellClick)):
         text id
 
 proc createTableRow(item: TableItemState): VNode =
@@ -71,7 +71,7 @@ proc createAnimBox(item: AnimBoxState): VNode =
     var dataId: cstring = &item.id
     var color: float = float(time mod 10) / 10
     var divStyles: cstring = "borderRadius: " & &(time mod 10) & "px; background: rgba(0,0,0," & cstring($color) & ")"
-    result = flatHtml(tdiv(className="AnimBox", `data-id`=dataId, style=divStyles))
+    result = flatHtml(tdiv(class="AnimBox", `data-id`=dataId, style=divStyles))
 
 proc animCreateVNode(data: AnimState): VNode =
     kout cstring"animCreateVNode"
@@ -80,13 +80,13 @@ proc animCreateVNode(data: AnimState): VNode =
     for i in 0..<len(children):
         var item = items[i]
         children.add createAnimBox(item)
-    result = buildHtml(tdiv(className="Anim")):
+    result = buildHtml(tdiv(class="Anim")):
         for child in children:
             child
 
 proc createTreeLeaf(data: TreeNodeState): VNode =
     kout cstring"createTreeLeaf"
-    result = buildHtml(li(className="TreeLeaf")):
+    result = buildHtml(li(class="TreeLeaf")):
         text &data.id
 
 proc createTreeNode(data: TreeNodeState): VNode =
@@ -101,7 +101,7 @@ proc createTreeNode(data: TreeNodeState): VNode =
 
 proc treeCreateVNode(data: TreeState): VNode =
     kout cstring"treeCreateVNode"
-    result = buildHtml(tdiv(className="Tree")):
+    result = buildHtml(tdiv(class="Tree")):
         createTreeNode(data.root)
 
 
