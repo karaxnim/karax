@@ -30,34 +30,43 @@ var container = document.getElementById("#App")
 var appState: AppState
 
 proc createTableCell(id: cstring): VNode =
+    kout cstring"createTableCell"
     proc tableCellClick(ev: karax.Event; n: VNode) =
+        kout cstring"tableCellClick"
         kout "Clicked" & id
         # ev.stopPropogation()
     result = buildHtml(td(className="TableCell", onclick=tableCellClick)):
         text id
 
 proc createTableRow(item: TableItemState): VNode =
-    var children = createTableCell("#" & &item.id)
+    kout cstring"createTableRow"
+    var children: seq[VNode] = @[]
+    children.add createTableCell("#" & &item.id)
     for i in 0..<len(item.props):
         children.add(createTableCell(item.props[i]))
     var dataId = &item.id
 
     proc createRow(): VNode =
+        kout cstring"createRow"
         var className = cstring"TableRow"
         if item.active:
             className = cstring"TableRow active"
         result = buildHtml(tr(class=className, `data-id`=dataId)):
-            children
+            for child in children:
+                child
+    
     result = createRow()
 
 
 proc tableCreateVNode(data: TableState): VNode =
+    kout cstring"tableCreateVNode"
     result = buildHtml(table(class="Table")):
         tbody:
             for child in data.items:
                 createTableRow(child)
 
 proc createAnimBox(item: AnimBoxState): VNode =
+    kout cstring"createAnimBox"
     var time = item.time
     var dataId: cstring = &item.id
     var color: float = float(time mod 10) / 10
@@ -65,6 +74,7 @@ proc createAnimBox(item: AnimBoxState): VNode =
     result = flatHtml(tdiv(className="AnimBox", `data-id`=dataId, style=divStyles))
 
 proc animCreateVNode(data: AnimState): VNode =
+    kout cstring"animCreateVNode"
     var items = data.items
     var children: seq[VNode] = @[]
     for i in 0..<len(children):
@@ -75,10 +85,12 @@ proc animCreateVNode(data: AnimState): VNode =
             child
 
 proc createTreeLeaf(data: TreeNodeState): VNode =
+    kout cstring"createTreeLeaf"
     result = buildHtml(li(className="TreeLeaf")):
         text &data.id
 
 proc createTreeNode(data: TreeNodeState): VNode =
+    kout cstring"createTreeNode"
     var children: seq[VNode] = @[]
     for i in 0..<len(data.children):
         var n = data.children[i]
@@ -88,11 +100,13 @@ proc createTreeNode(data: TreeNodeState): VNode =
             children.add(createTreeLeaf(n))
 
 proc treeCreateVNode(data: TreeState): VNode =
+    kout cstring"treeCreateVNode"
     result = buildHtml(tdiv(className="Tree")):
         createTreeNode(data.root)
 
 
 proc update(): VNode =
+    kout cstring"update"
     if appState == nil:
       kout cstring"stupid fuck"
       return newVNode(VNodeKind.tdiv)
