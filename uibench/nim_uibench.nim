@@ -26,7 +26,6 @@ type
         anim: AnimState
         tree: TreeState
 
-var container = document.getElementById("#App")
 var appState: AppState
 
 proc createTableCell(id: cstring): VNode =
@@ -44,18 +43,13 @@ proc createTableRow(item: TableItemState): VNode =
     children.add createTableCell("#" & &item.id)
     for i in 0..<len(item.props):
         children.add(createTableCell(item.props[i]))
-    var dataId = &item.id
 
-    proc createRow(): VNode =
-        kout cstring"createRow"
-        var className = cstring"TableRow"
-        if item.active:
-            className = cstring"TableRow active"
-        result = buildHtml(tr(class=className, `data-id`=dataId)):
-            for child in children:
-                child
-    
-    result = createRow()
+    var className = cstring"TableRow"
+    if item.active:
+        className = cstring"TableRow active"
+    result = buildHtml(tr(class=className, `data-id` = &item.id)):
+        for child in children:
+            child
 
 
 proc tableCreateVNode(data: TableState): VNode =
@@ -70,19 +64,14 @@ proc createAnimBox(item: AnimBoxState): VNode =
     var time = item.time
     var dataId: cstring = &item.id
     var color: float = float(time mod 10) / 10
-    var divStyles: cstring = "borderRadius: " & &(time mod 10) & "px; background: rgba(0,0,0," & cstring($color) & ")"
+    var divStyles: cstring = "border-radius: " & &(time mod 10) & "px; background: rgba(0,0,0," & cstring($color) & ")"
     result = flatHtml(tdiv(class="AnimBox", `data-id`=dataId, style=divStyles))
 
 proc animCreateVNode(data: AnimState): VNode =
     kout cstring"animCreateVNode"
-    var items = data.items
-    var children: seq[VNode] = @[]
-    for i in 0..<len(children):
-        var item = items[i]
-        children.add createAnimBox(item)
     result = buildHtml(tdiv(class="Anim")):
-        for child in children:
-            child
+        for child in data.items:
+            createAnimBox(child)
 
 proc createTreeLeaf(data: TreeNodeState): VNode =
     kout cstring"createTreeLeaf"
@@ -106,7 +95,6 @@ proc treeCreateVNode(data: TreeState): VNode =
 
 
 proc update(): VNode =
-    kout cstring"update"
     if appState == nil:
       kout cstring"stupid fuck"
       return newVNode(VNodeKind.tdiv)
@@ -118,7 +106,6 @@ proc update(): VNode =
         children = animCreateVNode(appState.anim)
     elif location == cstring"tree":
         children = treeCreateVNode(appState.tree)
-    kout cstring"update", children
     result = buildHtml():
         tdiv(class="Main"):
             children
