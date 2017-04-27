@@ -96,8 +96,10 @@ proc a(state: AppState) =
     appState = state
     redrawForce()
 
+proc myToJson[T](x: T): cstring {.importcpp: "JSON.stringify(#, null, ' ')".}
+
 proc b(samples: RootRef) =
-    document.body.innerHTML = cstring"<pre>" & toJson(samples) & cstring"</pre>"
+    document.body.innerHTML = cstring"<pre>" & myToJson(samples) & cstring"</pre>"
 
 proc init*(a: cstring, b: cstring) {.importc: "uibench.init", nodecl.}
 proc run*(a: proc(state: AppState), b: proc(samples: RootRef)) {.importc: "uibench.run", nodecl.}
