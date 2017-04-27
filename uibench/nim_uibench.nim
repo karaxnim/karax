@@ -41,12 +41,11 @@ proc createTableCell(id: cstring): VNode =
     result = buildHtml(td(className="TableCell", onclick=tableCellClick)):
         text id
 
-
 proc createTableRow(item: TableItemState): VNode =
     var children = createTableCell("#" & &item.id)
     for i in 0..<len(item.props):
         children.add(createTableCell(item.props[i]))
-    var dataId = cstring($item.id)
+    var dataId = &item.id
 
     proc createRow(): VNode =
         var className = cstring"TableRow"
@@ -58,17 +57,10 @@ proc createTableRow(item: TableItemState): VNode =
 
 
 proc tableCreateVNode(data: TableState): VNode =
-    var childrens: seq[VNode] = @[]
-    for i in 0..<len(data.items):
-        childrens.add createTableRow(data.items[i])
-
-    proc createTable(): VNode =
-        result = buildHtml(table(class="Table")):
-            tbody:
-                for child in childrens:
-                    child
-
-    result = createTable()
+    result = buildHtml(table(class="Table")):
+        tbody:
+            for child in data.items:
+                createTableRow(child)
 
 proc createAnimBox(item: AnimBoxState): VNode =
     var time = item.time
@@ -115,17 +107,19 @@ proc update(): VNode =
         children = animCreateVNode(appState.anim)
     elif location == cstring"tree":
         children = treeCreateVNode(appState.tree)
-    proc createMain(): VNode =
-        result = buildHtml(tdiv(class="Main")): children
-    result = createMain()
-
+    kout cstring"update", children
+    result = buildHtml():
+        tdiv(class="Main"):
+            children
 
 proc a(state: AppState) =
     appState = state
+    redraw()
 
 proc b(samples: RootRef) =
-    document.body.innerHTML = cstring"<pre>" & toJson(samples) & cstring"</pre>"
-    redraw()
+    #document.body.innerHTML = cstring"<pre>" & toJson(samples) & cstring"</pre>"
+    #redraw()
+    discard
 
 kout cstring"updating"
 setRenderer update
