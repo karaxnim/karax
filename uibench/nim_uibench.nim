@@ -98,6 +98,10 @@ proc createTreeNode(data: TreeNodeState): VNode =
             children.add(createTreeNode(n))
         else:
             children.add(createTreeLeaf(n))
+    result = buildHtml(ul(class="TreeNode")):
+        for child in children:
+            child
+    
 
 proc treeCreateVNode(data: TreeState): VNode =
     kout cstring"treeCreateVNode"
