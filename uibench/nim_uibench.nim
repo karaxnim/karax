@@ -1,25 +1,25 @@
 import dom, vdom, karax, karaxdsl, jdict, jstrutils, kajax
 
 type
-    HomeState = object
-    TableItemState = object
+    HomeState {.importc.} = ref object
+    TableItemState {.importc.} = ref object
         id: int
         active: bool
         props: seq[cstring]
-    TableState = object
+    TableState {.importc.} = ref object
         items: seq[TableItemState]
-    AnimBoxState = object
+    AnimBoxState {.importc.} = ref object
         id: int
         time: int
-    AnimState = object
+    AnimState {.importc.} = ref object
         items: seq[AnimBoxState]
-    TreeNodeState = object
+    TreeNodeState {.importc.} = ref object
         id: int
         container: bool
         children: seq[TreeNodeState]
-    TreeState = object
+    TreeState {.importc.} = ref object
         root: TreeNodeState
-    AppState = object
+    AppState {.importc.} = ref object
         location: cstring
         home: HomeState
         table: TableState
@@ -27,7 +27,7 @@ type
         tree: TreeState
 
 proc init*(a: cstring, b: cstring) {.importc: "uibench.init", nodecl.}
-proc run*(a: proc(state: AppState), b: proc(samples: any)) {.importc: "uibench.run", nodecl.}
+proc run*(a: proc(state: AppState), b: proc(samples: RootRef)) {.importc: "uibench.run", nodecl.}
 
 init(cstring"Nim-karax", cstring"0.6.1")
 
@@ -44,7 +44,7 @@ proc createTableCell(id: cstring): VNode =
 
 proc createTableRow(item: TableItemState): VNode =
     var children = createTableCell("#" & &item.id)
-    for i in 0..len(item.props):
+    for i in 0..<len(item.props):
         children.add(createTableCell(item.props[i]))
     var dataId = cstring($item.id)
 
@@ -59,7 +59,7 @@ proc createTableRow(item: TableItemState): VNode =
 
 proc tableCreateVNode(data: TableState): VNode =
     var childrens: seq[VNode] = @[]
-    for i in 0..len(data.items):
+    for i in 0..<len(data.items):
         childrens.add createTableRow(data.items[i])
 
     proc createTable(): VNode =
@@ -80,7 +80,7 @@ proc createAnimBox(item: AnimBoxState): VNode =
 proc animCreateVNode(data: AnimState): VNode =
     var items = data.items
     var children: seq[VNode] = @[]
-    for i in 0..len(children):
+    for i in 0..<len(children):
         var item = items[i]
         children.add createAnimBox(item)
     result = buildHtml(tdiv(className="Anim")):
@@ -93,7 +93,7 @@ proc createTreeLeaf(data: TreeNodeState): VNode =
 
 proc createTreeNode(data: TreeNodeState): VNode =
     var children: seq[VNode] = @[]
-    for i in 0..len(data.children):
+    for i in 0..<len(data.children):
         var n = data.children[i]
         if n.container:
             children.add(createTreeNode(n))
@@ -106,6 +106,7 @@ proc treeCreateVNode(data: TreeState): VNode =
 
 
 proc update(): VNode =
+    if appState == nil: return newVNode(VNodeKind.tdiv)
     let location = appState.location
     var children: VNode = nil
     if location == cstring"table":
@@ -126,5 +127,7 @@ proc b(samples: RootRef) =
     document.body.innerHTML = cstring"<pre>" & toJson(samples) & cstring"</pre>"
     redraw()
 
+kout cstring"updating"
 setRenderer update
+kout cstring"running"
 run(a, b)
