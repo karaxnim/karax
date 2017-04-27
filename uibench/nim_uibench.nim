@@ -70,14 +70,14 @@ proc createAnimBox(item: AnimBoxState): VNode =
     var time = item.time
     var dataId: cstring = &item.id
     var color: float = float(time mod 10) / 10
-    var divStyles: cstring = "borderRadius: " & &(time mod 10) & "px; background: rgba(0,0,0," & cstring($color) & ")"
+    var divStyles: cstring = "border-radius: " & &(time mod 10) & "px; background: rgba(0,0,0," & cstring($color) & ")"
     result = flatHtml(tdiv(class="AnimBox", `data-id`=dataId, style=divStyles))
 
 proc animCreateVNode(data: AnimState): VNode =
     kout cstring"animCreateVNode"
     var items = data.items
     var children: seq[VNode] = @[]
-    for i in 0..<len(children):
+    for i in 0..<len(items):
         var item = items[i]
         children.add createAnimBox(item)
     result = buildHtml(tdiv(class="Anim")):
