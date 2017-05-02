@@ -222,17 +222,16 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
             updateElement(current, oldNode[rightOld].dom, newNode[rightNew], oldNode[rightOld])
             dec rightNew
             dec rightOld
-          
-        var nextChildPos = rightOld + 1
+        
+        var posNextElem = rightOld + 1
+        var isPushBack = posNextElem == oldLength
         while left <= rightNew:
-          if nextChildPos == oldLength:
+          if isPushBack:
             current.appendChild(vnodeToDom(newNode[left]))
           else:
-            current.insertBefore(vnodeToDom(newNode[left]), oldNode[rightOld + 1].dom)
+            current.insertBefore(vnodeToDom(newNode[left]), oldNode[posNextElem].dom)
           # added new Node, so old state of VDOM have one more Node
-          inc oldLength
           inc left
-          inc nextChildPos
 
         for i in left..rightOld:
           current.removeChild(oldNode[i].dom)
