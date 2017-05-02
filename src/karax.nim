@@ -164,7 +164,13 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
+proc setDomField(a, b: VNode) =
+  a.dom = b.dom
+  for i in 0..<len(a):
+    setDomField(a[i], b[i])
+
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
+  newNode.dom = oldNode.dom
   if not equalsShallow(newNode, oldNode):
     detach(oldNode)
     let n = vnodeToDom(newNode)
@@ -175,7 +181,6 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
     var oldLength = oldNode.len
-    let minLength = min(newLength, oldLength)
     assert oldNode.kind == newNode.kind
     when defined(simpleDiff):
       for i in 0..min(newLength, oldLength)-1:
@@ -188,36 +193,50 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
           detach(oldNode[i])
           current.removeChild(current.lastChild)
     else:
-      var commonPrefix = 0
-      while commonPrefix < minLength and
-          equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
-        inc commonPrefix
+        var left = 0
+        var rightNew = newLength - 1
+        var rightOld = oldLength - 1
+      
+        while left <= min(rightNew, rightOld):
+          var minRight = min(rightOld, rightNew)
+          
+          while left <= minRight and
+              equalsTree(newNode[left], oldNode[left]):
+            #newNode[left] = oldNode[left]
+            setDomField(newNode[left], oldNode[left])
+            inc left
 
-      var oldPos = oldLength - 1
-      var newPos = newLength - 1
-      while oldPos >= commonPrefix and newPos >= commonPrefix and
-          equalsTree(newNode[newPos], oldNode[oldPos]):
-        dec oldPos
-        dec newPos
+          while rightOld > left and rightNew > left and
+              equalsTree(newNode[rightNew], oldNode[rightOld]):
+            #newNode[rightNew].dom = oldNode[rightOld].dom
+            setDomField(newNode[rightNew], oldNode[rightOld])
+            dec rightOld
+            dec rightNew
+          
+          minRight = min(rightOld, rightNew)
+          if left <= minRight:
+            updateElement(current, oldNode[left].dom, newNode[left], oldNode[left])
+            inc left
 
-      var pos = min(oldPos, newPos) + 1
-      for i in commonPrefix..pos-1:
-        updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
+          if left < minRight:
+            updateElement(current, oldNode[rightOld].dom, newNode[rightNew], oldNode[rightOld])
+            dec rightNew
+            dec rightOld
+          
+        var nextChildPos = rightOld + 1
+        while left <= rightNew:
+          if nextChildPos == oldLength:
+            current.appendChild(vnodeToDom(newNode[left]))
+          else:
+            current.insertBefore(vnodeToDom(newNode[left]), oldNode[rightOld + 1].dom)
+          # added new Node, so old state of VDOM have one more Node
+          inc oldLength
+          inc left
+          inc nextChildPos
 
-      var nextChildPos = oldPos + 1
-      while pos <= newPos:
-        if nextChildPos == oldLength:
-          current.appendChild(vnodeToDom(newNode[pos]))
-        else:
-          current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
-        # added new Node, so old state of VDOM have one more Node
-        inc oldLength
-        inc pos
-        inc nextChildPos
-
-      for i in pos..oldPos:
-        detach(oldNode[i])
-        current.removeChild(current.childNodes[pos])
+        for i in left..rightOld:
+          current.removeChild(oldNode[i].dom)
+          detach(oldNode[i])
 
 when false:
   var drawTimeout: Timeout
