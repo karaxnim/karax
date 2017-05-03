@@ -164,11 +164,6 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
-proc setDomField(a, b: VNode) =
-  a.dom = b.dom
-  for i in 0..<len(a):
-    setDomField(a[i], b[i])
-
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   newNode.dom = oldNode.dom
   if not equalsShallow(newNode, oldNode):
@@ -202,14 +197,12 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
           
           while left <= minRight and
               equalsTree(newNode[left], oldNode[left]):
-            #newNode[left] = oldNode[left]
-            setDomField(newNode[left], oldNode[left])
+            newNode[left] = oldNode[left]
             inc left
 
           while rightOld > left and rightNew > left and
               equalsTree(newNode[rightNew], oldNode[rightOld]):
-            #newNode[rightNew].dom = oldNode[rightOld].dom
-            setDomField(newNode[rightNew], oldNode[rightOld])
+            newNode[rightNew] = oldNode[rightOld]
             dec rightOld
             dec rightNew
           
@@ -230,7 +223,6 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
             current.appendChild(vnodeToDom(newNode[left]))
           else:
             current.insertBefore(vnodeToDom(newNode[left]), oldNode[posNextElem].dom)
-          # added new Node, so old state of VDOM have one more Node
           inc left
 
         for i in left..rightOld:
