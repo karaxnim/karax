@@ -132,6 +132,9 @@ proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
 proc eq*(a, b: VNode): bool =
+  if a.track != 0 and b.track != 0:
+    # do not recurse here:
+    return a.track == b.track
   if a.kind != b.kind: return false
   if a.id != b.id: return false
   if a.class != b.class: return false
@@ -144,8 +147,6 @@ proc eq*(a, b: VNode): bool =
   if a.attrs.len != b.attrs.len: return false
   for i in 0..<a.attrs.len:
     if a.attrs[i] != b.attrs[i]: return false
-  if a.track != 0 and b.track != 0:
-    if a.track != b.track: return false
   result = true
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
