@@ -109,6 +109,7 @@ type
     when false:
       hash*: Hash
       validHash*: bool
+    track*: int
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
@@ -143,6 +144,8 @@ proc eq*(a, b: VNode): bool =
   if a.attrs.len != b.attrs.len: return false
   for i in 0..<a.attrs.len:
     if a.attrs[i] != b.attrs[i]: return false
+  if a.track != 0 and b.track != 0:
+    if a.track != b.track: return false
   result = true
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =

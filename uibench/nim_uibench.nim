@@ -36,7 +36,7 @@ proc createTableCell(id: cstring): VNode =
 
 proc createTableRow(item: TableItemState): VNode =
     let className = if item.active: cstring"TableRow active" else: cstring"TableRow"
-    result = buildHtml(tr(class=className, `data-id` = &item.id)):
+    result = buildHtml(tr(class=className, `data-id` = &item.id, key = item.id)):
         createTableCell("#" & &item.id)
         for i in 0..<len(item.props):
             createTableCell(item.props[i])
@@ -53,7 +53,8 @@ proc createAnimBox(item: AnimBoxState): VNode =
     let color = float(t10) / 10
     let divStyles = cstring"border-radius: " & &t10 &
          "px; background: rgba(0,0,0," & cstring($color) & ")"
-    result = flatHtml(tdiv(class="AnimBox", `data-id` = &item.id, style=divStyles))
+    result = flatHtml(tdiv(class="AnimBox", `data-id` = &item.id, key = item.id,
+        style=divStyles))
 
 proc animCreateVNode(data: AnimState): VNode =
     result = buildHtml(tdiv(class="Anim")):

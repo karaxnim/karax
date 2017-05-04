@@ -135,6 +135,8 @@ proc equalsShallow(a, b: VNode): bool =
       if not equalsShallow(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
+  if a.track != 0 and b.track != 0:
+    if a.track != b.track: return false
   # XXX test event listeners here?
   return true
 
@@ -191,10 +193,10 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         var left = 0
         var rightNew = newLength - 1
         var rightOld = oldLength - 1
-      
+
         while left <= min(rightNew, rightOld):
           var minRight = min(rightOld, rightNew)
-          
+
           while left <= minRight and
               equalsTree(newNode[left], oldNode[left]):
             newNode[left] = oldNode[left]
@@ -205,7 +207,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
             newNode[rightNew] = oldNode[rightOld]
             dec rightOld
             dec rightNew
-          
+
           minRight = min(rightOld, rightNew)
           if left <= minRight:
             updateElement(current, oldNode[left].dom, newNode[left], oldNode[left])
@@ -215,7 +217,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
             updateElement(current, oldNode[rightOld].dom, newNode[rightNew], oldNode[rightOld])
             dec rightNew
             dec rightOld
-        
+
         var posNextElem = rightOld + 1
         var isPushBack = posNextElem == oldLength
         while left <= rightNew:
