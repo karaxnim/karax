@@ -102,6 +102,7 @@ type
     kind*: VNodeKind
     key*: VKey
     id*, class*, text*: cstring
+    track*: int
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
@@ -166,7 +167,7 @@ proc getAttr*(n: VNode; key: cstring): cstring =
 
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
-proc `[]=`*(x: VNode; idx: int, y: VNode) = x.kids[idx] = y
+proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
 proc add*(parent, kid: VNode) = parent.kids.add kid
 proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, key: -1)
 

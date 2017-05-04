@@ -4,7 +4,7 @@ from strutils import startsWith, toLowerAscii
 
 const
   StmtContext = ["kout", "inc", "echo", "dec", "!"]
-  SpecialAttrs = ["id", "class", "value", "key"]
+  SpecialAttrs = ["id", "class", "value", "key", "track"]
 
 proc getName(n: NimNode): string =
   case n.kind
