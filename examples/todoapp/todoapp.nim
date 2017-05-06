@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jstrutils, components, localstorage
+import vdom, karax, karaxdsl, jstrutils, components, karaxdb/client
 
 type
   Filter = enum
@@ -9,6 +9,12 @@ var
   selectedEntry = -1
   filter: Filter
   entriesLen: int
+  data: Db
+
+registerOnUpdate proc(newDb: Db) =
+  merge(newDb, data)
+  data = newDb
+  redraw()
 
 const
   contentSuffix = cstring"content"
@@ -16,25 +22,23 @@ const
   lenSuffix = cstring"entriesLen"
 
 proc getEntryContent(pos: int): cstring =
-  result = getItem(&pos & contentSuffix)
-  if result == cstring"null":
-    result = nil
+  extract(data, &pos, contentSuffix)
 
 proc isCompleted(pos: int): bool =
-  var value = getItem(&pos & completedSuffix)
+  var value = extract(data, &pos, completedSuffix)
   result = value == cstring"true"
 
 proc setEntryContent(pos: int, content: cstring) =
-  setItem(&pos & contentSuffix, content)
+  insert(data, &pos, contentSuffix, content)
 
 proc markAsCompleted(pos: int, completed: bool) =
-  setItem(&pos & completedSuffix, &completed)
+  insert(data, &pos, completedSuffix, &completed)
 
 proc addEntry(content: cstring, completed: bool) =
   setEntryContent(entriesLen, content)
   markAsCompleted(entriesLen, completed)
   inc entriesLen
-  setItem(lenSuffix, &entriesLen)
+  insert(data, lenSuffix, "equals", &entriesLen)
 
 proc updateEntry(pos: int, content: cstring, completed: bool) =
   setEntryContent(pos, content)
@@ -61,7 +65,7 @@ proc toggleEntry(ev: Event; n: VNode) =
   markAsCompleted(id, not isCompleted(id))
 
 proc onAllDone(ev: Event; n: VNode) =
-  clear()
+  insert(data, lenSuffix, "equals", "0")
   selectedEntry = -1
 
 proc clearCompleted(ev: Event, n: VNode) =
@@ -150,8 +154,5 @@ setOnHashChange(proc(hash: cstring) =
   elif hash == "#/active": filter = active
 )
 
-if hasItem(lenSuffix):
-  entriesLen = parseInt getItem(lenSuffix)
-else:
-  entriesLen = 0
+entriesLen = 0
 setRenderer createDom

@@ -48,3 +48,21 @@ proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
 
 proc toJson*[T](data: T): cstring {.importc: "JSON.stringify".}
 proc fromJson*[T](blob: cstring): T {.importc: "JSON.parse".}
+
+type
+  MessageEvent* {.importc.} = ref object
+    data*: cstring
+  ErrorEvent* {.importc.} = ref object
+  CloseEvent* {.importc.} = ref object
+    code*: int
+    reason*: cstring
+
+  WebSocket* {.importc.} = ref object
+    onopen*: proc()
+    onmessage*: proc(ev: MessageEvent)
+    onclose*: proc(ev: CloseEvent)
+    onerror*: proc(ev: ErrorEvent)
+
+proc newWebsocket*(url, protocol: cstring): WebSocket {.importc: "new WebSocket".}
+
+proc send*(socket: WebSocket, data: cstring) {.importcpp.}
