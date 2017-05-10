@@ -21,9 +21,7 @@ type
 #  RequestMessage {.importc.} = ref object
 
 let conn = newWebSocket("ws://localhost:8080", "karaxdb")
-var gid: MessageId
-var pendingIds = newJDict[MessageId, Message]()
-var pending: int
+var version: int
 
 #proc loadDb*(url: cstring): Db =
 #  result = nil
@@ -34,11 +32,9 @@ proc newTransaction*(): Db =
 proc insert*(head, newdb: Db) =
   newdb.next = head
   #result = newdb
-  let expectedVersion = if not head.isNil: head.version + 1 else: 1
-  inc gid.int
-  let m = Message(kind: NewData, data: newdb.data, version: expectedVersion, id: gid)
-  pendingIds[gid] = m
-  inc pending
+  let expectedVersion = version
+  inc version
+  let m = Message(kind: NewData, data: newdb.data, version: expectedVersion, id: MessageId(0))
   conn.send(toJson(m))
 
 proc merge*(newer, older: Db) =
@@ -49,28 +45,15 @@ proc registerOnUpdate*(update: proc(db: Db)) =
     proc (e: MessageEvent) =
       let msg = fromJson[Message](e.data)
       case msg.kind
-      of Conflict:
+      of Rejected:
         # conflict, so throw away the sent data, don't apply the changes:
-        if pending > 0:
-          pendingIds.del msg.id
-          dec pending
-        # server sent data that caused the conflict:
-        if msg.data.len > 0:
-          let db = Db(data: msg.data, version: msg.version)
-          update(db)
-      of Accepted:
-        kout cstring"accepted", pending
-        if pending > 0:
-          let d = pendingIds[msg.id]
-          # data was not submitted again, so we use the in-memory version
-          # of the data:
-          let db = Db(data: d.data, version: d.version)
-          pendingIds.del msg.id
-          dec pending
-          update(db)
+        kout cstring"rejected"
       of Newdata:
         let db = Db(data: msg.data, version: msg.version)
         update(db)
+      of Disconnect:
+        kout cstring"disconnected"
+      else: kout cstring"something else"
 
 iterator list*(db: Db, q: Query): Triple =
   # XXX here the datamodel comes in! We must not

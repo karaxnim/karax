@@ -14,4 +14,4 @@ type
   MessageId* = distinct int
 
   MessageKind* = enum
-    Newdata, Conflict, Accepted
+    Newdata, Rejected, Disconnect
