@@ -147,20 +147,20 @@ proc onload() =
     var dtTest = 500
 
     var t = dtReset
-    # timeout = setTimeout(test1, t)
-    # t += dtTest
-    # timeout = setTimeout(reset, t)
-    # t += dtReset
+    timeout = setTimeout(test1, t)
+    t += dtTest
+    timeout = setTimeout(reset, t)
+    t += dtReset
 
-    # timeout = setTimeout(test2, t)
-    # t += dtTest
-    # timeout = setTimeout(reset, t)
-    # t += dtReset
+    timeout = setTimeout(test2, t)
+    t += dtTest
+    timeout = setTimeout(reset, t)
+    t += dtReset
 
-    # timeout = setTimeout(test3, t)
-    # t += dtTest
-    # timeout = setTimeout(reset, t)
-    # t += dtReset
+    timeout = setTimeout(test3, t)
+    t += dtTest
+    timeout = setTimeout(reset, t)
+    t += dtReset
 
     timeout = setTimeout(test4, t)
     t += dtTest
@@ -172,12 +172,12 @@ proc onload() =
     timeout = setTimeout(reset, t)
     t += dtReset
 
-    # timeout = setTimeout(test6, t)
-    # t += dtTest
-    # timeout = setTimeout(reset, t)
-    # t += dtReset
+    timeout = setTimeout(test6, t)
+    t += dtTest
+    timeout = setTimeout(reset, t)
+    t += dtReset
 
-    # timeout = setTimeout(test7, t)
+    timeout = setTimeout(test7, t)
 
 onload()
 setRenderer createDom
