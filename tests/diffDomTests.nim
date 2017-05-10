@@ -41,7 +41,7 @@ proc test1() =
 proc check2() =
     let result = checkOrder(@[8, 0, 1, 2, 3, 4, 7, 5])
     if result:
-        results.add cstring"test1 - OK"
+        results.add cstring"test2 - OK"
     else:
         results.add cstring"test2 - FAIL"
 
@@ -134,7 +134,7 @@ proc createDom(): VNode =
     result = buildHtml(tdiv()):
         ul(id="ul"):
             for e in entries:
-                createEntry(parseInt(e))
+                createEntry(jstrutils.parseInt(e))
         for r in results:
             tdiv:
                 text r
@@ -147,20 +147,20 @@ proc onload() =
     var dtTest = 500
 
     var t = dtReset
-    timeout = setTimeout(test1, t)
-    t += dtTest
-    timeout = setTimeout(reset, t)
-    t += dtReset
+    # timeout = setTimeout(test1, t)
+    # t += dtTest
+    # timeout = setTimeout(reset, t)
+    # t += dtReset
 
-    timeout = setTimeout(test2, t)
-    t += dtTest
-    timeout = setTimeout(reset, t)
-    t += dtReset
+    # timeout = setTimeout(test2, t)
+    # t += dtTest
+    # timeout = setTimeout(reset, t)
+    # t += dtReset
 
-    timeout = setTimeout(test3, t)
-    t += dtTest
-    timeout = setTimeout(reset, t)
-    t += dtReset
+    # timeout = setTimeout(test3, t)
+    # t += dtTest
+    # timeout = setTimeout(reset, t)
+    # t += dtReset
 
     timeout = setTimeout(test4, t)
     t += dtTest
@@ -172,12 +172,12 @@ proc onload() =
     timeout = setTimeout(reset, t)
     t += dtReset
 
-    timeout = setTimeout(test6, t)
-    t += dtTest
-    timeout = setTimeout(reset, t)
-    t += dtReset
+    # timeout = setTimeout(test6, t)
+    # t += dtTest
+    # timeout = setTimeout(reset, t)
+    # t += dtReset
 
-    timeout = setTimeout(test7, t)
+    # timeout = setTimeout(test7, t)
 
 onload()
 setRenderer createDom

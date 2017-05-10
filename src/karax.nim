@@ -130,9 +130,6 @@ proc equalsShallow(a, b: VNode): bool =
     if a.text != b.text: return false
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
     if a.text != b.text: return false
-    if a.len != b.len: return false
-    for i in 0..<a.len:
-      if not equalsShallow(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
   # XXX test event listeners here?
@@ -164,6 +161,26 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
+proc printChildren(parent: Node): cstring =
+  if parent != nil and parent.hasChildNodes:
+    var it = parent.firstChild
+    result = ""
+    while it != nil:
+      if it.id == nil:
+        result.add(" nil")
+      else:
+        result.add(" " & $it.id)
+      it = it.nextSibling
+
+proc printChildren(parent: VNode): cstring =
+  if parent != nil:
+    result = ""
+    for i in 0..parent.len-1:
+      if parent[i] == nil or parent[i].id == nil:
+        kout cstring("nil")
+      else:
+        result.add(" " & $(parent[i].id))
+
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   newNode.dom = oldNode.dom
   if not equalsShallow(newNode, oldNode):
@@ -176,6 +193,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
   elif newNode.kind != VNodeKind.text:
     let newLength = newNode.len
     var oldLength = oldNode.len
+    let minLength = min(newLength, oldLength)
     assert oldNode.kind == newNode.kind
     when defined(simpleDiff):
       for i in 0..min(newLength, oldLength)-1:
@@ -188,46 +206,143 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
           detach(oldNode[i])
           current.removeChild(current.lastChild)
     else:
-        var left = 0
-        var rightNew = newLength - 1
-        var rightOld = oldLength - 1
+      #kout cstring("start") 
+      kout cstring("----------------")
+      kout cstring("----------------")
+      var before = printChildren(current)
+
+      # maximal common prefix
+      var left = 0
+      while left < minLength and equalsShallow(newNode[left], oldNode[left]):
+        updateElement(current, oldNode[left].dom, newNode[left], oldNode[left])
+        inc left
+
+      # maximal common suffix
+      var rightOld = oldLength - 1
+      var rightNew = newLength - 1
+      while rightOld >= left and rightNew >= left and equalsShallow(newNode[rightNew], oldNode[rightOld]):
+        updateElement(current, oldNode[rightOld].dom, newNode[rightNew], oldNode[rightOld])
+        dec rightOld
+        dec rightNew
+
+      var leftOld = left
+      var leftNew = left
       
-        while left <= min(rightNew, rightOld):
-          var minRight = min(rightOld, rightNew)
-          
-          while left <= minRight and
-              equalsTree(newNode[left], oldNode[left]):
-            newNode[left] = oldNode[left]
-            inc left
+     
+      var flag = false
+      #if rightOld >= leftOld and rightNew >= leftNew and equalsShallow(oldNode[leftOld], newNode[rightNew]):
+      kout cstring("current")
+      kout printChildren(current)
+      kout cstring("oldNode")
+      kout printChildren(oldNode)
+      kout cstring("newNode")
+      kout printChildren(newNode)
+      flag = true
+      
+      var step = 1
+      while rightOld >= leftOld and rightNew >= leftNew and equalsShallow(oldNode[leftOld], newNode[rightNew]):
+        kout cstring($oldNode[leftOld].id & " " & $newNode[rightNew].id)
+        kout cstring("pos: " & $leftOld & " " & $rightNew)
 
-          while rightOld > left and rightNew > left and
-              equalsTree(newNode[rightNew], oldNode[rightOld]):
-            newNode[rightNew] = oldNode[rightOld]
-            dec rightOld
-            dec rightNew
-          
-          minRight = min(rightOld, rightNew)
-          if left <= minRight:
-            updateElement(current, oldNode[left].dom, newNode[left], oldNode[left])
-            inc left
+        var nextNode: Node = nil
+        if rightNew + 1 < newLength:
+          nextNode = newNode[rightNew + 1].dom
 
-          if left < minRight:
-            updateElement(current, oldNode[rightOld].dom, newNode[rightNew], oldNode[rightOld])
-            dec rightNew
-            dec rightOld
-        
-        var posNextElem = rightOld + 1
-        var isPushBack = posNextElem == oldLength
-        while left <= rightNew:
-          if isPushBack:
-            current.appendChild(vnodeToDom(newNode[left]))
-          else:
-            current.insertBefore(vnodeToDom(newNode[left]), oldNode[posNextElem].dom)
-          inc left
+        updateElement(current, oldNode[leftOld].dom, newNode[rightNew], oldNode[leftOld])
+        if nextNode == nil:
+          current.appendChild(oldNode[leftOld].dom)
+          kout cstring("append")
+        else:
+          kout cstring("insertBefore")
+          current.insertBefore(oldNode[leftOld].dom, nextNode)
+        #kout cstring("step = " & $step & "; leftOld = " & $leftOld & "; rightNew = " & $rightNew)
+        kout cstring($oldNode[leftOld])
+        inc step
+        inc leftOld
+        dec rightNew
+      
+      if flag:
+        kout cstring("after")
+        kout printChildren(current)
+       
 
-        for i in left..rightOld:
-          current.removeChild(oldNode[i].dom)
-          detach(oldNode[i])
+      while rightOld >= leftOld and rightNew >= leftNew:
+        updateElement(current, current[leftOld], newNode[leftNew], oldNode[leftOld])
+        inc leftNew
+        inc leftOld
+
+      var isPushBack = (rightNew + 1 == newLength)
+      var nextNode: Node = nil
+      if not isPushBack:
+        nextNode = newNode[rightNew + 1].dom
+      while leftNew <= rightNew:
+        var node = vnodeToDom(newNode[leftNew])ды
+        if isPushBack:
+          current.appendChild(node)
+        else:
+          current.insertBefore(node, nextNode)
+        inc leftNew
+
+      for i in leftOld..rightOld:
+        current.removeChild(oldNode[i].dom)
+        detach(oldNode[i])
+
+      kout cstring("----------------")
+      kout cstring("before")
+      kout before
+      kout cstring("finish")
+      kout printChildren(current)
+      kout cstring("----------------")
+      kout cstring("----------------")
+      
+
+      # var leftNew = left
+      # var leftOld = left
+      # while rightOld >= leftOld and rightNew >= leftNew and equalsShallow(oldNode[leftOld], newNode[rightNew]):
+      #   var nextNode: Node = nil
+      #   if rightNew + 1 < newLength:
+      #     nextNode = newNode[rightNew + 1].dom
+      #   if nextNode == nil:
+      #     current.appendChild(oldNode[leftOld].dom)
+      #   else:
+      #     current.insertBefore(oldNode[leftOld].dom, nextNode)
+      #   inc leftOld
+      #   dec rightNew
+
+      # var lastTarget: Node = nil
+      # if leftOld <= rightOld:
+      #   lastTarget = oldNode[leftOld].dom
+      # while rightOld >= leftOld and rightNew >= leftNew and equalsShallow(oldNode[rightOld], newNode[leftNew]):
+      #   current.insertBefore(oldNode[rightOld].dom, lastTarget)
+      #   lastTarget = oldNode[rightOld].dom
+      #   inc leftNew
+      #   dec rightOld
+
+      # if rightOld < leftOld:
+      #   var isPushBack = leftOld < oldLength
+      #   for i in leftNew..rightNew:
+      #     if isPushBack:
+      #       current.appendChild(vnodeToDom(newNode[i]))
+      #     else:
+      #       current.insertBefore(vnodeToDom(newNode[i]), oldNode[leftOld].dom)
+      # elif rightNew < leftNew:
+      #   for i in leftOld..rightOld:
+      #     current.removeChild(oldNode[i].dom)
+      #     detach(oldNode[i])
+      # else:
+      # while rightOld >= leftOld and rightNew >= leftNew:
+      #   updateElement(current, oldNode[leftOld].dom, newNode[leftNew], oldNode[leftOld])
+      #   inc leftNew
+      #   inc leftOld
+      # if rightOld < leftOld:
+      #   while rightNew >= leftNew:
+      #     current.appendChild(vnodeToDom(newNode[leftNew]))
+      #     inc leftNew
+      # elif rightNew < leftNew:
+      #   while rightOld >= leftOld:
+      #     current.removeChild(oldNode[leftOld].dom)
+      #     detach(oldNode[leftOld])
+      #     inc leftOld
 
 when false:
   var drawTimeout: Timeout
