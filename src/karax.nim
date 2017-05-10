@@ -1,6 +1,6 @@
 ## Karax -- Single page applications for Nim.
 
-import dom, vdom, jstrutils, components, jdict, tables
+import dom, vdom, jstrutils, components, jdict
 
 export dom.Event
 
@@ -184,6 +184,9 @@ proc print(s: cstring, ident: int) =
   # kout cstring(result)
 
 proc longestIncreasingSubsequence(a: seq[int]): seq[int] =
+  if len(a) == 0:
+    return @[]
+    
   result.add 0
   var parent = newSeq[int](len(a))
   for i in 0..<len(a):
@@ -216,6 +219,10 @@ proc longestIncreasingSubsequence(a: seq[int]): seq[int] =
     dec pos
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode, ident: int = 0) =
+  if newNode.key != -1:
+    kout cstring($newNode.key)
+  if oldNode.key != -1:
+    kout cstring($oldNode.key)
   newNode.dom = oldNode.dom
   if not equalsShallow(newNode, oldNode):
     detach(oldNode)
@@ -317,6 +324,10 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode, ident: int = 
         if not isKeyed:
           break
 
+      if rightNew - leftNew + 1 + rightOld - leftOld + 1 == 0:
+        isKeyed = false
+
+      
       if isKeyed:
         if rightNew > leftNew:
           # remove redundant old nodes
@@ -325,14 +336,22 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode, ident: int = 
             detach(oldNode[i])
         else:
           # permute elements using LIS
-          var positionByKey = newTable[VKey, int]()
+          var positionByKey = newJDict[VKey, int]()
           var positions = newSeq[int]()
           for i in leftOld..rightOld:
             positionByKey[oldNode[i].key] = i
           for i in leftNew..rightNew:
-            if positionByKey.hasKey(newNode[i].key):
+            if positionByKey.contains(newNode[i].key):
               positions.add positionByKey[newNode[i].key]
           
+          #if len(positions) > 0:
+          # kout cstring("new segment len = " & $(rightNew - leftNew + 1))
+          # kout cstring("old segment len = " & $(rightOld - leftOld + 1))
+          # var t = ""
+          # for i in 0..<len(positions):
+          #   t.add($positions[i] & " ")
+          # kout cstring(t)
+
           var lis = longestIncreasingSubsequence(positions)
           var lisPos = 0
           var isNotRedundant = newSeq[bool](rightOld - leftOld + 1)
@@ -344,14 +363,14 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode, ident: int = 
                 updateElement(current, oldNode[index].dom, newNode[i], oldNode[index], ident + 1)
                 inc lisPos
               else:
-                if positionByKey.hasKey(newNode[i].key):
+                if positionByKey.contains(newNode[i].key):
                   var oldPos = positionByKey[newNode[i].key]
                   isNotRedundant[oldPos - leftOld] = true
                   current.insertBefore(oldNode[oldPos].dom, oldNode[index].dom)
                 else:
                   current.insertBefore(vnodeToDom(newNode[i]), oldNode[index].dom)
             else:
-              if positionByKey.hasKey(newNode[i].key):
+              if positionByKey.contains(newNode[i].key):
                 var oldPos = positionByKey[newNode[i].key]
                 isNotRedundant[oldPos - leftOld] = true
                 current.appendChild(oldNode[oldPos].dom)

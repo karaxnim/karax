@@ -83,16 +83,16 @@ proc test4() =
     timeout = setTimeout(check4, 20)
 
 proc check5() =
-    let result = checkOrder(@[0, 1, 3, 5, 4, 5])
+    let result = checkOrder(@[0, 1, 3, 5, 4, 8])
     if result:
         results.add cstring"test5 - OK"
     else:
         results.add cstring"test5 - FAIL"
 
-# result: 0 1 3 5 4 5
+# result: 0 1 3 5 4 8
 proc test5() =
     results.add cstring"test5 started"
-    entries = @[cstring("0"), cstring("1"), cstring("3"), cstring("5"), cstring("4"), cstring("5") ]
+    entries = @[cstring("0"), cstring("1"), cstring("3"), cstring("5"), cstring("4"), cstring("8") ]
     redraw()
     timeout = setTimeout(check5, 20)
 
@@ -127,7 +127,7 @@ proc test7() =
 
 proc createEntry(id: int): VNode =
   result = buildHtml():
-    button(id="" & $id):
+    button(id="" & $id, key = id):
         text $id
 
 proc createDom(): VNode =
