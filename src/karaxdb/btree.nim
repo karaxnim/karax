@@ -16,7 +16,7 @@ type
       vals: array[M, Val]
     of true:
       links: array[M, Node]
-  BTree = ref object
+  BTree = object
     root: Node
     height: int ## height
     n: int      ## number of key-value pairs
@@ -87,7 +87,7 @@ proc insert(h: Node, key: Key, val: Val, ht: int): Node =
   inc h.m
   return if h.m < M: nil else: split(h)
 
-proc put(b: BTree; key: Key; val: Val) =
+proc put(b: var BTree; key: Key; val: Val) =
   let u = insert(b.root, key, val, b.height)
   inc b.n
   if u == nil: return
