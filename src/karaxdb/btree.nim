@@ -1,8 +1,12 @@
 
-# max children per B-tree node = M-1
-# (must be even and greater than 2)
+## General purpose BTree implementation. Can also be used as a persistent
+## data structure. The persistent operations use a 'Ps' suffix.
+## Can also use a page manager for allocations. The page manager be used
+## to off load pages to a file system or to send it over the wire.
+
 const
-  M = 128
+  M = 128 # max children per B-tree node = M-1
+          # (must be even and greater than 2)
   Mhalf = M div 2
 
 type
@@ -40,18 +44,32 @@ proc search(x: Node, key: Key, ht: int): Val =
 
 proc get(t: BTree; key: Key): Val = search(t.root, key, t.height)
 
+proc copyHalf(h, result: Node; offset: int) =
+  for j in 0 ..< Mhalf:
+    result.keys[j] = h.keys[offset + j]
+  if h.isInternal:
+    for j in 0 ..< Mhalf:
+      result.links[j] = h.links[offset + j]
+  else:
+    for j in 0 ..< Mhalf:
+      shallowCopy(result.vals[j], h.vals[offset + j])
+
 proc split(h: Node): Node =
   ## split node in half
   result = Node(m: Mhalf, isInternal: h.isInternal)
   h.m = Mhalf
-  for j in 0 ..< Mhalf:
-    result.keys[j] = h.keys[Mhalf + j]
-  if h.isInternal:
-    for j in 0 ..< Mhalf:
-      result.links[j] = h.links[Mhalf + j]
-  else:
-    for j in 0 ..< Mhalf:
-      shallowCopy(result.vals[j], h.vals[Mhalf + j])
+  copyHalf(h, result, Mhalf)
+
+when false:
+  # unnecessary because when we call 'split' we know it's not a
+  # shared node!
+  proc splitPs(h: Node): (Node, Node) =
+    ## persistent variant of 'split'.
+    var a = Node(m: Mhalf, isInternal: h.isInternal)
+    var b = Node(m: Mhalf, isInternal: h.isInternal)
+    copyHalf(h, a, Mhalf)
+    copyHalf(h, b, 0)
+    result = (a, b)
 
 proc insert(h: Node, key: Key, val: Val, ht: int): Node =
   #var t = Entry(key: key, val: val, next: nil)
@@ -87,6 +105,42 @@ proc insert(h: Node, key: Key, val: Val, ht: int): Node =
   inc h.m
   return if h.m < M: nil else: split(h)
 
+proc insertPs(h: Node, key: Key, val: Val, ht: int): (Node, Node) =
+  #var t = Entry(key: key, val: val, next: nil)
+  var newKey = key
+  var j = 0
+  var hh = Node(m: h.m, isInternal: h.isInternal)
+  if ht == 0:
+    assert(not h.isInternal)
+    while j < h.m:
+      if less(key, h.keys[j]): break
+      inc j
+    for i in countdown(h.m, j+1):
+      shallowCopy(hh.vals[i], h.vals[i-1])
+    hh.vals[j] = val
+  else:
+    assert h.isInternal
+    var newLink: Node = nil
+    while j < h.m:
+      if j+1 == h.m or less(key, h.keys[j+1]):
+        let (u, root) = insertPs(h.links[j], key, val, ht-1)
+        if u == nil: return (u, root)
+        hh.links[j] = root
+        newKey = u.keys[0]
+        newLink = u
+        inc j
+        break
+      inc j
+    for i in countdown(h.m, j+1):
+      hh.links[i] = h.links[i-1]
+    hh.links[j] = newLink
+
+  for i in countdown(h.m, j+1):
+    hh.keys[i] = h.keys[i-1]
+  hh.keys[j] = newKey
+  inc hh.m
+  return if hh.m < M: (nil, nil) else: (split(hh), hh)
+
 proc put(b: var BTree; key: Key; val: Val) =
   let u = insert(b.root, key, val, b.height)
   inc b.n
@@ -100,6 +154,24 @@ proc put(b: var BTree; key: Key; val: Val) =
   t.links[1] = u
   b.root = t
   inc b.height
+
+proc putPs(b: BTree; key: Key; val: Val): BTree =
+  let v = insertPs(b.root, key, val, b.height)
+  result.n = b.n + 1
+  result.height = b.height
+  let u = v[0]
+  let root = v[1]
+  if u == nil:
+    result.root = Node(m: 0, isInternal: false)
+    return
+  # need to split root
+  let t = Node(m: 2, isInternal: true)
+  t.keys[0] = root.keys[0]
+  t.links[0] = root
+  t.keys[1] = u.keys[0]
+  t.links[1] = u
+  result.root = t
+  inc result.height
 
 proc toString(h: Node, ht: int, indent: string; result: var string) =
   if ht == 0:
@@ -146,11 +218,23 @@ proc main =
   assert st.get("www.dell.com") == "143.166.224.230"
   assert(st.n == 17)
 
-  when true:
+  when false:
     var b2 = newBTree()
     const iters = 10_000
     for i in 1..iters:
       b2.put($i, $(iters - i))
+    for i in 1..iters:
+      let x = b2.get($i)
+      if x != $(iters - i):
+        echo "got ", x, ", but expected ", iters - i
+    echo b2.n
+    echo b2.height
+
+  when true:
+    var b2 = newBTree()
+    const iters = 10_000
+    for i in 1..iters:
+      b2 = b2.putPs($i, $(iters - i))
     for i in 1..iters:
       let x = b2.get($i)
       if x != $(iters - i):
