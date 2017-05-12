@@ -5,7 +5,7 @@
 ## to off load pages to a file system or to send it over the wire.
 
 const
-  M = 128 # max children per B-tree node = M-1
+  M = 4   # max children per B-tree node = M-1
           # (must be even and greater than 2)
   Mhalf = M div 2
 
@@ -106,40 +106,40 @@ proc insert(h: Node, key: Key, val: Val, ht: int): Node =
   return if h.m < M: nil else: split(h)
 
 proc insertPs(h: Node, key: Key, val: Val, ht: int): (Node, Node) =
-  #var t = Entry(key: key, val: val, next: nil)
-  var newKey = key
   var j = 0
   var hh = Node(m: h.m, isInternal: h.isInternal)
+  for i in 0 ..< h.m: hh.keys[i] = h.keys[i]
   if ht == 0:
     assert(not h.isInternal)
     while j < h.m:
       if less(key, h.keys[j]): break
       inc j
-    for i in countdown(h.m, j+1):
-      shallowCopy(hh.vals[i], h.vals[i-1])
+    for i in countdown(h.m, j+1): shallowCopy(hh.vals[i], h.vals[i-1])
+    for i in 0 ..< j: shallowCopy(hh.vals[i], h.vals[i])
+    for i in countdown(h.m, j+1): hh.keys[i] = hh.keys[i-1]
     hh.vals[j] = val
+    hh.keys[j] = key
   else:
     assert h.isInternal
-    var newLink: Node = nil
+    # could optimize this copying here:
+    for i in 0 ..< h.m: hh.links[i] = h.links[i]
     while j < h.m:
       if j+1 == h.m or less(key, h.keys[j+1]):
-        let (u, root) = insertPs(h.links[j], key, val, ht-1)
-        if u == nil: return (u, root)
+        let (root, r) = insertPs(h.links[j], key, val, ht-1)
         hh.links[j] = root
-        newKey = u.keys[0]
-        newLink = u
-        inc j
-        break
+        if r == nil:
+          return (hh, nil)
+        else:
+          inc j
+          for i in countdown(h.m, j+1):
+            hh.links[i] = hh.links[i-1]
+            hh.keys[i] = hh.keys[i-1]
+          hh.links[j] = r
+          hh.keys[j] = r.keys[0]
+          break
       inc j
-    for i in countdown(h.m, j+1):
-      hh.links[i] = h.links[i-1]
-    hh.links[j] = newLink
-
-  for i in countdown(h.m, j+1):
-    hh.keys[i] = h.keys[i-1]
-  hh.keys[j] = newKey
   inc hh.m
-  return if hh.m < M: (nil, nil) else: (split(hh), hh)
+  return if hh.m < M: (hh, nil) else: (hh, split(hh))
 
 proc put(b: var BTree; key: Key; val: Val) =
   let u = insert(b.root, key, val, b.height)
@@ -156,13 +156,11 @@ proc put(b: var BTree; key: Key; val: Val) =
   inc b.height
 
 proc putPs(b: BTree; key: Key; val: Val): BTree =
-  let v = insertPs(b.root, key, val, b.height)
+  let (root, u) = insertPs(b.root, key, val, b.height)
   result.n = b.n + 1
   result.height = b.height
-  let u = v[0]
-  let root = v[1]
   if u == nil:
-    result.root = Node(m: 0, isInternal: false)
+    result.root = root
     return
   # need to split root
   let t = Node(m: 2, isInternal: true)
@@ -231,15 +229,17 @@ proc main =
     echo b2.height
 
   when true:
+    var b1 = newBTree()
     var b2 = newBTree()
-    const iters = 10_000
+    const iters = 60_000
     for i in 1..iters:
       b2 = b2.putPs($i, $(iters - i))
+      b1.put($i, $(iters - i))
     for i in 1..iters:
       let x = b2.get($i)
       if x != $(iters - i):
-        echo "got ", x, ", but expected ", iters - i
-    echo b2.n
-    echo b2.height
+        echo i, "th iteration; got ", x, ", but expected ", iters - i
+    echo b2.n, " = ", b1.n
+    echo b2.height, " = ", b1.height
 
 main()
