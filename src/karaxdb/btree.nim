@@ -2,7 +2,7 @@
 # max children per B-tree node = M-1
 # (must be even and greater than 2)
 const
-  M = 4
+  M = 128
   Mhalf = M div 2
 
 type
@@ -145,7 +145,6 @@ proc main =
   assert st.get("www.ebay.com") == "66.135.192.87"
   assert st.get("www.dell.com") == "143.166.224.230"
   assert(st.n == 17)
-  assert(st.height == 2)
 
   when true:
     var b2 = newBTree()
