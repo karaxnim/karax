@@ -41,6 +41,7 @@ type
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
     onclick, ## An element is clicked.
+    oncontextmenu, ## An element is right-clicked.
     ondblclick, ## An element is double clicked.
     onkeyup, ## A key was released.
     onkeydown, ## A key is pressed.
