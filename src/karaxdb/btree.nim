@@ -4,10 +4,25 @@
 ## Can also use a page manager for allocations. The page manager be used
 ## to off load pages to a file system or to send it over the wire.
 
+## Todo:
+## - Add logic to deal with the fact that keys do not have to be unique.
+## - Ranged queries
+## - Make it generic and low level
+## - Support for external nodes and a page cache
+
 const
   M = 4   # max children per B-tree node = M-1
           # (must be even and greater than 2)
   Mhalf = M div 2
+
+  SupportFullTableScan = true
+  SupportDuplicateKeys = true
+
+## Due to the fact that leaves are shared among multiple BTrees the following
+## fields in a Node are downright impossible:
+## - parent
+## - next
+## - prev
 
 type
   Key = string
@@ -24,6 +39,12 @@ type
     root: Node
     height: int ## height
     n: int      ## number of key-value pairs
+  CmpKind {.pure.} = enum
+    eq, le, lt, ge, gt, neq
+  Cursor = object
+    n: Node
+    i, dir: int
+    up: seq[(Node, int)]
 
 proc newBTree(): BTree = BTree(root: Node(m: 0, isInternal: false))
 
@@ -41,6 +62,86 @@ proc search(x: Node, key: Key, ht: int): Val =
     for j in 0 ..< x.m:
       if j+1 == x.m or less(key, x.keys[j+1]):
         return search(x.links[j], key, ht-1)
+
+proc `=~`(i: int; k: CmpKind): bool =
+  ## check if the result of 'cmp' matches what was requested by 'k':
+  case k
+  of CmpKind.eq: i == 0
+  of CmpKind.le: i <= 0
+  of CmpKind.lt: i < 0
+  of CmpKind.ge: i >= 0
+  of CmpKind.gt: i > 0
+  of CmpKind.neq: i != 0
+
+proc canPrune(i: int; k: CmpKind): bool =
+  case k
+  of CmpKind.eq:
+    # we demand equality so if bigger, we can prune:
+    i > 0
+  of CmpKind.le:
+    i > 0
+  of CmpKind.lt: i >= 0
+  of CmpKind.ge: i < 0
+  of CmpKind.gt: i <= 0
+  of CmpKind.neq: i != 0
+
+proc startingPoint(x: Node; key: Key; kind: CmpKind): Cursor =
+  if x.isInternal:
+    for j in 0 ..< x.m:
+      if j+1 == x.m or cmp(key, x.keys[j+1]) =~ kind:
+        return startingPoint(x.links[j], key, kind)
+  else:
+    for j in 0 ..< x.m:
+      let cmpRes = cmp(key, x.keys[j])
+      if cmpRes =~ kind: return Cursor(n: x, i: j)
+
+proc dos(x: Node; key: Key; kind: CmpKind; withKey: proc(k: Key; v: Val)) =
+  if not x.isInternal:
+    echo "came here"
+    for j in 0 ..< x.m:
+      if cmp(key, x.keys[j]) =~ kind:
+        withKey(x.keys[j+1], x.vals[j])
+  else:
+    for j in 0 ..< x.m-1:
+      let cmpRes = cmp(key, x.keys[j+1])
+      echo "came here B ", canPrune(cmpRes, kind)
+      if not canPrune(cmpRes, kind): #cmpRes =~ kind:
+        dos(x.links[j], key, kind, withKey)
+        #if canPrune(cmpRes, kind): return
+      # XXX j+1==x.m case?
+
+
+
+proc init(x: Node): Cursor =
+  result.up = @[]
+  result.i = 0
+  var it = x
+  while it.isInternal:
+    result.up.add((it, 0))
+    it = it.links[0]
+  result.n = it
+
+proc next(c: var Cursor) =
+  assert c.n != nil
+  if c.i >= c.n.m:
+    # current leaf exhausted, pick the next one:
+    if c.up.len > 0:
+      (c.n, c.i) = c.up.pop()
+
+  inc c.i
+  var u = 1
+  while c.i > c.n.m or c.n.isInternal:
+    if c.up.len > 0:
+      (c.n, c.i) = c.up[c.up.len - u]
+    else:
+      c.n = nil
+      return
+  assert(c.n == nil or not c.n.isInternal)
+
+proc atEnd(c: Cursor): bool = c.n == nil
+
+proc getKey(c: Cursor): Key = discard
+proc getVal(c: Cursor): Val = discard
 
 proc get(t: BTree; key: Key): Val = search(t.root, key, t.height)
 
@@ -187,59 +288,61 @@ proc `$`(b: BTree): string =
   result = ""
   toString(b.root, b.height, "", result)
 
-proc main =
-  var st = newBTree()
-  st.put("www.cs.princeton.edu", "abc")
-  st.put("www.cs.princeton.edu", "xyz")
-  st.put("www.princeton.edu",    "128.112.128.15")
-  st.put("www.yale.edu",         "130.132.143.21")
-  st.put("www.simpsons.com",     "209.052.165.60")
-  st.put("www.apple.com",        "17.112.152.32")
-  st.put("www.amazon.com",       "207.171.182.16")
-  st.put("www.ebay.com",         "66.135.192.87")
-  st.put("www.cnn.com",          "64.236.16.20")
-  st.put("www.google.com",       "216.239.41.99")
-  st.put("www.nytimes.com",      "199.239.136.200")
-  st.put("www.microsoft.com",    "207.126.99.140")
-  st.put("www.dell.com",         "143.166.224.230")
-  st.put("www.slashdot.org",     "66.35.250.151")
-  st.put("www.espn.com",         "199.181.135.201")
-  st.put("www.weather.com",      "63.111.66.11")
-  st.put("www.yahoo.com",        "216.109.118.65")
+when isMainModule:
+  proc main =
+    var st = newBTree()
+    st.put("www.cs.princeton.edu", "abc")
+    st.put("www.cs.princeton.edu", "xyz")
+    st.put("www.princeton.edu",    "128.112.128.15")
+    st.put("www.yale.edu",         "130.132.143.21")
+    st.put("www.simpsons.com",     "209.052.165.60")
+    st.put("www.apple.com",        "17.112.152.32")
+    st.put("www.amazon.com",       "207.171.182.16")
+    st.put("www.ebay.com",         "66.135.192.87")
+    st.put("www.cnn.com",          "64.236.16.20")
+    st.put("www.google.com",       "216.239.41.99")
+    st.put("www.nytimes.com",      "199.239.136.200")
+    st.put("www.microsoft.com",    "207.126.99.140")
+    st.put("www.dell.com",         "143.166.224.230")
+    st.put("www.slashdot.org",     "66.35.250.151")
+    st.put("www.espn.com",         "199.181.135.201")
+    st.put("www.weather.com",      "63.111.66.11")
+    st.put("www.yahoo.com",        "216.109.118.65")
 
-  assert st.get("www.cs.princeton.edu") == "abc"
-  assert st.get("www.harvardsucks.com") == nil
+    assert st.get("www.cs.princeton.edu") == "abc"
+    assert st.get("www.harvardsucks.com") == nil
 
-  assert st.get("www.simpsons.com") == "209.052.165.60"
-  assert st.get("www.apple.com") == "17.112.152.32"
-  assert st.get("www.ebay.com") == "66.135.192.87"
-  assert st.get("www.dell.com") == "143.166.224.230"
-  assert(st.n == 17)
+    assert st.get("www.simpsons.com") == "209.052.165.60"
+    assert st.get("www.apple.com") == "17.112.152.32"
+    assert st.get("www.ebay.com") == "66.135.192.87"
+    assert st.get("www.dell.com") == "143.166.224.230"
+    assert(st.n == 17)
 
-  when false:
-    var b2 = newBTree()
-    const iters = 10_000
-    for i in 1..iters:
-      b2.put($i, $(iters - i))
-    for i in 1..iters:
-      let x = b2.get($i)
-      if x != $(iters - i):
-        echo "got ", x, ", but expected ", iters - i
-    echo b2.n
-    echo b2.height
+    when false:
+      var b2 = newBTree()
+      const iters = 10_000
+      for i in 1..iters:
+        b2.put($i, $(iters - i))
+      for i in 1..iters:
+        let x = b2.get($i)
+        if x != $(iters - i):
+          echo "got ", x, ", but expected ", iters - i
+      echo b2.n
+      echo b2.height
 
-  when true:
-    var b1 = newBTree()
-    var b2 = newBTree()
-    const iters = 60_000
-    for i in 1..iters:
-      b2 = b2.putPs($i, $(iters - i))
-      b1.put($i, $(iters - i))
-    for i in 1..iters:
-      let x = b2.get($i)
-      if x != $(iters - i):
-        echo i, "th iteration; got ", x, ", but expected ", iters - i
-    echo b2.n, " = ", b1.n
-    echo b2.height, " = ", b1.height
+    when true:
+      var b1 = newBTree()
+      var b2 = newBTree()
+      const iters = 10 #60_000
+      for i in 1..iters:
+        b2 = b2.putPs($i, $(iters - i))
+        b1.put($i, $(iters - i))
+      for i in 1..iters:
+        let x = b2.get($i)
+        if x != $(iters - i):
+          echo i, "th iteration; got ", x, ", but expected ", iters - i
+      echo b2.n, " = ", b1.n
+      echo b2.height, " = ", b1.height
+      dos(b1.root, "5", CmpKind.eq, proc(k: Key; v: Val) = echo("k ", k, " = ", v))
 
-main()
+  main()
