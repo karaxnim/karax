@@ -36,7 +36,7 @@ type
     form, fieldset, legend, label, input, button,
     select, datalist, optgroup, option, textarea,
     keygen, output, progress, meter,
-    details, summary, command, menu
+    details, summary, command, menu, menuitem
 
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
