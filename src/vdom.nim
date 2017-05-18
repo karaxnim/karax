@@ -1,7 +1,7 @@
 ## Virtual DOM implementation for Karax.
 
 from dom import Event, Node
-import shash, macros
+import shash, macros, vstyles
 from strutils import toUpperAscii
 
 type
@@ -77,6 +77,7 @@ type
     onkeyuplater  ## vdom extension: a key was pressed and some time
                   ## passed (useful for on-the-fly text completions)
 
+
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
@@ -99,6 +100,7 @@ buildLookupTables()
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   VKey* = int
+
   VNode* = ref object
     kind*: VNodeKind
     key*: VKey
@@ -109,6 +111,7 @@ type
     events*: seq[(EventKind, EventHandler)]
     hash*: Hash
     validHash*: bool
+    style*: VStyle ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
@@ -143,6 +146,7 @@ proc eq*(a, b: VNode): bool =
   if a.attrs.len != b.attrs.len: return false
   for i in 0..<a.attrs.len:
     if a.attrs[i] != b.attrs[i]: return false
+  if a.style != b.style: return false
   result = true
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =

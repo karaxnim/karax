@@ -1,5 +1,5 @@
 
-import vdom, components, karax, karaxdsl, jdict, jstrutils, dom
+import vdom, vstyles, components, karax, karaxdsl, jdict, jstrutils, dom
 
 var
   images: seq[cstring] = @[cstring"a", "b", "c", "d"]
@@ -24,10 +24,20 @@ proc carousel*(key: VKey): VNode {.component.} =
       clearTimeout(timer)
     timer = setTimeout(docount, 30)
 
+  let col =
+    case counter
+    of 0: cstring"#4d4d4d"
+    of 1: cstring"#ff00ff"
+    of 2: cstring"#00ffff"
+    of 3: cstring"#ffff00"
+    else: cstring"red"
+
   result = buildHtml(tdiv(key=key)):
     text images[counter]
     button(onclick = next):
       text "Next"
+    tdiv(style = style(StyleAttr.color, col)):
+      text "This changes its color."
     if cntdown != 5:
       text &cntdown
 

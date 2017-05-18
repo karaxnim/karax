@@ -1,6 +1,6 @@
 ## Karax -- Single page applications for Nim.
 
-import dom, vdom, jstrutils, components, jdict
+import dom, vdom, jstrutils, components, jdict, vstyles
 
 export dom.Event
 
@@ -104,6 +104,7 @@ proc vnodeToDom(n: VNode): Node =
     wrapEvent(result, n, e, h)
   if n == toFocusV and toFocus.isNil:
     toFocus = result
+  if not n.style.isNil: applyStyle(result, n.style)
 
 proc same(n: VNode, e: Node): bool =
   if toTag[n.kind] == e.nodename:
@@ -135,6 +136,7 @@ proc equalsShallow(a, b: VNode): bool =
       if not equalsShallow(a[i], b[i]): return false
   if not sameAttrs(a, b): return false
   if a.class != b.class: return false
+  if a.style != b.style: return false
   # XXX test event listeners here?
   return true
 
