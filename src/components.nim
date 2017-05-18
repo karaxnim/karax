@@ -79,8 +79,8 @@ proc stateDecl(n: NimNode; names: TableRef[string, bool]; decl: NimNode) =
       for i in 0 .. c.len-3:
         let v = $c[i]
         let sv = toState v
-        decl.add quote do:
-          var `sv` = newStateDict[`usedType`]()
+        decl.add(quote do:
+          var `sv` = newStateDict[`usedType`]())
         if val.kind != nnkEmpty:
           decl.add newTree(nnkAsgn, newDotExpr(sv, newIdentNode"defaultValue"),
                            val)
