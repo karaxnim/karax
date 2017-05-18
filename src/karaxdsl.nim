@@ -101,20 +101,22 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     result = n
 
 macro buildHtml*(tag, children: untyped): VNode =
-  expectKind children, nnkDo
+  let kids = newProc(procType=nnkDo, body=children)
+  expectKind kids, nnkDo
   var call: NimNode
   if tag.kind in nnkCallKinds:
     call = tag
   else:
     call = newCall(tag)
-  call.add body(children)
+  call.add body(kids)
   result = tcall2(call, nil)
   when defined(debugKaraxDsl):
     echo repr result
 
 macro buildHtml*(children: untyped): VNode =
-  expectKind children, nnkDo
-  result = tcall2(body(children), nil)
+  let kids = newProc(procType=nnkDo, body=children)
+  expectKind kids, nnkDo
+  result = tcall2(body(kids), nil)
   when defined(debugKaraxDsl):
     echo repr result
 
