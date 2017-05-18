@@ -73,6 +73,9 @@ type
     ondragstart, ## The user starts dragging an element or text selection.
     ondrop, ## An element is dropped on a valid drop target.
 
+    onsubmit, ## A form is submitted
+    oninput, ## An input value changes
+
     onkeyupenter, ## vdom extension: an input field received the ENTER key press
     onkeyuplater  ## vdom extension: a key was pressed and some time
                   ## passed (useful for on-the-fly text completions)
