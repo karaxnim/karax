@@ -169,6 +169,83 @@ proc dos(x: Node; kind: CmpKind; key: Key; withKey: proc(k: Key; v: Val)) =
     for i in followA..followB:
       dos(x.links[i], kind, key, withKey)
 
+proc don(x: Node; kind: CmpKind; key: Key; withKey: proc(k: Key; v: Val)) =
+  var stack = @[x]
+  while stack.len > 0:
+    let x = stack.pop()
+    if not x.isInternal:
+      for j in 0 ..< x.m:
+        if cmp(x.keys[j], key) =~ kind:
+          withKey(x.keys[j], x.vals[j])
+    else:
+      # we compute the range of links to follow first, before
+      # recursing:
+      var followA = 0
+      var followB = -1
+      case kind
+      of CmpKind.eq:
+        # want: key == 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
+        for j in 1..x.m:
+          if j == x.m or cmp(key, x.keys[j]) < 0:
+            followA = j-1
+            followB = j-1
+            break
+      of CmpKind.le, CmpKind.lt:
+        # want: key <= 10  or   key < 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
+
+        # Case A: all keys are bigger:
+        if cmp(key, x.keys[1]) < 0:
+          # --> use the very first branch
+          followA = 0
+          followB = 0
+        else:
+          # Case B: all keys are smaller --> use all branches is covered too
+          # by this loop.
+          for j in 1..<x.m:
+            let cmpRes = cmp(key, x.keys[j])
+            if cmpRes >= 0:
+              if followB < 0: followA = j-1
+              # if the keys are identical and we require 'lt', we know
+              # only the left branch is required:
+              followB = j - ord(kind == CmpKind.lt and cmpRes == 0)
+            else:
+              # it's already greater, all others are greater too:
+              break
+      of CmpKind.ge, CmpKind.gt:
+        # want: key >= 10  or  key > 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
+
+        # Case A:  all keys are smaller:
+        if cmp(key, x.keys[x.m-1]) >= 0:
+          # --> use the very last branch
+          followA = x.m-1
+          followB = x.m-1
+        else:
+          # also covers case B: all keys are bigger --> use all branches
+          # we find the key that is bigger or equal to ours and from
+          # then on, follow every branch:
+          for j in 1..<x.m:
+            let cmpRes = cmp(key, x.keys[j])
+            if cmpRes <= 0:
+              # if the keys are identical and we need 'ge', we don't have
+              # to consider the 'j-1' branch:
+              followA = j - ord(kind != CmpKind.ge or cmpRes != 0)
+              # we know everything else is even bigger:
+              followB = x.m-1
+              break
+      of CmpKind.neq:
+        # neq: just follow all for now:
+        followA = 0
+        followB = x.m-1
+      # now recurse into the branches that hold candidates we're interested in:
+      for i in countdown(followB, followA):
+        stack.add(x.links[i])
+
 proc init(x: Node): Cursor =
   result.up = @[]
   result.i = 0
@@ -217,17 +294,6 @@ proc split(h: Node): Node =
   result = Node(m: Mhalf, isInternal: h.isInternal)
   h.m = Mhalf
   copyHalf(h, result, Mhalf)
-
-when false:
-  # unnecessary because when we call 'split' we know it's not a
-  # shared node!
-  proc splitPs(h: Node): (Node, Node) =
-    ## persistent variant of 'split'.
-    var a = Node(m: Mhalf, isInternal: h.isInternal)
-    var b = Node(m: Mhalf, isInternal: h.isInternal)
-    copyHalf(h, a, Mhalf)
-    copyHalf(h, b, 0)
-    result = (a, b)
 
 proc insert(h: Node, key: Key, val: Val, ht: int): Node =
   #var t = Entry(key: key, val: val, next: nil)
@@ -411,5 +477,18 @@ when isMainModule:
       dos(b1.root, CmpKind.lt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
       echo " > 5"
       dos(b1.root, CmpKind.gt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+
+      echo "======================================================================"
+      echo " >= 5"
+      don(b1.root, CmpKind.ge, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+      echo " <= 5"
+      don(b1.root, CmpKind.le, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+
+      echo " == 5"
+      don(b1.root, CmpKind.eq, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+      echo " < 5"
+      don(b1.root, CmpKind.lt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+      echo " > 5"
+      don(b1.root, CmpKind.gt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
 
   main()
