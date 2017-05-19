@@ -117,6 +117,7 @@ proc same(n: VNode, e: Node): bool =
 var
   dorender: proc (): VNode {.closure.}
   currentTree: VNode
+  postRenderCallback: proc ()
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -279,6 +280,10 @@ proc dodraw() =
       updateDirtyElements(nil, olddom, newtree)
       someDirty = false
     currentTree = newtree
+
+  if not postRenderCallback.isNil:
+    postRenderCallback()
+
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
     toFocus.focus()
@@ -299,9 +304,10 @@ proc redraw*() =
 proc init(ev: Event) =
   reqFrame(dodraw)
 
-proc setRenderer*(renderer: proc (): VNode) =
+proc setRenderer*(renderer: proc (): VNode, clientPostRenderCallback: proc () = nil) =
   dorender = renderer
   window.onload = init
+  postRenderCallback = clientPostRenderCallback
 
 proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
   ## Implements the foundation of Karax's event management.
