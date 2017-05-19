@@ -41,10 +41,12 @@ type
     n: int      ## number of key-value pairs
   CmpKind {.pure.} = enum
     eq, le, lt, ge, gt, neq
+  CursorState = enum stPop, stLeaf, stEnd
   Cursor = object
     n: Node
-    i, dir: int
-    up: seq[(Node, int)]
+    i: int
+    stack: seq[Node]
+    state: CursorState
 
 proc newBTree(): BTree = BTree(root: Node(m: 0, isInternal: false))
 
@@ -72,28 +74,6 @@ proc `=~`(i: int; k: CmpKind): bool =
   of CmpKind.ge: i >= 0
   of CmpKind.gt: i > 0
   of CmpKind.neq: i != 0
-
-proc follow(i: int; k: CmpKind): bool =
-  case k
-  of CmpKind.eq:
-    # we demand equality so if less than, follow it
-    i < 0
-  of CmpKind.le:
-    i <= 0
-  of CmpKind.lt: i <= 0
-  of CmpKind.ge: i >= 0
-  of CmpKind.gt: i >= 0
-  of CmpKind.neq: true
-
-proc startingPoint(x: Node; key: Key; kind: CmpKind): Cursor =
-  if x.isInternal:
-    for j in 0 ..< x.m:
-      if j+1 == x.m or cmp(key, x.keys[j+1]) =~ kind:
-        return startingPoint(x.links[j], key, kind)
-  else:
-    for j in 0 ..< x.m:
-      let cmpRes = cmp(key, x.keys[j])
-      if cmpRes =~ kind: return Cursor(n: x, i: j)
 
 proc dos(x: Node; kind: CmpKind; key: Key; withKey: proc(k: Key; v: Val)) =
   if not x.isInternal:
@@ -246,36 +226,114 @@ proc don(x: Node; kind: CmpKind; key: Key; withKey: proc(k: Key; v: Val)) =
       for i in countdown(followB, followA):
         stack.add(x.links[i])
 
-proc init(x: Node): Cursor =
-  result.up = @[]
+proc initCursor(x: Node): Cursor =
+  result.stack = @[x]
   result.i = 0
-  var it = x
-  while it.isInternal:
-    result.up.add((it, 0))
-    it = it.links[0]
-  result.n = it
+  result.n = nil
+  result.state = stPop
 
-proc next(c: var Cursor) =
-  assert c.n != nil
-  if c.i >= c.n.m:
-    # current leaf exhausted, pick the next one:
-    if c.up.len > 0:
-      (c.n, c.i) = c.up.pop()
-
-  inc c.i
-  var u = 1
-  while c.i > c.n.m or c.n.isInternal:
-    if c.up.len > 0:
-      (c.n, c.i) = c.up[c.up.len - u]
-    else:
-      c.n = nil
+proc next(c: var Cursor; kind: CmpKind; key: Key) =
+  case c.state
+  of stEnd: discard
+  of stLeaf:
+    let x = c.n
+    for j in c.i+1 ..< x.m:
+      if cmp(x.keys[j], key) =~ kind:
+        c.state = stLeaf
+        c.i = j
+        return
+    c.state = stPop
+    next(c, kind, key)
+  of stPop:
+    if c.stack.len == 0:
+      c.state = stEnd
       return
-  assert(c.n == nil or not c.n.isInternal)
+    let x = c.stack.pop()
+    if not x.isInternal:
+      c.i = -1
+      c.n = x
+      c.state = stLeaf
+      next(c, kind, key)
+    else:
+      # we compute the range of links to follow first, before
+      # recursing:
+      var followA = 0
+      var followB = -1
+      case kind
+      of CmpKind.eq:
+        # want: key == 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
+        for j in 1..x.m:
+          if j == x.m or cmp(key, x.keys[j]) < 0:
+            followA = j-1
+            followB = j-1
+            break
+      of CmpKind.le, CmpKind.lt:
+        # want: key <= 10  or   key < 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
 
-proc atEnd(c: Cursor): bool = c.n == nil
+        # Case A: all keys are bigger:
+        if cmp(key, x.keys[1]) < 0:
+          # --> use the very first branch
+          followA = 0
+          followB = 0
+        else:
+          # Case B: all keys are smaller --> use all branches is covered too
+          # by this loop.
+          for j in 1..<x.m:
+            let cmpRes = cmp(key, x.keys[j])
+            if cmpRes >= 0:
+              if followB < 0: followA = j-1
+              # if the keys are identical and we require 'lt', we know
+              # only the left branch is required:
+              followB = j - ord(kind == CmpKind.lt and cmpRes == 0)
+            else:
+              # it's already greater, all others are greater too:
+              break
+      of CmpKind.ge, CmpKind.gt:
+        # want: key >= 10  or  key > 10
+        # keys: 0 3  4 5  10 20
+        # keys: 20 30 40
 
-proc getKey(c: Cursor): Key = discard
-proc getVal(c: Cursor): Val = discard
+        # Case A:  all keys are smaller:
+        if cmp(key, x.keys[x.m-1]) >= 0:
+          # --> use the very last branch
+          followA = x.m-1
+          followB = x.m-1
+        else:
+          # also covers case B: all keys are bigger --> use all branches
+          # we find the key that is bigger or equal to ours and from
+          # then on, follow every branch:
+          for j in 1..<x.m:
+            let cmpRes = cmp(key, x.keys[j])
+            if cmpRes <= 0:
+              # if the keys are identical and we need 'ge', we don't have
+              # to consider the 'j-1' branch:
+              followA = j - ord(kind != CmpKind.ge or cmpRes != 0)
+              # we know everything else is even bigger:
+              followB = x.m-1
+              break
+      of CmpKind.neq:
+        # neq: just follow all for now:
+        followA = 0
+        followB = x.m-1
+      # now recurse into the branches that hold candidates we're interested in:
+      for i in countdown(followB, followA):
+        c.stack.add(x.links[i])
+      # state stays stPop, but go on:
+      next(c, kind, key)
+
+proc atEnd(c: Cursor): bool = c.state == stEnd
+
+proc getKey(c: Cursor): Key =
+  assert c.state == stLeaf
+  result = c.n.keys[c.i]
+
+proc getVal(c: Cursor): Val =
+  assert c.state == stLeaf
+  result = c.n.vals[c.i]
 
 proc get(t: BTree; key: Key): Val = search(t.root, key, t.height)
 
@@ -490,5 +548,15 @@ when isMainModule:
       don(b1.root, CmpKind.lt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
       echo " > 5"
       don(b1.root, CmpKind.gt, "5", proc(k: Key; v: Val) = echo("k ", k, " = ", v))
+
+      echo "======================================================================"
+      var c = initCursor(b1.root)
+      var i = 0
+      while true:
+        next(c, CmpKind.le, "9")
+        if atEnd(c): break
+        echo "key ", getKey(c), " ", getVal(c)
+        if i > 30: break
+        inc i
 
   main()
