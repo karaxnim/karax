@@ -1,6 +1,6 @@
 ## Karax -- Single page applications for Nim.
 
-import kdom, vdom, jstrutils, components, jdict, vstyles
+import kdom, vdom, jstrutils, components, jdict, vstyles, future
 
 export kdom.Event
 
@@ -20,6 +20,14 @@ var
 
 proc setFocus*(n: VNode) =
   toFocusV = n
+
+# ----------------- karax instance ---------------------------------------
+
+type
+  KaraxInstance* = ref object
+    rootId: cstring not nil
+    renderer: proc (): VNode {.closure.}
+    currentTree: VNode
 
 # ----------------- event wrapping ---------------------------------------
 
@@ -114,10 +122,6 @@ proc same(n: VNode, e: Node): bool =
       for i in 0 ..< n.len:
         if not same(n[i], e[i]): return false
 
-var
-  dorender: proc (): VNode {.closure.}
-  currentTree: VNode
-
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
   x.parentNode.replaceChild(newTree, x)
@@ -151,27 +155,27 @@ proc equalsTree(a, b: VNode): bool =
   else:
     result = eq(a, b)
 
-proc updateDirtyElements(parent, current: Node, newNode: VNode) =
+proc updateDirtyElements(karax: KaraxInstance, parent, current: Node, newNode: VNode) =
   if newNode.key >= 0 and isDirty(newNode.key):
     unmarkDirty(newNode.key)
     let n = vnodeToDom(newNode)
     if parent == nil:
-      replaceById("ROOT", n)
+      replaceById(karax.rootId, n)
     else:
       parent.replaceChild(n, current)
   elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
        newNode.kind != VNodeKind.dthunk:
     for i in 0..newNode.len-1:
-      updateDirtyElements(current, current[i], newNode[i])
+      updateDirtyElements(karax, current, current[i], newNode[i])
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
-proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
+proc updateElement(karax: KaraxInstance, parent, current: Node, newNode, oldNode: VNode) =
   if not equalsShallow(newNode, oldNode):
     detach(oldNode)
     let n = vnodeToDom(newNode)
     if parent == nil:
-      replaceById("ROOT", n)
+      replaceById(karax.rootId, n)
     else:
       parent.replaceChild(n, current)
   elif newNode.kind != VNodeKind.text:
@@ -204,7 +208,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
 
       var pos = min(oldPos, newPos) + 1
       for i in commonPrefix..pos-1:
-        updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
+        updateElement(karax, current, current.childNodes[i], newNode[i], oldNode[i])
 
       var nextChildPos = oldPos + 1
       while pos <= newPos:
@@ -221,68 +225,80 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         detach(oldNode[i])
         current.removeChild(current.childNodes[pos])
 
-when false:
-  var drawTimeout: Timeout
 
-proc dodraw() =
-  if dorender.isNil: return
-  let newtree = dorender()
-  newtree.id = "ROOT"
+proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
+
+
+proc dodraw(karax: KaraxInstance) =
+  if karax.renderer.isNil: return
+  let newtree = karax.renderer()
+  newtree.id = karax.rootId
   toFocus = nil
-  if currentTree == nil:
-    currentTree = newtree
-    let asdom = vnodeToDom currentTree
-    replaceById("ROOT", asdom)
+  if karax.currentTree == nil:
+    karax.currentTree = newtree
+    let asdom = vnodeToDom karax.currentTree
+    replaceById(karax.rootId, asdom)
   else:
-    let olddom = document.getElementById("ROOT")
-    updateElement(nil, olddom, newtree, currentTree)
-    #assert same(newtree, document.getElementById("ROOT"))
+    let olddom = document.getElementById(karax.rootId)
+    updateElement(karax, nil, olddom, newtree, karax.currentTree)
+    #assert same(newtree, document.getElementById(karax.rootId))
     if someDirty:
-      updateDirtyElements(nil, olddom, newtree)
+      updateDirtyElements(karax, nil, olddom, newtree)
       someDirty = false
-    currentTree = newtree
+    karax.currentTree = newtree
   # now that it's part of the DOM, give it the focus:
   if toFocus != nil:
     toFocus.focus()
 
-proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
 
-proc redraw*() =
+when false:
+  var drawTimeout: Timeout
+
+proc redraw*(karax: KaraxInstance) =
   # we buffer redraw requests:
   when false:
     if drawTimeout != nil:
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
   elif true:
-    reqFrame(dodraw)
+    reqFrame(() => karax.dodraw())
   else:
     dodraw()
 
-proc init(ev: Event) =
-  reqFrame(dodraw)
 
-proc setRenderer*(renderer: proc (): VNode) =
-  dorender = renderer
-  window.onload = init
-
-proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
-  ## Implements the foundation of Karax's event management.
-  ## Karax DSL transforms ``tag(onEvent = handler)`` to
-  ## ``tempNode.addEventHandler(tagNode, EventKind.onEvent, wrapper)``
-  ## where ``wrapper`` calls the passed ``action`` and then triggers
-  ## a ``redraw``.
-  proc wrapper(ev: Event; n: VNode) =
-    action(ev, n)
-    redraw()
-  addEventListener(n, k, wrapper)
-
-proc setOnHashChange*(action: proc (hashPart: cstring)) =
+proc setOnHashChange*(karax: KaraxInstance, action: proc (hashPart: cstring)) =
   var onhashChange {.importc: "window.onhashchange".}: proc()
   var hashPart {.importc: "window.location.hash".}: cstring
   proc wrapper() =
     action(hashPart)
-    redraw()
+    karax.redraw()
   onhashchange = wrapper
+
+
+proc addEventHandler*(karax: KaraxInstance, n: VNode; k: EventKind; action: EventHandler) =
+  ## Implements the foundation of Karax's event management.
+  ## Karax DSL transforms ``tag(onEvent = handler)`` to
+  ## ``tempNode.addEventHandler(state, tagNode, EventKind.onEvent, wrapper)``
+  ## where ``wrapper`` calls the passed ``action`` and then triggers
+  ## a ``redraw``.
+  proc wrapper(ev: Event; n: VNode) =
+    action(ev, n)
+    karax.redraw()
+  addEventListener(n, k, wrapper)
+
+
+proc initKarax*(renderer: () -> VNode, rootId: cstring = cstring"ROOT"): KaraxInstance =
+  ## Starts the Karax rendering. Typically this function
+  ## is called from within a window.onload handler to
+  ## make sure that the DOM is available.
+
+  var karax = KaraxInstance(
+    rootId: rootId,
+    renderer: renderer,
+  )
+  reqFrame(() => karax.dodraw())
+  result = karax
+
 
 {.push stackTrace:off.}
 
@@ -302,10 +318,10 @@ proc setupErrorHandler*() =
 proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
-proc loadScript*(jsfilename: cstring) =
+proc loadScript*(karax: KaraxInstance, jsfilename: cstring) =
   let body = getElementById("body")
   let s = document.createElement("script")
   s.setAttr "type", "text/javascript"
   s.setAttr "src", jsfilename
   body.prepend(s)
-  redraw()
+  karax.redraw()
