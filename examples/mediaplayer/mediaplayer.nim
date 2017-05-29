@@ -12,7 +12,7 @@ proc play(n: Node) {.importcpp.}
 proc pause(n: Node) {.importcpp.}
 proc `width=`(n: Node, w: int) {.importcpp: "#.width = #".}
 
-proc mplayer*(id, resource: cstring): VNode {.component.} =
+proc mplayer*(karax: KaraxInstance, id, resource: cstring): VNode =
   proc handler(ev: Event; n: VNode) =
     let myVideo = document.getElementById(id)
     case n.key
@@ -26,7 +26,7 @@ proc mplayer*(id, resource: cstring): VNode {.component.} =
     of Normal: myVideo.width = 420
     else: discard
 
-  result = buildHtml(tdiv):
+  result = karax.buildHtml(tdiv):
     button(onclick=handler, key=Play):
       text "Play/Pause"
     button(onclick=handler, key=Big):
