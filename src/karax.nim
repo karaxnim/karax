@@ -1,8 +1,8 @@
 ## Karax -- Single page applications for Nim.
 
-import dom, vdom, jstrutils, components, jdict, vstyles
+import kdom, vdom, jstrutils, components, jdict, vstyles
 
-export dom.Event
+export kdom.Event
 
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## the preferred way of debugging karax applications.

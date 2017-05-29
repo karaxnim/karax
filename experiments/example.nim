@@ -1,5 +1,5 @@
 
-import vdom, vstyles, components, karax, karaxdsl, jdict, jstrutils, dom
+import vdom, vstyles, components, karax, karaxdsl, jdict, jstrutils, kdom
 
 var
   images: seq[cstring] = @[cstring"a", "b", "c", "d"]

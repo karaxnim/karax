@@ -1,7 +1,7 @@
 ## Example that shows how to accomplish an "infinitely scrolling" app.
 
 include karaxprelude
-import jstrutils, dom
+import jstrutils, kdom, vstyles
 
 var entries: seq[cstring] = @[]
 for i in 1..500:
@@ -16,7 +16,8 @@ proc scrollEvent(ev: Event; n: VNode) =
 
 proc createDom(): VNode =
   result = buildHtml():
-    tdiv(onscroll=scrollEvent, style="height: 400px; overflow: scroll"):
+    tdiv(onscroll=scrollEvent, style=style(
+        (StyleAttr.height, cstring"400px"), (StyleAttr.overflow, cstring"scroll"))):
       for x in entries:
         tdiv:
           text x

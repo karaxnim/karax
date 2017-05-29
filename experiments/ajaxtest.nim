@@ -1,4 +1,4 @@
-import dom, kajax
+import kdom, kajax
 
 proc cb(httpStatus: int, response: cstring) =
   echo "Worked!"

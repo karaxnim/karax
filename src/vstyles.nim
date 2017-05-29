@@ -1,5 +1,5 @@
 
-import dom, macros
+import kdom, macros
 
 type
   StyleAttr* {.pure.} = enum ## the style attributes supported by the virtual DOM.

@@ -1,5 +1,5 @@
 
-import dom, vdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
+import kdom, vdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
 
 var
     entries: seq[cstring]

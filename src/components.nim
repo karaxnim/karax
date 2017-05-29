@@ -1,6 +1,6 @@
 ## Components in Karax are built by the ``.component`` macro annotation.
 
-import macros, jdict, dom, vdom, tables, strutils
+import macros, jdict, kdom, vdom, tables, strutils
 
 type
   StateDict*[V] = ref object

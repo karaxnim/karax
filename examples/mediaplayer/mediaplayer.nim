@@ -1,5 +1,5 @@
 
-import karax, karaxdsl, vdom, dom, components
+import karax, karaxdsl, vdom, kdom, components
 
 const
   Play = 0

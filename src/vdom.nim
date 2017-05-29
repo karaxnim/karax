@@ -1,6 +1,6 @@
 ## Virtual DOM implementation for Karax.
 
-from dom import Event, Node
+from kdom import Event, Node
 import shash, macros, vstyles
 from strutils import toUpperAscii
 
