@@ -48,6 +48,9 @@ script:
       cd "$TRAVIS_BUILD_DIR/examples/todoapp"
       nim js todoapp.nim
     - |
+      cd "$TRAVIS_BUILD_DIR/experiments"
+      nim js ajaxtest.nim
+    - |
       cd "$TRAVIS_BUILD_DIR/tests"
       nim js diffDomTests.nim
 cache:

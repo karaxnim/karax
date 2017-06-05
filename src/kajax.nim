@@ -3,14 +3,14 @@
 ## This module implements support for `ajax`:idx: socket
 ## handling.
 
-import karax
+import karax as karax_module
 
-proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
+proc ajax(karax: KaraxInstance; meth, url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int; response: cstring)) =
   proc contWrapper(httpStatus: int; response: cstring) =
     cont(httpStatus, response)
-    redraw()
+    karax.redraw()
 
   type
     HttpRequest {.importc.} = ref object
@@ -37,14 +37,14 @@ proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
         contWrapper(this.status, this.statusText)
   ajax.send(data)
 
-proc ajaxPost*(url: cstring; headers: openarray[(cstring, cstring)];
+proc ajaxPost*(karax: KaraxInstance; url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int, response: cstring)) =
-  ajax("POST", url, headers, data, cont)
+  karax.ajax("POST", url, headers, data, cont)
 
-proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
+proc ajaxGet*(karax: KaraxInstance; url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring)) =
-  ajax("GET", url, headers, nil, cont)
+  karax.ajax("GET", url, headers, nil, cont)
 
 proc toJson*[T](data: T): cstring {.importc: "JSON.stringify".}
 proc fromJson*[T](blob: cstring): T {.importc: "JSON.parse".}
