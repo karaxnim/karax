@@ -146,7 +146,9 @@ proc eq*(a, b: VNode): bool =
   if a.attrs.len != b.attrs.len: return false
   for i in 0..<a.attrs.len:
     if a.attrs[i] != b.attrs[i]: return false
-  if a.style != b.style: return false
+  # Do not compare styles here. The idea is that nodes only
+  # differing in styling can be made equal easily enough:
+  #if a.style != b.style: return false
   result = true
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
