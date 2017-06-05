@@ -123,22 +123,26 @@ proc replaceById(id: cstring; newTree: Node) =
   x.parentNode.replaceChild(newTree, x)
   #newTree.id = id
 
-proc equalsShallow(a, b: VNode): bool =
-  if a.kind != b.kind: return false
-  if a.id != b.id: return false
-  if a.key != b.key: return false
+type
+  EqResult = enum
+    different, similar, identical
+
+proc equalsShallow(a, b: VNode): EqResult =
+  if a.kind != b.kind: return different
+  if a.id != b.id: return different
+  if a.key != b.key: return different
   if a.kind == VNodeKind.text:
-    if a.text != b.text: return false
+    if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
-    if a.text != b.text: return false
-    if a.len != b.len: return false
+    if a.text != b.text: return different
+    if a.len != b.len: return different
     for i in 0..<a.len:
-      if not equalsShallow(a[i], b[i]): return false
-  if not sameAttrs(a, b): return false
-  if a.class != b.class: return false
-  if a.style != b.style: return false
-  # XXX test event listeners here?
-  return true
+      if equalsShallow(a[i], b[i]) == different: return different
+  if not sameAttrs(a, b): return different
+  if a.class != b.class: return different
+  if a.style != b.style: return similar
+  # Do not test event listeners here!
+  return identical
 
 proc equalsTree(a, b: VNode): bool =
   when false:
@@ -167,59 +171,68 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       #if dirtyCount <= 0: return
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
-  if not equalsShallow(newNode, oldNode):
+  let res = equalsShallow(newNode, oldNode)
+  if res == different:
     detach(oldNode)
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById("ROOT", n)
     else:
       parent.replaceChild(n, current)
-  elif newNode.kind != VNodeKind.text:
-    let newLength = newNode.len
-    var oldLength = oldNode.len
-    let minLength = min(newLength, oldLength)
-    assert oldNode.kind == newNode.kind
-    when defined(simpleDiff):
-      for i in 0..min(newLength, oldLength)-1:
-        updateElement(current, current[i], newNode[i], oldNode[i])
-      if newLength > oldLength:
-        for i in oldLength..newLength-1:
-          current.appendChild(vnodeToDom(newNode[i]))
-      elif oldLength > newLength:
-        for i in countdown(oldLength-1, newLength):
+  else:
+    if res == similar:
+      # we keep the oldNode, but take over the style from the new node:
+      if oldNode.dom != nil:
+        if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
+        else: oldNode.dom.style = Style()
+      oldNode.style = newNode.style
+
+    if newNode.kind != VNodeKind.text:
+      let newLength = newNode.len
+      var oldLength = oldNode.len
+      let minLength = min(newLength, oldLength)
+      assert oldNode.kind == newNode.kind
+      when defined(simpleDiff):
+        for i in 0..min(newLength, oldLength)-1:
+          updateElement(current, current[i], newNode[i], oldNode[i])
+        if newLength > oldLength:
+          for i in oldLength..newLength-1:
+            current.appendChild(vnodeToDom(newNode[i]))
+        elif oldLength > newLength:
+          for i in countdown(oldLength-1, newLength):
+            detach(oldNode[i])
+            current.removeChild(current.lastChild)
+      else:
+        var commonPrefix = 0
+        while commonPrefix < minLength and
+            equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
+          inc commonPrefix
+
+        var oldPos = oldLength - 1
+        var newPos = newLength - 1
+        while oldPos >= commonPrefix and newPos >= commonPrefix and
+            equalsTree(newNode[newPos], oldNode[oldPos]):
+          dec oldPos
+          dec newPos
+
+        var pos = min(oldPos, newPos) + 1
+        for i in commonPrefix..pos-1:
+          updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
+
+        var nextChildPos = oldPos + 1
+        while pos <= newPos:
+          if nextChildPos == oldLength:
+            current.appendChild(vnodeToDom(newNode[pos]))
+          else:
+            current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+          # added new Node, so old state of VDOM have one more Node
+          inc oldLength
+          inc pos
+          inc nextChildPos
+
+        for i in pos..oldPos:
           detach(oldNode[i])
-          current.removeChild(current.lastChild)
-    else:
-      var commonPrefix = 0
-      while commonPrefix < minLength and
-          equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
-        inc commonPrefix
-
-      var oldPos = oldLength - 1
-      var newPos = newLength - 1
-      while oldPos >= commonPrefix and newPos >= commonPrefix and
-          equalsTree(newNode[newPos], oldNode[oldPos]):
-        dec oldPos
-        dec newPos
-
-      var pos = min(oldPos, newPos) + 1
-      for i in commonPrefix..pos-1:
-        updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
-
-      var nextChildPos = oldPos + 1
-      while pos <= newPos:
-        if nextChildPos == oldLength:
-          current.appendChild(vnodeToDom(newNode[pos]))
-        else:
-          current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
-        # added new Node, so old state of VDOM have one more Node
-        inc oldLength
-        inc pos
-        inc nextChildPos
-
-      for i in pos..oldPos:
-        detach(oldNode[i])
-        current.removeChild(current.childNodes[pos])
+          current.removeChild(current.childNodes[pos])
 
 when false:
   var drawTimeout: Timeout
