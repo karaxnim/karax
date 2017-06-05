@@ -1,0 +1,58 @@
+language: node_js
+env:
+  - BRANCH=master
+  - BRANCH=devel
+matrix:
+  allow_failures:
+    - env: BRANCH=devel
+  fast_finish: true
+install:
+  - |
+    if [ ! -x nim-$BRANCH/bin/nim ]; then
+      git clone -b $BRANCH --depth 1 git://github.com/nim-lang/nim nim-$BRANCH/
+      cd nim-$BRANCH
+      git clone --depth 1 git://github.com/nim-lang/csources csources/
+      cd csources
+      sh build.sh
+      cd ..
+      rm -rf csources
+      bin/nim c koch
+      ./koch boot -d:release
+      ./koch nimble
+    else
+      cd nim-$BRANCH
+      git fetch origin
+      if ! git merge FETCH_HEAD | grep "Already up-to-date"; then
+        bin/nim c koch
+        ./koch boot -d:release
+        ./koch nimble
+      fi
+    fi
+    cd ..
+before_script:
+    - |
+      echo "Running with Nim from: nim-$BRANCH"
+      ls -l "nim-$BRANCH/bin"
+      NIMABSPATH=`readlink -f nim-$BRANCH/bin`
+      export PATH="${NIMABSPATH}${PATH:+:$PATH}"
+      echo "Path: $PATH"
+      nimble install
+script:
+    - |
+      cd "$TRAVIS_BUILD_DIR/examples/scrollapp"
+      nim js scrollapp.nim
+    - |
+      cd "$TRAVIS_BUILD_DIR/examples/mediaplayer"
+      nim js playerapp.nim
+    - |
+      cd "$TRAVIS_BUILD_DIR/examples/todoapp"
+      nim js todoapp.nim
+    - |
+      cd "$TRAVIS_BUILD_DIR/tests"
+      nim js diffDomTests.nim
+cache:
+  directories:
+    - nim-master
+    - nim-devel
+notifications:
+  email: false
