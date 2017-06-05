@@ -75,12 +75,12 @@ proc vnodeToDom(n: VNode): Node =
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = vnodeToDom(x)
-    n.key = result.key
+    #n.key = result.key
     attach n
     return result
   elif n.kind == VNodeKind.dthunk:
     result = callThunk(dcomponents[n.text], n)
-    n.key = result.key
+    #n.key = result.key
     attach n
     return result
   else:
@@ -95,8 +95,8 @@ proc vnodeToDom(n: VNode): Node =
     result.id = n.id
   if n.class != nil:
     result.class = n.class
-  if n.key >= 0:
-    result.key = n.key
+  #if n.key >= 0:
+  #  result.key = n.key
   for k, v in attrs(n):
     if v != nil:
       result.setAttr(k, v)
