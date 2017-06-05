@@ -127,33 +127,35 @@ type
   EqResult = enum
     different, similar, identical
 
-proc equalsShallow(a, b: VNode): EqResult =
+proc eq(a, b: VNode; shallow: bool): EqResult =
   if a.kind != b.kind: return different
   if a.id != b.id: return different
-  if a.key != b.key: return different
+  result = identical
+  if a.key != b.key:
+    kout cstring"different keys", a.key, b.key
+    if b.key == 0:
+      kout cstring"key for ", cstring($b.kind)
+    return different
   if a.kind == VNodeKind.text:
     if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
     if a.text != b.text: return different
     if a.len != b.len: return different
     for i in 0..<a.len:
-      if equalsShallow(a[i], b[i]) == different: return different
+      if eq(a[i], b[i], shallow) == different: return different
+  elif not shallow:
+    if a.len != b.len: return different
+    for i in 0..<a.len:
+      let res = eq(a[i], b[i], shallow)
+      if res == different: return different
+      elif res == similar:
+        # but continue, maybe something makes it 'different'!
+        result = similar
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
   if a.style != b.style: return similar
   # Do not test event listeners here!
-  return identical
-
-proc equalsTree(a, b: VNode): bool =
-  when false:
-    # hashing is too fragile now with component support:
-    if not a.validHash:
-      a.calcHash()
-    if not b.validHash:
-      b.calcHash()
-    return a.hash == b.hash
-  else:
-    result = eq(a, b)
+  return result
 
 proc updateDirtyElements(parent, current: Node, newNode: VNode) =
   if newNode.key >= 0 and isDirty(newNode.key):
@@ -170,8 +172,21 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
+proc updateStyles(newNode, oldNode: VNode; shallow: bool) =
+  # we keep the oldNode, but take over the style from the new node:
+  if oldNode.dom != nil:
+    kout cstring"updateStyle deep updated dom"
+    if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
+    else: oldNode.dom.style = Style()
+  oldNode.style = newNode.style
+  if not shallow:
+    assert newNode.len == oldNode.len
+    for i in 0 ..< newNode.len:
+      updateStyles(newNode[i], oldNode[i], shallow)
+
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
-  let res = equalsShallow(newNode, oldNode)
+  let res = eq(newNode, oldNode, shallow=true)
+  kout cstring($res), cstring"shallow"
   if res == different:
     detach(oldNode)
     let n = vnodeToDom(newNode)
@@ -180,12 +195,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     else:
       parent.replaceChild(n, current)
   else:
-    if res == similar:
-      # we keep the oldNode, but take over the style from the new node:
-      if oldNode.dom != nil:
-        if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
-        else: oldNode.dom.style = Style()
-      oldNode.style = newNode.style
+    if res == similar: updateStyles(newNode, oldNode, true)
 
     if newNode.kind != VNodeKind.text:
       let newLength = newNode.len
@@ -204,16 +214,27 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
             current.removeChild(current.lastChild)
       else:
         var commonPrefix = 0
-        while commonPrefix < minLength and
-            equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
-          inc commonPrefix
+
+        template eqAndUpdate(a, b: VNode; action: untyped) =
+          let r = eq(a, b, false)
+          kout cstring($r), cstring"eqAndUpdate"
+          case r
+          of identical: action
+          of different: break
+          of similar:
+            updateStyles(a, b, false)
+            action
+
+        while commonPrefix < minLength:
+          eqAndUpdate(newNode[commonPrefix], oldNode[commonPrefix]):
+            inc commonPrefix
 
         var oldPos = oldLength - 1
         var newPos = newLength - 1
-        while oldPos >= commonPrefix and newPos >= commonPrefix and
-            equalsTree(newNode[newPos], oldNode[oldPos]):
-          dec oldPos
-          dec newPos
+        while oldPos >= commonPrefix and newPos >= commonPrefix:
+          eqAndUpdate(newNode[newPos], oldNode[oldPos]):
+            dec oldPos
+            dec newPos
 
         var pos = min(oldPos, newPos) + 1
         for i in commonPrefix..pos-1:
@@ -241,6 +262,7 @@ proc dodraw() =
   if dorender.isNil: return
   let newtree = dorender()
   newtree.id = "ROOT"
+  kout cstring"do draw!", cstring getStackTrace()
   toFocus = nil
   if currentTree == nil:
     currentTree = newtree

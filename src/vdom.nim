@@ -133,24 +133,6 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
-proc eq*(a, b: VNode): bool =
-  if a.kind != b.kind: return false
-  if a.id != b.id: return false
-  if a.class != b.class: return false
-  if a.key != b.key: return false
-  if a.kind != VNodeKind.text:
-    if a.kids.len != b.kids.len: return false
-    for i in 0..<a.kids.len:
-      if not eq(a.kids[i], b.kids[i]): return false
-  if a.text != b.text: return false
-  if a.attrs.len != b.attrs.len: return false
-  for i in 0..<a.attrs.len:
-    if a.attrs[i] != b.attrs[i]: return false
-  # Do not compare styles here. The idea is that nodes only
-  # differing in styling can be made equal easily enough:
-  #if a.style != b.style: return false
-  result = true
-
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
   if n.attrs.isNil:
     n.attrs = @[key, val]
