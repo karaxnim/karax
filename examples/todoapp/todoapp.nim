@@ -1,11 +1,13 @@
 
-import vdom, karax, karaxdsl, jstrutils, components, localstorage
+import vdom, kdom, karaxdsl, jstrutils, components, localstorage
+import karax as karax_module
 
 type
   Filter = enum
     all, active, completed
 
 var
+  karax: KaraxInstance
   selectedEntry = -1
   filter: Filter
   entriesLen: int
@@ -78,7 +80,7 @@ proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
 proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.component.} =
-  result = buildHtml(tr):
+  result = karax.buildHtml(tr):
     li(class=toClass(completed)):
       if not selected:
         tdiv(class = "view"):
@@ -93,7 +95,7 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compon
           onkeyupenter = editEntry, value = d, setFocus)
 
 proc makeFooter(entriesCount, completedCount: int): VNode {.component.} =
-  result = buildHtml(footer(class = "footer")):
+  result = karax.buildHtml(footer(class = "footer")):
     span(class = "todo-count"):
       strong:
         text(&entriesCount)
@@ -112,14 +114,14 @@ proc makeFooter(entriesCount, completedCount: int): VNode {.component.} =
       text "Clear completed (" & &completedCount & ")"
 
 proc makeHeader(): VNode {.component.} =
-  result = buildHtml(header(class = "header")):
+  result = karax.buildHtml(header(class = "header")):
     h1:
       text "todos"
     input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
           onkeyupenter = onTodoEnter, setFocus)
 
 proc createDom(): VNode =
-  result = buildHtml(tdiv(class="todomvc-wrapper")):
+  result = karax.buildHtml(tdiv(class="todomvc-wrapper")):
     section(class = "todoapp"):
       makeHeader()
       section(class = "main"):
@@ -144,14 +146,16 @@ proc createDom(): VNode =
               inc entriesCount
       makeFooter(entriesCount, completedCount)
 
-setOnHashChange(proc(hash: cstring) =
-  if hash == "#/": filter = all
-  elif hash == "#/completed": filter = completed
-  elif hash == "#/active": filter = active
-)
-
 if hasItem(lenSuffix):
-  entriesLen = parseInt getItem(lenSuffix)
+  entriesLen = kdom.parseInt getItem(lenSuffix)
 else:
   entriesLen = 0
-setRenderer createDom
+
+window.onload = proc(ev: Event) =
+  karax = initKarax(createDom)
+  karax.setOnHashChange(proc(hash: cstring) =
+    if hash == "#/": filter = all
+    elif hash == "#/completed": filter = completed
+    elif hash == "#/active": filter = active
+  )
+
