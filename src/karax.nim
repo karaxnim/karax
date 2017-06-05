@@ -127,26 +127,22 @@ type
   EqResult = enum
     different, similar, identical
 
-proc eq(a, b: VNode; shallow: bool): EqResult =
+proc eq(a, b: VNode; deep: bool): EqResult =
   if a.kind != b.kind: return different
   if a.id != b.id: return different
   result = identical
-  if a.key != b.key:
-    kout cstring"different keys", a.key, b.key
-    if b.key == 0:
-      kout cstring"key for ", cstring($b.kind)
-    return different
+  if a.key != b.key: return different
   if a.kind == VNodeKind.text:
     if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
     if a.text != b.text: return different
     if a.len != b.len: return different
     for i in 0..<a.len:
-      if eq(a[i], b[i], shallow) == different: return different
-  elif not shallow:
+      if eq(a[i], b[i], deep) == different: return different
+  elif deep:
     if a.len != b.len: return different
     for i in 0..<a.len:
-      let res = eq(a[i], b[i], shallow)
+      let res = eq(a[i], b[i], deep)
       if res == different: return different
       elif res == similar:
         # but continue, maybe something makes it 'different'!
@@ -172,21 +168,25 @@ proc updateDirtyElements(parent, current: Node, newNode: VNode) =
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
-proc updateStyles(newNode, oldNode: VNode; shallow: bool) =
+proc updateStyles(newNode, oldNode: VNode; deep: bool) =
   # we keep the oldNode, but take over the style from the new node:
   if oldNode.dom != nil:
-    kout cstring"updateStyle deep updated dom"
     if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
-  if not shallow:
+  if deep:
     assert newNode.len == oldNode.len
     for i in 0 ..< newNode.len:
-      updateStyles(newNode[i], oldNode[i], shallow)
+      updateStyles(newNode[i], oldNode[i], deep)
+
+proc updateDom(newNode, oldNode: VNode) =
+  newNode.dom = oldNode.dom
+  assert newNode.len == oldNode.len
+  for i in 0 ..< newNode.len:
+    updateDom(newNode[i], oldNode[i])
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
-  let res = eq(newNode, oldNode, shallow=true)
-  kout cstring($res), cstring"shallow"
+  let res = eq(newNode, oldNode, deep=false)
   if res == different:
     detach(oldNode)
     let n = vnodeToDom(newNode)
@@ -195,7 +195,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
     else:
       parent.replaceChild(n, current)
   else:
-    if res == similar: updateStyles(newNode, oldNode, true)
+    if res == similar: updateStyles(newNode, oldNode, false)
+    newNode.dom = oldNode.dom
 
     if newNode.kind != VNodeKind.text:
       let newLength = newNode.len
@@ -216,13 +217,15 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
         var commonPrefix = 0
 
         template eqAndUpdate(a, b: VNode; action: untyped) =
-          let r = eq(a, b, false)
-          kout cstring($r), cstring"eqAndUpdate"
+          let r = eq(a, b, true)
           case r
-          of identical: action
+          of identical:
+            updateDom(a, b)
+            action
           of different: break
           of similar:
-            updateStyles(a, b, false)
+            updateDom(a, b)
+            updateStyles(a, b, true)
             action
 
         while commonPrefix < minLength:
@@ -262,7 +265,6 @@ proc dodraw() =
   if dorender.isNil: return
   let newtree = dorender()
   newtree.id = "ROOT"
-  kout cstring"do draw!", cstring getStackTrace()
   toFocus = nil
   if currentTree == nil:
     currentTree = newtree
