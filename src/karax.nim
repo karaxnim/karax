@@ -149,7 +149,8 @@ proc eq(a, b: VNode; deep: bool): EqResult =
         result = similar
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
-  if a.style != b.style: return similar
+  # XXX Fixme: smart diffing still is broken for complex apps:
+  if a.style != b.style: return different # similar
   # Do not test event listeners here!
   return result
 
