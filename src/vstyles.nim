@@ -2,51 +2,112 @@
 import kdom, macros
 
 type
-  StyleAttr* {.pure.} = enum ## the style attributes supported by the virtual DOM.
+  StyleAttr* {.pure.} = enum
+    ## The style attributes supported by the virtual DOM.
+    ## Reference: https://www.w3schools.com/jsref/dom_obj_style.asp
+    alignContent
+    alignItems
+    alignSelf
+    animation
+    animationDelay
+    animationDirection
+    animationDuration
+    animationFillMode
+    animationIterationCount
+    animationName
+    animationTimingFunction
+    animationPlayState
     background
     backgroundAttachment
     backgroundColor
     backgroundImage
     backgroundPosition
     backgroundRepeat
+    backgroundClip
+    backgroundOrigin
+    backgroundSize
+    backfaceVisibility
     border
     borderBottom
     borderBottomColor
+    borderBottomLeftRadius
+    borderBottomRightRadius
     borderBottomStyle
     borderBottomWidth
+    borderCollapse
     borderColor
+    borderImage
+    borderImageOutset
+    borderImageRepeat
+    borderImageSlice
+    borderImageSource
+    borderImageWidth
     borderLeft
     borderLeftColor
     borderLeftStyle
     borderLeftWidth
+    borderRadius
     borderRight
     borderRightColor
     borderRightStyle
     borderRightWidth
+    borderSpacing
     borderStyle
     borderTop
     borderTopColor
+    borderTopLeftRadius
+    borderTopRightRadius
     borderTopStyle
     borderTopWidth
     borderWidth
     bottom
+    boxDecorationBreak
+    boxShadow
+    boxSizing
     captionSide
     clear
     clip
     color
+    columnCount
+    columnFill
+    columnGap
+    columnRule
+    columnRuleColor
+    columnRuleStyle
+    columnRuleWidth
+    columns
+    columnSpan
+    columnWidth
+    content
+    counterIncrement
+    counterReset
     cursor
     direction
     display
     emptyCells
+    filter
+    flex
+    flexBasis
+    flexDirection
+    flexFlow
+    flexGrow
+    flexShrink
+    flexWrap
     cssFloat
     font
     fontFamily
     fontSize
+    fontSizeAdjust
     fontStretch
     fontStyle
     fontVariant
     fontWeight
+    hangingPunctuation
     height
+    hyphens
+    icon
+    imageOrientation
+    justifyContent
     left
     letterSpacing
     lineHeight
@@ -63,7 +124,22 @@ type
     maxWidth
     minHeight
     minWidth
+    navDown
+    navIndex
+    navLeft
+    navRight
+    navUp
+    opacity
+    order
+    orphans
+    outline
+    outlineColor
+    outlineOffset
+    outlineStyle
+    outlineWidth
     overflow
+    overflowX
+    overflowY
     padding
     paddingBottom
     paddingLeft
@@ -71,26 +147,53 @@ type
     paddingTop
     pageBreakAfter
     pageBreakBefore
+    pageBreakInside
+    perspective
+    perspectiveOrigin
     position
+    quotes
+    resize
     right
-    scrollbar3dLightColor
-    scrollbarArrowColor
-    scrollbarBaseColor
-    scrollbarDarkshadowColor
-    scrollbarFaceColor
-    scrollbarHighlightColor
-    scrollbarShadowColor
-    scrollbarTrackColor
+    scrollbar3dLightColor # note: missing in w3schools reference
+    scrollbarArrowColor # note: missing in w3schools reference
+    scrollbarBaseColor # note: missing in w3schools reference
+    scrollbarDarkshadowColor # note: missing in w3schools reference
+    scrollbarFaceColor # note: missing in w3schools reference
+    scrollbarHighlightColor # note: missing in w3schools reference
+    scrollbarShadowColor # note: missing in w3schools reference
+    scrollbarTrackColor # note: missing in w3schools reference
     tableLayout
+    tabSize
     textAlign
+    textAlignLast
     textDecoration
+    textDecorationColor
+    textDecorationLine
+    textDecorationStyle
     textIndent
+    textJustify
+    textOverflow
+    textShadow
     textTransform
     top
+    transform
+    transformOrigin
+    transformStyle
+    transition
+    transitionDelay
+    transitionDuration
+    transitionProperty
+    transitionTimingFunction
+    unicodeBidi
+    userSelect
     verticalAlign
     visibility
+    whiteSpace
     width
+    wordBreak
     wordSpacing
+    wordWrap
+    widows
     zIndex
 
 macro buildLookupTables(): untyped =
