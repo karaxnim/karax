@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "make": "uglifyjs js/app.js -o build.min.js"
+  },
+  "dependencies": {
+    "angular": "^1.5.8",
+    "todomvc-app-css": "^2.0.6",
+    "todomvc-common": "^1.0.2"
+  },
+  "devDependencies": {
+    "uglify-js": "^2.6.4"
+  }
+}
