@@ -520,6 +520,7 @@ proc setAttribute*(s: Style, attr, value: cstring, caseSensitive=false)
 
 # Event "methods"
 proc preventDefault*(ev: Event)
+proc stopPropagation*(ev: Event)
 
 # TouchEvent "methods"
 proc identifiedTouch*(list: TouchList): Touch
