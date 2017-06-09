@@ -1,7 +1,8 @@
 
-import kdom, vdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
+import kdom, vdom, times, karax as karax_module, karaxdsl, jdict, jstrutils, parseutils, sequtils
 
 var
+    karax: KaraxInstance
     entries: seq[cstring]
     results: seq[cstring]
     timeout: Timeout
@@ -9,7 +10,7 @@ var
 proc reset() =
     results.add cstring"reset started"
     entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
-    redraw()
+    karax.redraw()
     results.add cstring"reset finished"
 
 proc checkOrder(order : seq[int]): bool =
@@ -35,7 +36,7 @@ proc test1() =
     results.add cstring"test1 started"
     entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
     entries.insert(cstring("7"), 5)
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check1, 20)
 
 proc check2() =
@@ -51,7 +52,7 @@ proc test2() =
     entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5") ]
     entries.insert(cstring("7"), 5)
     entries.insert(cstring("8"), 0)
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check2, 20)
 
 proc check3() =
@@ -65,7 +66,7 @@ proc check3() =
 proc test3() =
     results.add cstring"test3 started"
     entries = @[cstring("2"), cstring("3"), cstring("4"), cstring("1") ]
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check3, 20)
 
 proc check4() =
@@ -79,7 +80,7 @@ proc check4() =
 proc test4() =
     results.add cstring"test4 started"
     entries = @[cstring("5"), cstring("6"), cstring("7"), cstring("8") ]
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check4, 20)
 
 proc check5() =
@@ -93,7 +94,7 @@ proc check5() =
 proc test5() =
     results.add cstring"test5 started"
     entries = @[cstring("0"), cstring("1"), cstring("3"), cstring("5"), cstring("4"), cstring("5") ]
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check5, 20)
 
 proc check6() =
@@ -107,7 +108,7 @@ proc check6() =
 proc test6() =
     results.add cstring"test6 started"
     entries = @[]
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check6, 20)
 
 proc check7() =
@@ -116,30 +117,32 @@ proc check7() =
         results.add cstring"test7 - OK"
     else:
         results.add cstring"test7 - FAIL"
-    redraw()
+    karax.redraw()
 
 # result: 2
 proc test7() =
     results.add cstring"test7 started"
     entries = @[cstring("2")]
-    redraw()
+    karax.redraw()
     timeout = setTimeout(check7, 20)
 
 proc createEntry(id: int): VNode =
-  result = buildHtml():
+  result = karax.buildHtml():
     button(id="" & $id):
         text $id
 
 proc createDom(): VNode =
-    result = buildHtml(tdiv()):
+    result = karax.buildHtml(tdiv()):
         ul(id="ul"):
             for e in entries:
-                createEntry(parseInt(e))
+                createEntry(kdom.parseInt(e))
         for r in results:
             tdiv:
                 text r
 
 proc onload() =
+    karax = initKarax(createDom)
+
     for i in 0..5: # 0_000:
         entries.add(cstring($i))
 
@@ -179,5 +182,6 @@ proc onload() =
 
     timeout = setTimeout(test7, t)
 
-onload()
-setRenderer createDom
+
+window.onload = proc(ev: Event) =
+    onload()

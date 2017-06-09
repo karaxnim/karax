@@ -1,21 +1,24 @@
 ## Example app that shows how to write and embed a custom component.
 
 include karaxprelude
-import mediaplayer
+import mediaplayer, kdom
+
+var karax: KaraxInstance
 
 const url = "https://www.w3schools.com/html/mov_bbb.mp4"
 
 proc createDom(): VNode =
-  result = buildHtml(table):
+  result = karax.buildHtml(table):
     tr:
       td:
-        mplayer("vid1", url)
+        mplayer(karax, "vid1", url)
       td:
-        mplayer("vid2", url)
+        mplayer(karax, "vid2", url)
     tr:
       td:
-        mplayer("vid3", url)
+        mplayer(karax, "vid3", url)
       td:
-        mplayer("vid4", url)
+        mplayer(karax, "vid4", url)
 
-setRenderer createDom
+window.onload = proc(ev: Event) =
+  karax = initKarax(createDom)

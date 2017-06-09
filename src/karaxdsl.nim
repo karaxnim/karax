@@ -23,7 +23,7 @@ proc getName(n: NimNode): string =
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
 
-proc tcall2(n, tmpContext: NimNode): NimNode =
+proc tcall2(karax, n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
   # every call statement 's' needs to be transformed to 'dest.add s'.
   # If expressions need to be distinguished from if statements. Since
@@ -46,13 +46,13 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     let L = n.len
     assert n.len == result.len
     if L > 0:
-      result[L-1] = tcall2(result[L-1], tmpContext)
+      result[L-1] = tcall2(karax, result[L-1], tmpContext)
   of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkCaseStmt,
      nnkTryStmt, nnkFinally:
     # recurse for every child:
     result = copyNimNode(n)
     for x in n:
-      result.add tcall2(x, tmpContext)
+      result.add tcall2(karax, x, tmpContext)
   of nnkVarSection, nnkLetSection, nnkConstSection:
     result = n
   of nnkCallKinds:
@@ -76,7 +76,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           let key = getName x[0]
           if key.startsWith("on"):
             result.add newCall(bindSym"addEventHandler",
-              tmp, newDotExpr(bindSym"EventKind", x[0]), x[1])
+              karax, tmp, newDotExpr(bindSym"EventKind", x[0]), x[1])
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           else:
@@ -86,7 +86,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         elif eqIdent(x, "setFocus"):
           result.add newCall(x, tmp)
         else:
-          result.add tcall2(x, tmp)
+          result.add tcall2(karax, x, tmp)
       if tmpContext == nil:
         result.add tmp
       else:
@@ -100,7 +100,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   else:
     result = n
 
-macro buildHtml*(tag, children: untyped): VNode =
+macro buildHtml*(karax, tag, children: untyped): VNode =
   let kids = newProc(procType=nnkDo, body=children)
   expectKind kids, nnkDo
   var call: NimNode
@@ -109,18 +109,18 @@ macro buildHtml*(tag, children: untyped): VNode =
   else:
     call = newCall(tag)
   call.add body(kids)
-  result = tcall2(call, nil)
+  result = tcall2(karax, call, nil)
   when defined(debugKaraxDsl):
     echo repr result
 
-macro buildHtml*(children: untyped): VNode =
+macro buildHtml*(karax, children: untyped): VNode =
   let kids = newProc(procType=nnkDo, body=children)
   expectKind kids, nnkDo
-  result = tcall2(body(kids), nil)
+  result = tcall2(karax, body(kids), nil)
   when defined(debugKaraxDsl):
     echo repr result
 
-macro flatHtml*(tag: untyped): VNode =
-  result = tcall2(tag, nil)
+macro flatHtml*(karax, tag: untyped): VNode =
+  result = tcall2(karax, tag, nil)
   when defined(debugKaraxDsl):
     echo repr result
