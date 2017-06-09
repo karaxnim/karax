@@ -83,12 +83,12 @@ proc vnodeToDom(n: VNode): Node =
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = vnodeToDom(x)
-    n.key = result.key
+    #n.key = result.key
     attach n
     return result
   elif n.kind == VNodeKind.dthunk:
     result = callThunk(dcomponents[n.text], n)
-    n.key = result.key
+    #n.key = result.key
     attach n
     return result
   else:
@@ -103,8 +103,8 @@ proc vnodeToDom(n: VNode): Node =
     result.id = n.id
   if n.class != nil:
     result.class = n.class
-  if n.key >= 0:
-    result.key = n.key
+  #if n.key >= 0:
+  #  result.key = n.key
   for k, v in attrs(n):
     if v != nil:
       result.setAttr(k, v)
@@ -127,33 +127,36 @@ proc replaceById(id: cstring; newTree: Node) =
   x.parentNode.replaceChild(newTree, x)
   #newTree.id = id
 
-proc equalsShallow(a, b: VNode): bool =
-  if a.kind != b.kind: return false
-  if a.id != b.id: return false
-  if a.key != b.key: return false
-  if a.kind == VNodeKind.text:
-    if a.text != b.text: return false
-  elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
-    if a.text != b.text: return false
-    if a.len != b.len: return false
-    for i in 0..<a.len:
-      if not equalsShallow(a[i], b[i]): return false
-  if not sameAttrs(a, b): return false
-  if a.class != b.class: return false
-  if a.style != b.style: return false
-  # XXX test event listeners here?
-  return true
+type
+  EqResult = enum
+    different, similar, identical
 
-proc equalsTree(a, b: VNode): bool =
-  when false:
-    # hashing is too fragile now with component support:
-    if not a.validHash:
-      a.calcHash()
-    if not b.validHash:
-      b.calcHash()
-    return a.hash == b.hash
-  else:
-    result = eq(a, b)
+proc eq(a, b: VNode; deep: bool): EqResult =
+  if a.kind != b.kind: return different
+  if a.id != b.id: return different
+  result = identical
+  if a.key != b.key: return different
+  if a.kind == VNodeKind.text:
+    if a.text != b.text: return different
+  elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
+    if a.text != b.text: return different
+    if a.len != b.len: return different
+    for i in 0..<a.len:
+      if eq(a[i], b[i], deep) == different: return different
+  elif deep:
+    if a.len != b.len: return different
+    for i in 0..<a.len:
+      let res = eq(a[i], b[i], deep)
+      if res == different: return different
+      elif res == similar:
+        # but continue, maybe something makes it 'different'!
+        result = similar
+  if not sameAttrs(a, b): return different
+  if a.class != b.class: return different
+  # XXX Fixme: smart diffing still is broken for complex apps:
+  if a.style != b.style: return different # similar
+  # Do not test event listeners here!
+  return result
 
 proc updateDirtyElements(karax: KaraxInstance, parent, current: Node, newNode: VNode) =
   if newNode.key >= 0 and isDirty(newNode.key):
@@ -170,60 +173,95 @@ proc updateDirtyElements(karax: KaraxInstance, parent, current: Node, newNode: V
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
-proc updateElement(karax: KaraxInstance, parent, current: Node, newNode, oldNode: VNode) =
-  if not equalsShallow(newNode, oldNode):
+proc updateStyles(newNode, oldNode: VNode; deep: bool) =
+  # we keep the oldNode, but take over the style from the new node:
+  if oldNode.dom != nil:
+    if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
+    else: oldNode.dom.style = Style()
+  oldNode.style = newNode.style
+  if deep:
+    assert newNode.len == oldNode.len
+    for i in 0 ..< newNode.len:
+      updateStyles(newNode[i], oldNode[i], deep)
+
+proc updateDom(newNode, oldNode: VNode) =
+  newNode.dom = oldNode.dom
+  assert newNode.len == oldNode.len
+  for i in 0 ..< newNode.len:
+    updateDom(newNode[i], oldNode[i])
+
+proc updateElement(karax: KaraxInstance; parent, current: Node, newNode, oldNode: VNode) =
+  let res = eq(newNode, oldNode, deep=false)
+  if res == different:
     detach(oldNode)
     let n = vnodeToDom(newNode)
     if parent == nil:
       replaceById(karax.rootId, n)
     else:
       parent.replaceChild(n, current)
-  elif newNode.kind != VNodeKind.text:
-    let newLength = newNode.len
-    var oldLength = oldNode.len
-    let minLength = min(newLength, oldLength)
-    assert oldNode.kind == newNode.kind
-    when defined(simpleDiff):
-      for i in 0..min(newLength, oldLength)-1:
-        updateElement(current, current[i], newNode[i], oldNode[i])
-      if newLength > oldLength:
-        for i in oldLength..newLength-1:
-          current.appendChild(vnodeToDom(newNode[i]))
-      elif oldLength > newLength:
-        for i in countdown(oldLength-1, newLength):
+  else:
+    if res == similar: updateStyles(newNode, oldNode, false)
+    newNode.dom = oldNode.dom
+
+    if newNode.kind != VNodeKind.text:
+      let newLength = newNode.len
+      var oldLength = oldNode.len
+      let minLength = min(newLength, oldLength)
+      assert oldNode.kind == newNode.kind
+      when defined(simpleDiff):
+        for i in 0..min(newLength, oldLength)-1:
+          updateElement(current, current[i], newNode[i], oldNode[i])
+        if newLength > oldLength:
+          for i in oldLength..newLength-1:
+            current.appendChild(vnodeToDom(newNode[i]))
+        elif oldLength > newLength:
+          for i in countdown(oldLength-1, newLength):
+            detach(oldNode[i])
+            current.removeChild(current.lastChild)
+      else:
+        var commonPrefix = 0
+
+        template eqAndUpdate(a, b: VNode; action: untyped) =
+          let r = eq(a, b, true)
+          case r
+          of identical:
+            updateDom(a, b)
+            action
+          of different: break
+          of similar:
+            updateDom(a, b)
+            updateStyles(a, b, true)
+            action
+
+        while commonPrefix < minLength:
+          eqAndUpdate(newNode[commonPrefix], oldNode[commonPrefix]):
+            inc commonPrefix
+
+        var oldPos = oldLength - 1
+        var newPos = newLength - 1
+        while oldPos >= commonPrefix and newPos >= commonPrefix:
+          eqAndUpdate(newNode[newPos], oldNode[oldPos]):
+            dec oldPos
+            dec newPos
+
+        var pos = min(oldPos, newPos) + 1
+        for i in commonPrefix..pos-1:
+          updateElement(karax, current, current.childNodes[i], newNode[i], oldNode[i])
+
+        var nextChildPos = oldPos + 1
+        while pos <= newPos:
+          if nextChildPos == oldLength:
+            current.appendChild(vnodeToDom(newNode[pos]))
+          else:
+            current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+          # added new Node, so old state of VDOM have one more Node
+          inc oldLength
+          inc pos
+          inc nextChildPos
+
+        for i in pos..oldPos:
           detach(oldNode[i])
-          current.removeChild(current.lastChild)
-    else:
-      var commonPrefix = 0
-      while commonPrefix < minLength and
-          equalsTree(newNode[commonPrefix], oldNode[commonPrefix]):
-        inc commonPrefix
-
-      var oldPos = oldLength - 1
-      var newPos = newLength - 1
-      while oldPos >= commonPrefix and newPos >= commonPrefix and
-          equalsTree(newNode[newPos], oldNode[oldPos]):
-        dec oldPos
-        dec newPos
-
-      var pos = min(oldPos, newPos) + 1
-      for i in commonPrefix..pos-1:
-        updateElement(karax, current, current.childNodes[i], newNode[i], oldNode[i])
-
-      var nextChildPos = oldPos + 1
-      while pos <= newPos:
-        if nextChildPos == oldLength:
-          current.appendChild(vnodeToDom(newNode[pos]))
-        else:
-          current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
-        # added new Node, so old state of VDOM have one more Node
-        inc oldLength
-        inc pos
-        inc nextChildPos
-
-      for i in pos..oldPos:
-        detach(oldNode[i])
-        current.removeChild(current.childNodes[pos])
+          current.removeChild(current.childNodes[pos])
 
 
 proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
@@ -291,7 +329,6 @@ proc initKarax*(renderer: () -> VNode, rootId: cstring = cstring"ROOT"): KaraxIn
   ## Starts the Karax rendering. Typically this function
   ## is called from within a window.onload handler to
   ## make sure that the DOM is available.
-
   var karax = KaraxInstance(
     rootId: rootId,
     renderer: renderer,
