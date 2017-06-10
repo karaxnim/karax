@@ -273,6 +273,7 @@ type
     textDecoration*: cstring
     textIndent*: cstring
     textTransform*: cstring
+    transform*: cstring
     top*: cstring
     verticalAlign*: cstring
     visibility*: cstring
@@ -567,7 +568,7 @@ proc getElementsByClass*(n: Node; name: cstring): seq[Node] {.
 
 type
   BoundingRect* {.importc.} = object
-    top*, bottom*, left*, right*: int
+    top*, bottom*, left*, right*, x*, y*, width*, height*: float
 
 proc getBoundingClientRect*(e: Node): BoundingRect {.
   importcpp: "getBoundingClientRect", nodecl.}
@@ -579,8 +580,8 @@ proc clientWidth*(): int {.
 proc inViewport*(el: Node): bool =
   let rect = el.getBoundingClientRect()
   result = rect.top >= 0 and rect.left >= 0 and
-           rect.bottom <= clientHeight() and
-           rect.right <= clientWidth()
+           rect.bottom <= clientHeight().float and
+           rect.right <= clientWidth().float
 
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
