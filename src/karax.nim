@@ -65,8 +65,14 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 
 # --------------------- DOM diff -----------------------------------------
 
-template detach(n: VNode) = n.dom = nil
-template attach(n: Vnode) = n.dom = result
+template detach(n: VNode) =
+  if not n.nref.isNil():
+    n.nref.vnode = nil
+  n.dom = nil
+template attach(n: VNode) =
+  if not n.nref.isNil():
+    n.nref.vnode = n
+  n.dom = result
 
 proc vnodeToDom(n: VNode): Node =
   if n.kind == VNodeKind.text:

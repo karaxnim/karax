@@ -101,6 +101,9 @@ macro buildLookupTables(): untyped =
 buildLookupTables()
 
 type
+  VNodeRef* = ref object
+    vnode*: VNode
+
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   VKey* = int
 
@@ -108,6 +111,7 @@ type
     kind*: VNodeKind
     key*: VKey
     id*, class*, text*: cstring
+    nref*: VNodeRef
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
