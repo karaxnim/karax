@@ -1,5 +1,5 @@
 include karaxprelude
-import random
+import future, sequtils
 
 var
   modelData = @[5, 2, 4]
@@ -9,9 +9,9 @@ var
   refSeq = newSeq[VNodeRef]()
 
 proc onClick(ev: Event, n: VNode) =
-  kout(refA)
-  kout(refB)
-  kout(refSeq)
+  kout(refA.vnode)
+  kout(refB.vnode)
+  kout(refSeq.map(nref => nref.vnode))
 
 proc secureRefSlot(i: int): VNodeRef =
   while refSeq.len <= i:
