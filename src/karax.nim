@@ -68,10 +68,12 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 template detach(n: VNode) =
   if not n.nref.isNil():
     n.nref.vnode = nil
+    n.nref.onDetach()
   n.dom = nil
 template attach(n: VNode) =
   if not n.nref.isNil():
     n.nref.vnode = n
+    n.nref.onAttach()
   n.dom = result
 
 proc vnodeToDom(n: VNode): Node =

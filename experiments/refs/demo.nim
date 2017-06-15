@@ -1,16 +1,30 @@
 include karaxprelude
 import future, sequtils
 
+type
+  CustomRef = ref object of VNodeRef
+
+method onAttach(r: CustomRef) =
+  kout(cstring"custom ref attached")
+
+method onDetach(r: CustomRef) =
+  kout(cstring"custom ref detached")
+
 var
   modelData = @[5, 2, 4]
 
   refA = VNodeRef()
   refB = VNodeRef()
+  refC = CustomRef()
   refSeq = newSeq[VNodeRef]()
 
 proc onClick(ev: Event, n: VNode) =
-  kout(refA.vnode)
-  kout(refB.vnode)
+  modelData.add(0)
+
+proc showRefs() =
+  kout(refA)
+  kout(refB)
+  kout(refC)
   kout(refSeq.map(nref => nref.vnode))
 
 proc secureRefSlot(i: int): VNodeRef =
@@ -24,10 +38,13 @@ proc view(): VNode =
       button(onclick=onClick):
         text "click me"
       # storing refs to single elements is straightforward now
-      tdiv(nref=refA):
-        text "A"
-      tdiv(nref=refB):
-        text "B"
+      if modelData.len mod 2 == 0:
+        tdiv(nref=refA):
+          text "A"
+        tdiv(nref=refB):
+          text "B"
+        tdiv(nref=refC):
+          text "C"
       # It's a bit more tricky when containers are involved:
       for i, x in modelData.pairs:
         tdiv(nref=secureRefSlot(i)):
@@ -36,4 +53,4 @@ proc view(): VNode =
 proc renderer(): VNode =
   view()
 
-setRenderer renderer
+setRenderer(renderer, showRefs)
