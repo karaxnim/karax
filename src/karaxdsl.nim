@@ -76,7 +76,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           let key = getName x[0]
           if key.startsWith("on"):
             result.add newCall(bindSym"addEventHandler",
-              tmp, newDotExpr(bindSym"EventKind", x[0]), x[1])
+              tmp, newDotExpr(bindSym"EventKind", x[0]), x[1], ident("kxi"))
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           else:
@@ -84,7 +84,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         elif ck != ComponentKind.Tag:
           call.add x
         elif eqIdent(x, "setFocus"):
-          result.add newCall(x, tmp)
+          result.add newCall(x, tmp, ident"kxi")
         else:
           result.add tcall2(x, tmp)
       if tmpContext == nil:
