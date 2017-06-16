@@ -101,6 +101,9 @@ macro buildLookupTables(): untyped =
 buildLookupTables()
 
 type
+  VNodeRef* = ref object of RootObj
+    vnode*: VNode
+
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   VKey* = int
 
@@ -108,6 +111,7 @@ type
     kind*: VNodeKind
     key*: VKey
     id*, class*, text*: cstring
+    nref*: VNodeRef
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
@@ -117,6 +121,10 @@ type
     style*: VStyle ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
+
+method onAttach*(v: VNodeRef) {.base.} = discard
+method onDetach*(v: VNodeRef) {.base.} = discard
+method changed*(v: VNodeRef): bool {.base.} = false
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
