@@ -1,4 +1,4 @@
-Karax -- Single page applications in Nim
+Karax – Single page applications in Nim [![Build Status](https://travis-ci.org/pragmagic/karax.svg?branch=master)](https://travis-ci.org/pragmagic/karax)
 ========================================
 
 Karax is a framework for developing single page applications in Nim.
