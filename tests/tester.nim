@@ -8,6 +8,7 @@ proc exec(cmd: string) =
 
 proc main =
   exec("nim js tests/diffDomTests.nim")
+  exec("nim js tests/compiler_tests.nim")
   exec("nim js examples/todoapp/todoapp.nim")
   exec("nim js examples/scrollapp/scrollapp.nim")
   exec("nim js examples/mediaplayer/playerapp.nim")
