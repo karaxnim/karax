@@ -47,12 +47,18 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     assert n.len == result.len
     if L > 0:
       result[L-1] = tcall2(result[L-1], tmpContext)
-  of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkCaseStmt,
-     nnkTryStmt, nnkFinally:
+  of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkTryStmt,
+     nnkFinally:
     # recurse for every child:
     result = copyNimNode(n)
     for x in n:
       result.add tcall2(x, tmpContext)
+  of nnkCaseStmt:
+    # recurse for children, but don't add call for case ident
+    result = copyNimNode(n)
+    result.add n[0]
+    for i in 1 ..< n.len:
+      result.add tcall2(n[i], tmpContext)
   of nnkVarSection, nnkLetSection, nnkConstSection:
     result = n
   of nnkCallKinds:
