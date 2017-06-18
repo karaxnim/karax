@@ -2,7 +2,7 @@ include karaxprelude
 import future, sequtils
 
 type
-  CustomRef = ref object of VNodeRef
+  CustomRef = ref object of VComponent
 
 method onAttach(r: CustomRef) =
   kout(cstring"custom ref attached")
@@ -13,10 +13,10 @@ method onDetach(r: CustomRef) =
 var
   modelData = @[5, 2, 4]
 
-  refA = VNodeRef()
-  refB = VNodeRef()
+  refA = VComponent()
+  refB = VComponent()
   refC = CustomRef()
-  refSeq = newSeq[VNodeRef]()
+  refSeq = newSeq[VComponent]()
 
 proc onClick(ev: Event, n: VNode) =
   modelData.add(0)
@@ -25,11 +25,13 @@ proc showRefs() =
   kout(refA)
   kout(refB)
   kout(refC)
-  kout(refSeq.map(nref => nref.vnode))
+  for i in 0 ..< refSeq.len:
+    kout(refSeq[i].vnode)
+  #kout(refSeq.map(nref => nref.vnode))
 
-proc secureRefSlot(i: int): VNodeRef =
+proc secureRefSlot(i: int): VComponent =
   while refSeq.len <= i:
-    refSeq.add(VNodeRef())
+    refSeq.add(VComponent())
   result = refSeq[i]
 
 proc view(): VNode =
@@ -53,4 +55,4 @@ proc view(): VNode =
 proc renderer(): VNode =
   view()
 
-setRenderer(renderer, showRefs)
+setRenderer(renderer, "ROOT", showRefs)

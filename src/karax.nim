@@ -150,6 +150,9 @@ proc eq(a, b: VNode; deep: bool): EqResult =
   if a.id != b.id: return different
   result = identical
   if a.key != b.key: return different
+  if a.nref != nil and changed(a.nref):
+    kout cstring"yes, change!"
+    return different
   if a.kind == VNodeKind.text:
     if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
@@ -201,6 +204,7 @@ proc updateStyles(newNode, oldNode: VNode; deep: bool) =
 
 proc updateDom(newNode, oldNode: VNode) =
   newNode.dom = oldNode.dom
+  newNode.nref = oldNode.nref
   assert newNode.len == oldNode.len
   for i in 0 ..< newNode.len:
     updateDom(newNode[i], oldNode[i])
