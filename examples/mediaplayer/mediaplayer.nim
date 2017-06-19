@@ -1,5 +1,5 @@
 
-import karax, karaxdsl, vdom, kdom, components
+import karax, karaxdsl, vdom, kdom, compact
 
 const
   Play = 0
@@ -12,7 +12,7 @@ proc play(n: Node) {.importcpp.}
 proc pause(n: Node) {.importcpp.}
 proc `width=`(n: Node, w: int) {.importcpp: "#.width = #".}
 
-proc mplayer*(id, resource: cstring): VNode {.component.} =
+proc mplayer*(id, resource: cstring): VNode {.compact.} =
   proc handler(ev: Event; n: VNode) =
     let myVideo = document.getElementById(id)
     case n.key

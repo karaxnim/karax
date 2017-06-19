@@ -1,6 +1,6 @@
 ## Karax -- Single page applications for Nim.
 
-import kdom, vdom, jstrutils, components, jdict, vstyles
+import kdom, vdom, jstrutils, compact, jdict, vstyles
 
 export kdom.Event
 
@@ -82,7 +82,7 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 template detach(n: VNode) =
   if n.kind == VNodeKind.component:
     let x = VComponent(n)
-    if x.onDetach != nil: x.onDetach(x)
+    if x.onDetachImpl != nil: x.onDetachImpl(x)
   n.dom = nil
 template attach(n: VNode) =
   n.dom = result
@@ -104,9 +104,9 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     return result
   elif n.kind == VNodeKind.component:
     let x = VComponent(n)
-    if x.onAttach != nil: x.onAttach(x)
-    assert x.render != nil
-    result = vnodeToDom(x.render(x), kxi)
+    if x.onAttachImpl != nil: x.onAttachImpl(x)
+    assert x.renderImpl != nil
+    result = vnodeToDom(x.renderImpl(x), kxi)
     attach n
     return result
   else:
@@ -147,7 +147,7 @@ proc replaceById(id: cstring; newTree: Node) =
 
 type
   EqResult = enum
-    different, similar, identical
+    changed, different, similar, identical
 
 proc eq(a, b: VNode; deep: bool): EqResult =
   if a.kind != b.kind: return different
@@ -162,15 +162,16 @@ proc eq(a, b: VNode; deep: bool): EqResult =
     for i in 0..<a.len:
       if eq(a[i], b[i], deep) == different: return different
   elif b.kind == VNodeKind.component:
-  #  let x = VComponent(b)
-  #  assert x.changed != nil
-  #  return if x.changed(x): different else: identical
-    return different
+    # different component names mean different components:
+    if a.text != b.text: return different
+    let x = VComponent(b)
+    assert x.changedImpl != nil
+    return if x.changedImpl(x): changed else: identical
   elif deep:
     if a.len != b.len: return different
     for i in 0..<a.len:
       let res = eq(a[i], b[i], deep)
-      if res == different: return different
+      if res <= different: return different
       elif res == similar:
         # but continue, maybe something makes it 'different'!
         result = similar
@@ -181,21 +182,22 @@ proc eq(a, b: VNode; deep: bool): EqResult =
   # Do not test event listeners here!
   return result
 
-proc updateDirtyElements(parent, current: Node, newNode: VNode,
-                         kxi: KaraxInstance) =
-  if newNode.key >= 0 and isDirty(newNode.key):
-    unmarkDirty(newNode.key)
-    let n = vnodeToDom(newNode, kxi)
-    if parent == nil:
-      replaceById(kxi.rootId, n)
-    else:
-      parent.replaceChild(n, current)
-  elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
-       newNode.kind != VNodeKind.dthunk:
-    for i in 0..newNode.len-1:
-      updateDirtyElements(current, current[i], newNode[i], kxi)
-      # leave early if we know there cannot be anything left to do:
-      #if dirtyCount <= 0: return
+when false:
+  proc updateDirtyElements(parent, current: Node, newNode: VNode,
+                          kxi: KaraxInstance) =
+    if newNode.key >= 0 and isDirty(newNode.key):
+      unmarkDirty(newNode.key)
+      let n = vnodeToDom(newNode, kxi)
+      if parent == nil:
+        replaceById(kxi.rootId, n)
+      else:
+        parent.replaceChild(n, current)
+    elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
+        newNode.kind != VNodeKind.dthunk:
+      for i in 0..newNode.len-1:
+        updateDirtyElements(current, current[i], newNode[i], kxi)
+        # leave early if we know there cannot be anything left to do:
+        #if dirtyCount <= 0: return
 
 proc updateStyles(newNode, oldNode: VNode; deep: bool) =
   # we keep the oldNode, but take over the style from the new node:
@@ -216,21 +218,17 @@ proc updateDom(newNode, oldNode: VNode) =
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode;
                    kxi: KaraxInstance): bool =
-  if oldNode.kind == newNode.kind and oldNode.kind == VNodeKind.component:
-    let x = VComponent(oldNode)
-    assert x.changed != nil
-    if x.changed(x):
-      let n = vnodeToDom(x.render(x), kxi)
-      if parent == nil:
-        replaceById(kxi.rootId, n)
-      else:
-        parent.replaceChild(n, current)
-    return true
-
   let res = eq(newNode, oldNode, deep=false)
-  if res == different:
-    detach(oldNode)
-    let n = vnodeToDom(newNode, kxi)
+  if res <= different:
+    var n: Node
+    if res == changed:
+      assert oldNode.kind == VNodeKind.component
+      let x = VComponent(oldNode)
+      n = vnodeToDom(x.renderImpl(x), kxi)
+      result = true
+    else:
+      detach(oldNode)
+      n = vnodeToDom(newNode, kxi)
     if parent == nil:
       replaceById(kxi.rootId, n)
     else:
@@ -264,7 +262,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
             a[i] = b
             #updateDom(a, b)
             action
-          of different: break
+          of different, changed: break
           of similar:
             #updateDom(a, b)
             a[i] = b
@@ -318,9 +316,6 @@ proc dodraw(kxi: KaraxInstance) =
     let olddom = document.getElementById(kxi.rootId)
     discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
     #assert same(newtree, document.getElementById("ROOT"))
-    if someDirty:
-      updateDirtyElements(nil, olddom, newtree, kxi)
-      someDirty = false
     kxi.currentTree = newtree
 
   if not kxi.postRenderCallback.isNil:

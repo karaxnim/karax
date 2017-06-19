@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jdict, jstrutils, components
+import vdom, karax, karaxdsl, jdict, jstrutils, compact
 
 type
   Filter = enum

@@ -120,10 +120,10 @@ type
                ## is not part of the virtual DOM anymore.
 
   VComponent* = ref object of VNode
-    render*: proc(self: VComponent): VNode
-    changed*: proc(self: VComponent): bool
-    onAttach*: proc(self: VComponent)
-    onDetach*: proc(self: VComponent)
+    renderImpl*: proc(self: VComponent): VNode
+    changedImpl*: proc(self: VComponent): bool
+    onAttachImpl*: proc(self: VComponent)
+    onDetachImpl*: proc(self: VComponent)
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -143,12 +143,15 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
-proc vcomponent*(render: (proc(self: VComponent): VNode) not nil,
+template newComponent*[T](t: typeDesc[T];
+                 render: (proc(self: VComponent): VNode) not nil,
                  changed: (proc(self: VComponent): bool) not nil,
                  onAttach: proc(self: VComponent) = nil,
-                 onDetach: proc(self: VComponent) = nil): VNode =
-  result = VComponent(kind: VNodeKind.component, key: -1, render: render,
-                      changed: changed, onAttach: onAttach, onDetach: onDetach)
+                 onDetach: proc(self: VComponent) = nil): T =
+  ## Use this template to create new components.
+  T(kind: VNodeKind.component, key: -1,
+    text: cstring(astToStr(t)), renderImpl: render,
+    changedImpl: changed, onAttachImpl: onAttach, onDetachImpl: onDetach)
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
   if n.attrs.isNil:

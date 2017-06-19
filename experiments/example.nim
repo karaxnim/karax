@@ -51,13 +51,13 @@ proc render(x: VComponent): VNode =
 
 var gid: int
 
+proc changed(c: VComponent): bool =
+  let x = Carousel(c)
+  result = x.change
+
 proc carousel(): Carousel =
-  result = Carousel(kind: VNodeKind.component, key: -1)
-  result.render = render
+  result = newComponent(Carousel, render, changed)
   result.list = images
-  result.changed = proc (c: VComponent): bool =
-    let x = Carousel(c)
-    result = x.change
   result.cntdown = ticksUntilChange
   result.myid = gid
   inc gid

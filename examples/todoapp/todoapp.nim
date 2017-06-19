@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jstrutils, components, localstorage
+import vdom, karax, karaxdsl, jstrutils, compact, localstorage
 
 type
   Filter = enum
@@ -77,7 +77,7 @@ proc toChecked(checked: bool): cstring =
 proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 
-proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.component.} =
+proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compact.} =
   result = buildHtml(tr):
     li(class=toClass(completed)):
       if not selected:
@@ -92,7 +92,7 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compon
           onblur = focusLost,
           onkeyupenter = editEntry, value = d, setFocus)
 
-proc makeFooter(entriesCount, completedCount: int): VNode {.component.} =
+proc makeFooter(entriesCount, completedCount: int): VNode {.compact.} =
   result = buildHtml(footer(class = "footer")):
     span(class = "todo-count"):
       strong:
@@ -111,7 +111,7 @@ proc makeFooter(entriesCount, completedCount: int): VNode {.component.} =
     button(class = "clear-completed", onclick = clearCompleted):
       text "Clear completed (" & &completedCount & ")"
 
-proc makeHeader(): VNode {.component.} =
+proc makeHeader(): VNode {.compact.} =
   result = buildHtml(header(class = "header")):
     h1:
       text "todos"

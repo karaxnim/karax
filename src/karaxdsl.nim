@@ -1,5 +1,5 @@
 
-import macros, karax, vdom, components
+import macros, karax, vdom, compact
 from strutils import startsWith, toLowerAscii
 
 const
