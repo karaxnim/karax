@@ -80,14 +80,11 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 # --------------------- DOM diff -----------------------------------------
 
 template detach(n: VNode) =
-  if not n.nref.isNil():
-    n.nref.vnode = nil
-    n.nref.onDetach()
+  if n.kind == VNodeKind.component:
+    let x = VComponent(n)
+    if x.onDetach != nil: x.onDetach(x)
   n.dom = nil
 template attach(n: VNode) =
-  if not n.nref.isNil():
-    n.nref.vnode = n
-    n.nref.onAttach()
   n.dom = result
 
 proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
@@ -103,6 +100,13 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
   elif n.kind == VNodeKind.dthunk:
     result = callThunk(dcomponents[n.text], n)
     #n.key = result.key
+    attach n
+    return result
+  elif n.kind == VNodeKind.component:
+    let x = VComponent(n)
+    if x.onAttach != nil: x.onAttach(x)
+    assert x.render != nil
+    result = vnodeToDom(x.render(x), kxi)
     attach n
     return result
   else:
@@ -150,9 +154,6 @@ proc eq(a, b: VNode; deep: bool): EqResult =
   if a.id != b.id: return different
   result = identical
   if a.key != b.key: return different
-  if a.nref != nil and changed(a.nref):
-    kout cstring"yes, change!"
-    return different
   if a.kind == VNodeKind.text:
     if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
@@ -160,6 +161,11 @@ proc eq(a, b: VNode; deep: bool): EqResult =
     if a.len != b.len: return different
     for i in 0..<a.len:
       if eq(a[i], b[i], deep) == different: return different
+  elif b.kind == VNodeKind.component:
+  #  let x = VComponent(b)
+  #  assert x.changed != nil
+  #  return if x.changed(x): different else: identical
+    return different
   elif deep:
     if a.len != b.len: return different
     for i in 0..<a.len:
@@ -204,13 +210,23 @@ proc updateStyles(newNode, oldNode: VNode; deep: bool) =
 
 proc updateDom(newNode, oldNode: VNode) =
   newNode.dom = oldNode.dom
-  newNode.nref = oldNode.nref
   assert newNode.len == oldNode.len
   for i in 0 ..< newNode.len:
     updateDom(newNode[i], oldNode[i])
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode;
-                   kxi: KaraxInstance) =
+                   kxi: KaraxInstance): bool =
+  if oldNode.kind == newNode.kind and oldNode.kind == VNodeKind.component:
+    let x = VComponent(oldNode)
+    assert x.changed != nil
+    if x.changed(x):
+      let n = vnodeToDom(x.render(x), kxi)
+      if parent == nil:
+        replaceById(kxi.rootId, n)
+      else:
+        parent.replaceChild(n, current)
+    return true
+
   let res = eq(newNode, oldNode, deep=false)
   if res == different:
     detach(oldNode)
@@ -241,32 +257,35 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
       else:
         var commonPrefix = 0
 
-        template eqAndUpdate(a, b: VNode; action: untyped) =
-          let r = eq(a, b, true)
+        template eqAndUpdate(a: VNode; i: int; b: VNode; action: untyped) =
+          let r = eq(a[i], b, true)
           case r
           of identical:
-            updateDom(a, b)
+            a[i] = b
+            #updateDom(a, b)
             action
           of different: break
           of similar:
-            updateDom(a, b)
-            updateStyles(a, b, true)
+            #updateDom(a, b)
+            a[i] = b
+            #updateStyles(a, b, true)
             action
 
         while commonPrefix < minLength:
-          eqAndUpdate(newNode[commonPrefix], oldNode[commonPrefix]):
+          eqAndUpdate(newNode, commonPrefix, oldNode[commonPrefix]):
             inc commonPrefix
 
         var oldPos = oldLength - 1
         var newPos = newLength - 1
         while oldPos >= commonPrefix and newPos >= commonPrefix:
-          eqAndUpdate(newNode[newPos], oldNode[oldPos]):
+          eqAndUpdate(newNode, newPos, oldNode[oldPos]):
             dec oldPos
             dec newPos
 
         var pos = min(oldPos, newPos) + 1
         for i in commonPrefix..pos-1:
-          updateElement(current, current.childNodes[i], newNode[i], oldNode[i], kxi)
+          if updateElement(current, current.childNodes[i], newNode[i], oldNode[i], kxi):
+            newNode[i] = oldNode[i]
 
         var nextChildPos = oldPos + 1
         while pos <= newPos:
@@ -297,7 +316,7 @@ proc dodraw(kxi: KaraxInstance) =
     replaceById(kxi.rootId, asdom)
   else:
     let olddom = document.getElementById(kxi.rootId)
-    updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
+    discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
     #assert same(newtree, document.getElementById("ROOT"))
     if someDirty:
       updateDirtyElements(nil, olddom, newtree, kxi)
@@ -363,7 +382,7 @@ proc setupErrorHandler*() =
   ## the error message is put into the console, otherwise `alert`
   ## is called.
   proc stackTraceAsCstring(): cstring = cstring(getStackTrace())
-  var onerror {.importc: "window.onerror".} =
+  var onerror {.importc: "window.onerror", used.} =
     proc (msg, url: cstring, line, col: int, error: cstring): bool =
       var x = cstring"Error: " & msg & "\n" & stackTraceAsCstring()
       kout(x)

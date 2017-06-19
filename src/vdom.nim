@@ -8,6 +8,7 @@ type
   VNodeKind* {.pure.} = enum
     text = "#text", int = "#int", bool = "#bool",
     vthunk = "#vthunk", dthunk = "#dthunk",
+    component = "#component",
 
     html, head, title, base, link, meta, style,
     script, noscript,
@@ -101,16 +102,13 @@ macro buildLookupTables(): untyped =
 buildLookupTables()
 
 type
-  VComponent* = ref object of RootObj
-
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   VKey* = int
 
-  VNode* = ref object
+  VNode* = ref object of RootObj
     kind*: VNodeKind
     key*: VKey
     id*, class*, text*: cstring
-    nref*: VComponent
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
@@ -121,9 +119,11 @@ type
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
-method onAttach*(v: VComponent) {.base.} = discard
-method onDetach*(v: VComponent) {.base.} = discard
-method changed*(v: VComponent): bool {.base.} = false
+  VComponent* = ref object of VNode
+    render*: proc(self: VComponent): VNode
+    changed*: proc(self: VComponent): bool
+    onAttach*: proc(self: VComponent)
+    onDetach*: proc(self: VComponent)
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -143,6 +143,13 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
+proc vcomponent*(render: (proc(self: VComponent): VNode) not nil,
+                 changed: (proc(self: VComponent): bool) not nil,
+                 onAttach: proc(self: VComponent) = nil,
+                 onDetach: proc(self: VComponent) = nil): VNode =
+  result = VComponent(kind: VNodeKind.component, key: -1, render: render,
+                      changed: changed, onAttach: onAttach, onDetach: onDetach)
+
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
   if n.attrs.isNil:
     n.attrs = @[key, val]
@@ -160,6 +167,7 @@ proc getAttr*(n: VNode; key: cstring): cstring =
 
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
+proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
 proc add*(parent, kid: VNode) = parent.kids.add kid
 proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, key: -1)
 
