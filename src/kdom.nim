@@ -258,6 +258,7 @@ type
     paddingTop*: cstring
     pageBreakAfter*: cstring
     pageBreakBefore*: cstring
+    pointerEvents*: cstring
     position*: cstring
     right*: cstring
     scrollbar3dLightColor*: cstring

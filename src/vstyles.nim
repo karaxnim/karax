@@ -150,6 +150,7 @@ type
     pageBreakInside
     perspective
     perspectiveOrigin
+    pointerEvents
     position
     quotes
     resize
