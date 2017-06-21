@@ -255,3 +255,11 @@ proc applyStyle*(n: Node; s: VStyle) =
   n.style = Style()
   for x in s.mask:
     n.style.setStyle(toStyleAttrName[x], s.attrs[x])
+
+import jstrutils
+
+proc rgb*(r, g, b: range[0..255]): cstring =
+  cstring"rgb(" & &r & cstring", " & &g & cstring", " & &b & cstring")"
+
+proc rgba*(r, g, b: range[0..255], alpha: float): cstring =
+  cstring"rgb(" & &r & cstring", " & &g & cstring", " & &b & cstring", " & &alpha & cstring")"
