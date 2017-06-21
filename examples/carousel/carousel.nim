@@ -5,7 +5,7 @@ import vdom, vstyles, karax, karaxdsl, jdict, jstrutils, kdom
 type
   Carousel = ref object of VComponent
     counter: int
-    cntdown, myid: int
+    cntdown: int
     timer: TimeOut
     list: seq[cstring]
 
@@ -44,21 +44,14 @@ proc render(x: VComponent): VNode =
     button(onclick = onclick):
       text "Next"
     tdiv(style = style(StyleAttr.color, col)):
-      text "This changes its color." & &self.myid
+      text "This changes its color."
     if self.cntdown != ticksUntilChange:
       text &self.cntdown
-
-var gid: int
 
 proc carousel(): Carousel =
   result = newComponent(Carousel, render)
   result.list = images
   result.cntdown = ticksUntilChange
-  result.myid = gid
-  inc gid
-  #result.onAttach = proc (_: VComponent) =
-  #  result.cntdown = ticksUntilChange
-  #  kout cstring"attached!"
 
 proc createDom(): VNode =
   result = buildHtml(table):

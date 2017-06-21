@@ -11,5 +11,6 @@ proc main =
   exec("nim js examples/todoapp/todoapp.nim")
   exec("nim js examples/scrollapp/scrollapp.nim")
   exec("nim js examples/mediaplayer/playerapp.nim")
+  exec("nim js examples/carousel/carousel.nim")
 
 main()
