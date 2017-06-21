@@ -14,12 +14,26 @@ proc key*(e: Node): VKey =
   else: result = -1
 proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
 
-var
-  toFocus: Node
-  toFocusV: VNode
+type
+  KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
+                              ## know about this.
+    rootId: cstring not nil
+    renderer: proc (): VNode {.closure.}
+    currentTree: VNode
+    postRenderCallback: proc ()
+    toFocus: Node
+    toFocusV: VNode
 
-proc setFocus*(n: VNode) =
-  toFocusV = n
+var
+  kxi*: KaraxInstance ## The current Karax instance. This is always used
+                      ## as the default. **Note**: Within the karax DSL
+                      ## always a symbol of the name *kxi* is assumed, so
+                      ## if you have a local karax instance to use instead
+                      ## in your 'buildHtml' statement, it needs to be named
+                      ## 'kxi'.
+
+proc setFocus*(n: VNode; kxi: KaraxInstance = kxi) =
+  kxi.toFocusV = n
 
 # ----------------- event wrapping ---------------------------------------
 
@@ -68,13 +82,13 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 template detach(n: VNode) = n.dom = nil
 template attach(n: Vnode) = n.dom = result
 
-proc vnodeToDom(n: VNode): Node =
+proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
-    result = vnodeToDom(x)
+    result = vnodeToDom(x, kxi)
     #n.key = result.key
     attach n
     return result
@@ -87,7 +101,7 @@ proc vnodeToDom(n: VNode): Node =
     result = document.createElement(toTag[n.kind])
     attach n
     for k in n:
-      appendChild(result, vnodeToDom(k))
+      appendChild(result, vnodeToDom(k, kxi))
     # text is mapped to 'value':
     if n.text != nil:
       result.value = n.text
@@ -102,8 +116,8 @@ proc vnodeToDom(n: VNode): Node =
       result.setAttr(k, v)
   for e, h in items(n.events):
     wrapEvent(result, n, e, h)
-  if n == toFocusV and toFocus.isNil:
-    toFocus = result
+  if n == kxi.toFocusV and kxi.toFocus.isNil:
+    kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
 
 proc same(n: VNode, e: Node): bool =
@@ -113,10 +127,6 @@ proc same(n: VNode, e: Node): bool =
       if e.len != n.len: return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i]): return false
-
-var
-  dorender: proc (): VNode {.closure.}
-  currentTree: VNode
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -154,18 +164,19 @@ proc eq(a, b: VNode; deep: bool): EqResult =
   # Do not test event listeners here!
   return result
 
-proc updateDirtyElements(parent, current: Node, newNode: VNode) =
+proc updateDirtyElements(parent, current: Node, newNode: VNode,
+                         kxi: KaraxInstance) =
   if newNode.key >= 0 and isDirty(newNode.key):
     unmarkDirty(newNode.key)
-    let n = vnodeToDom(newNode)
+    let n = vnodeToDom(newNode, kxi)
     if parent == nil:
-      replaceById("ROOT", n)
+      replaceById(kxi.rootId, n)
     else:
       parent.replaceChild(n, current)
   elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
        newNode.kind != VNodeKind.dthunk:
     for i in 0..newNode.len-1:
-      updateDirtyElements(current, current[i], newNode[i])
+      updateDirtyElements(current, current[i], newNode[i], kxi)
       # leave early if we know there cannot be anything left to do:
       #if dirtyCount <= 0: return
 
@@ -186,13 +197,14 @@ proc updateDom(newNode, oldNode: VNode) =
   for i in 0 ..< newNode.len:
     updateDom(newNode[i], oldNode[i])
 
-proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
+proc updateElement(parent, current: Node, newNode, oldNode: VNode;
+                   kxi: KaraxInstance) =
   let res = eq(newNode, oldNode, deep=false)
   if res == different:
     detach(oldNode)
-    let n = vnodeToDom(newNode)
+    let n = vnodeToDom(newNode, kxi)
     if parent == nil:
-      replaceById("ROOT", n)
+      replaceById(kxi.rootId, n)
     else:
       parent.replaceChild(n, current)
   else:
@@ -206,7 +218,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
       assert oldNode.kind == newNode.kind
       when defined(simpleDiff):
         for i in 0..min(newLength, oldLength)-1:
-          updateElement(current, current[i], newNode[i], oldNode[i])
+          updateElement(current, current[i], newNode[i], oldNode[i], kxi)
         if newLength > oldLength:
           for i in oldLength..newLength-1:
             current.appendChild(vnodeToDom(newNode[i]))
@@ -242,14 +254,14 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
 
         var pos = min(oldPos, newPos) + 1
         for i in commonPrefix..pos-1:
-          updateElement(current, current.childNodes[i], newNode[i], oldNode[i])
+          updateElement(current, current.childNodes[i], newNode[i], oldNode[i], kxi)
 
         var nextChildPos = oldPos + 1
         while pos <= newPos:
           if nextChildPos == oldLength:
-            current.appendChild(vnodeToDom(newNode[pos]))
+            current.appendChild(vnodeToDom(newNode[pos], kxi))
           else:
-            current.insertBefore(vnodeToDom(newNode[pos]), current.childNodes[nextChildPos])
+            current.insertBefore(vnodeToDom(newNode[pos], kxi), current.childNodes[nextChildPos])
           # added new Node, so old state of VDOM have one more Node
           inc oldLength
           inc pos
@@ -262,48 +274,57 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode) =
 when false:
   var drawTimeout: Timeout
 
-proc dodraw() =
-  if dorender.isNil: return
-  let newtree = dorender()
-  newtree.id = "ROOT"
-  toFocus = nil
-  if currentTree == nil:
-    currentTree = newtree
-    let asdom = vnodeToDom currentTree
-    replaceById("ROOT", asdom)
+proc dodraw(kxi: KaraxInstance) =
+  if kxi.renderer.isNil: return
+  let newtree = kxi.renderer()
+  newtree.id = kxi.rootId
+  kxi.toFocus = nil
+  if kxi.currentTree == nil:
+    kxi.currentTree = newtree
+    let asdom = vnodeToDom(kxi.currentTree, kxi)
+    replaceById(kxi.rootId, asdom)
   else:
-    let olddom = document.getElementById("ROOT")
-    updateElement(nil, olddom, newtree, currentTree)
+    let olddom = document.getElementById(kxi.rootId)
+    updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
     #assert same(newtree, document.getElementById("ROOT"))
     if someDirty:
-      updateDirtyElements(nil, olddom, newtree)
+      updateDirtyElements(nil, olddom, newtree, kxi)
       someDirty = false
-    currentTree = newtree
+    kxi.currentTree = newtree
+
+  if not kxi.postRenderCallback.isNil:
+    kxi.postRenderCallback()
+
   # now that it's part of the DOM, give it the focus:
-  if toFocus != nil:
-    toFocus.focus()
+  if kxi.toFocus != nil:
+    kxi.toFocus.focus()
 
 proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
 
-proc redraw*() =
+proc redraw*(kxi: KaraxInstance = kxi) =
   # we buffer redraw requests:
   when false:
     if drawTimeout != nil:
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
   elif true:
-    reqFrame(dodraw)
+    reqFrame(proc () = kxi.dodraw)
   else:
     dodraw()
 
 proc init(ev: Event) =
-  reqFrame(dodraw)
+  reqFrame(proc () = kxi.dodraw)
 
-proc setRenderer*(renderer: proc (): VNode) =
-  dorender = renderer
+proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
+                  clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+  ## Setup Karax. Usually the return value can be ignored.
+  result = KaraxInstance(rootId: root, renderer: renderer,
+                         postRenderCallback: clientPostRenderCallback)
+  kxi = result
   window.onload = init
 
-proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
+proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
+                      kxi: KaraxInstance = kxi) =
   ## Implements the foundation of Karax's event management.
   ## Karax DSL transforms ``tag(onEvent = handler)`` to
   ## ``tempNode.addEventHandler(tagNode, EventKind.onEvent, wrapper)``
@@ -311,7 +332,7 @@ proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler) =
   ## a ``redraw``.
   proc wrapper(ev: Event; n: VNode) =
     action(ev, n)
-    redraw()
+    redraw(kxi)
   addEventListener(n, k, wrapper)
 
 proc setOnHashChange*(action: proc (hashPart: cstring)) =
@@ -340,10 +361,10 @@ proc setupErrorHandler*() =
 proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
-proc loadScript*(jsfilename: cstring) =
+proc loadScript*(jsfilename: cstring; kxi: KaraxInstance = kxi) =
   let body = getElementById("body")
   let s = document.createElement("script")
   s.setAttr "type", "text/javascript"
   s.setAttr "src", jsfilename
   body.prepend(s)
-  redraw()
+  redraw(kxi)

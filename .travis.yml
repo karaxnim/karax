@@ -1,0 +1,18 @@
+sudo: false
+language: c
+os: linux
+install:
+  - git clone https://github.com/nim-lang/nim
+  - cd nim
+  - git clone --depth 1 https://github.com/nim-lang/csources.git
+  - cd csources
+  - sh build.sh
+  - cd ../
+  - bin/nim c koch
+  - ./koch boot -d:release
+  - cd ..
+before_script:
+  - set -e
+  - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
+script:
+  - nim c -r tests/tester.nim

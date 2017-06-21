@@ -273,6 +273,7 @@ type
     textDecoration*: cstring
     textIndent*: cstring
     textTransform*: cstring
+    transform*: cstring
     top*: cstring
     verticalAlign*: cstring
     visibility*: cstring
@@ -520,6 +521,7 @@ proc setAttribute*(s: Style, attr, value: cstring, caseSensitive=false)
 
 # Event "methods"
 proc preventDefault*(ev: Event)
+proc stopPropagation*(ev: Event)
 
 # TouchEvent "methods"
 proc identifiedTouch*(list: TouchList): Touch
@@ -545,9 +547,6 @@ proc decodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc encodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc isFinite*(x: BiggestFloat): bool {.importc, nodecl.}
 proc isNaN*(x: BiggestFloat): bool {.importc, nodecl.}
-proc parseFloat*(s: cstring): BiggestFloat {.importc, nodecl.}
-proc parseInt*(s: cstring): int {.importc, nodecl.}
-proc parseInt*(s: cstring, radix: int):int {.importc, nodecl.}
 
 
 proc id*(n: Node): cstring {.importcpp: "#.id", nodecl.}
@@ -566,7 +565,7 @@ proc getElementsByClass*(n: Node; name: cstring): seq[Node] {.
 
 type
   BoundingRect* {.importc.} = object
-    top*, bottom*, left*, right*: int
+    top*, bottom*, left*, right*, x*, y*, width*, height*: float
 
 proc getBoundingClientRect*(e: Node): BoundingRect {.
   importcpp: "getBoundingClientRect", nodecl.}
@@ -578,8 +577,8 @@ proc clientWidth*(): int {.
 proc inViewport*(el: Node): bool =
   let rect = el.getBoundingClientRect()
   result = rect.top >= 0 and rect.left >= 0 and
-           rect.bottom <= clientHeight() and
-           rect.right <= clientWidth()
+           rect.bottom <= clientHeight().float and
+           rect.right <= clientWidth().float
 
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
