@@ -1,3 +1,4 @@
+## This demo shows how you can develop your own stateful components with Karax.
 
 import vdom, vstyles, karax, karaxdsl, jdict, jstrutils, kdom
 
@@ -7,7 +8,6 @@ type
     cntdown, myid: int
     timer: TimeOut
     list: seq[cstring]
-    change: bool
 
 const ticksUntilChange = 5
 
@@ -24,11 +24,10 @@ proc render(x: VComponent): VNode =
       self.cntdown = ticksUntilChange
     else:
       self.timer = setTimeout(docount, 30)
-    self.change = true
+    markDirty(self)
     redraw()
 
   proc onclick(ev: Event; n: VNode) =
-    self.change = false
     if self.timer != nil:
       clearTimeout(self.timer)
     self.timer = setTimeout(docount, 30)
@@ -51,12 +50,8 @@ proc render(x: VComponent): VNode =
 
 var gid: int
 
-proc changed(c: VComponent): bool =
-  let x = Carousel(c)
-  result = x.change
-
 proc carousel(): Carousel =
-  result = newComponent(Carousel, render, changed)
+  result = newComponent(Carousel, render)
   result.list = images
   result.cntdown = ticksUntilChange
   result.myid = gid

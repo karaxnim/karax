@@ -119,11 +119,16 @@ type
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
-  VComponent* = ref object of VNode
+  VComponent* = ref object of VNode ## The abstract class for every karax component.
     renderImpl*: proc(self: VComponent): VNode
     changedImpl*: proc(self: VComponent): bool
+    updatedImpl*: proc(self: VComponent)
     onAttachImpl*: proc(self: VComponent)
     onDetachImpl*: proc(self: VComponent)
+    version*: int         ## Update this to trigger a redraw by karax. Usually you
+                          ## should call 'markDirty' instead which is an alias for
+                          ## 'inc version'.
+    renderedVersion*: int ## Do not touch. Used by karax.
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -143,15 +148,28 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
+proc defaultChangedImpl*(v: VComponent): bool =
+  ## The default implementation of 'changed'.
+  result = v.version != v.renderedVersion
+
+proc defaultUpdatedImpl*(v: VComponent) =
+  v.renderedVersion = v.version
+
 template newComponent*[T](t: typeDesc[T];
                  render: (proc(self: VComponent): VNode) not nil,
-                 changed: (proc(self: VComponent): bool) not nil,
                  onAttach: proc(self: VComponent) = nil,
-                 onDetach: proc(self: VComponent) = nil): T =
+                 onDetach: proc(self: VComponent) = nil,
+                 changed: (proc(self: VComponent): bool) = defaultChangedImpl,
+                 updated: proc(self: VComponent) = defaultUpdatedImpl): T =
   ## Use this template to create new components.
   T(kind: VNodeKind.component, key: -1,
     text: cstring(astToStr(t)), renderImpl: render,
-    changedImpl: changed, onAttachImpl: onAttach, onDetachImpl: onDetach)
+    changedImpl: changed, updatedImpl: updated,
+    onAttachImpl: onAttach, onDetachImpl: onDetach)
+
+template markDirty*(c: VComponent) =
+  ## mark the component as dirty so that it is re-rendered.
+  inc c.version
 
 proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
   if n.attrs.isNil:

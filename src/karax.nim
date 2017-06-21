@@ -225,6 +225,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
       assert oldNode.kind == VNodeKind.component
       let x = VComponent(oldNode)
       n = vnodeToDom(x.renderImpl(x), kxi)
+      x.updatedImpl(x)
       result = true
     else:
       detach(oldNode)
