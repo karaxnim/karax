@@ -81,8 +81,9 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 
 template detach(n: VNode) =
   if n.kind == VNodeKind.component:
-    let x = VComponent(n)
-    if x.onDetachImpl != nil: x.onDetachImpl(x)
+    let c = n.component
+    assert c != nil
+    c.onDetach()
   n.dom = nil
 template attach(n: VNode) =
   n.dom = result
@@ -103,10 +104,10 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     attach n
     return result
   elif n.kind == VNodeKind.component:
-    let x = VComponent(n)
-    if x.onAttachImpl != nil: x.onAttachImpl(x)
-    assert x.renderImpl != nil
-    result = vnodeToDom(x.renderImpl(x), kxi)
+    let c = n.component
+    assert c != nil
+    c.onAttach()
+    result = vnodeToDom(c.render(), kxi)
     attach n
     return result
   else:
@@ -164,9 +165,9 @@ proc eq(a, b: VNode; deep: bool): EqResult =
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text: return different
-    let x = VComponent(b)
-    assert x.changedImpl != nil
-    return if x.changedImpl(x): changed else: identical
+    let c = b.component
+    assert c != nil
+    return if c.changed(): changed else: identical
   elif deep:
     if a.len != b.len: return different
     for i in 0..<a.len:
@@ -223,9 +224,10 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
     var n: Node
     if res == changed:
       assert oldNode.kind == VNodeKind.component
-      let x = VComponent(oldNode)
-      n = vnodeToDom(x.renderImpl(x), kxi)
-      x.updatedImpl(x)
+      let c = oldNode.component
+      assert c != nil
+      n = vnodeToDom(c.render(), kxi)
+      c.updated()
       result = true
     else:
       detach(oldNode)

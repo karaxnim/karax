@@ -14,8 +14,7 @@ const ticksUntilChange = 5
 var
   images: seq[cstring] = @[cstring"a", "b", "c", "d"]
 
-proc render(x: VComponent): VNode =
-  let self = Carousel(x)
+method render(self: Carousel): VNode =
 
   proc docount() =
     dec self.cntdown
@@ -39,6 +38,7 @@ proc render(x: VComponent): VNode =
     of 2: cstring"#00ffff"
     of 3: cstring"#ffff00"
     else: cstring"red"
+
   result = buildHtml(tdiv()):
     text self.list[self.counter]
     button(onclick = onclick):
@@ -49,9 +49,10 @@ proc render(x: VComponent): VNode =
       text &self.cntdown
 
 proc carousel(): Carousel =
-  result = newComponent(Carousel, render)
-  result.list = images
-  result.cntdown = ticksUntilChange
+  Carousel(
+    list: images,
+    cntdown: ticksUntilChange,
+  )
 
 proc createDom(): VNode =
   result = buildHtml(table):
