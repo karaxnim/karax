@@ -14,6 +14,7 @@ proc `&`*(a, b: cstring): cstring {.importcpp: "(# + #)", nodecl.}
 proc toCstr*(s: int): cstring {.importcpp: "((#)+'')", nodecl.}
 proc `&`*(s: int): cstring {.importcpp: "((#)+'')", nodecl.}
 proc `&`*(s: bool): cstring {.importcpp: "((#)+'')", nodecl.}
+proc `&`*(s: float): cstring {.importcpp: "((#)+'')", nodecl.}
 
 proc `&`*(s: cstring): cstring {.importcpp: "(#)", nodecl.}
 
