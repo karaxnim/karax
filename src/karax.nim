@@ -177,8 +177,7 @@ proc eq(a, b: VNode; deep: bool): EqResult =
         result = similar
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
-  # XXX Fixme: smart diffing still is broken for complex apps:
-  if a.style != b.style: return different # similar
+  if a.style != b.style: return similar
   # Do not test event listeners here!
   return result
 
@@ -206,7 +205,10 @@ proc updateStyles(newNode, oldNode: VNode; deep: bool) =
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
   if deep:
-    assert newNode.len == oldNode.len
+    if newNode.len != oldNode.len:
+      kout cstring"argh ", newNode.len, " ", oldNode.len
+      kout newNode, oldNode
+    doAssert newNode.len == oldNode.len
     for i in 0 ..< newNode.len:
       updateStyles(newNode[i], oldNode[i], deep)
 
@@ -224,8 +226,18 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
     if res == changed:
       assert oldNode.kind == VNodeKind.component
       let x = VComponent(oldNode)
-      n = vnodeToDom(x.renderImpl(x), kxi)
+      let oldExpanded = x.expanded
+      x.expanded = x.renderImpl(x)
       x.updatedImpl(x)
+      if oldExpanded == nil:
+        n = vnodeToDom(x.expanded, kxi)
+      else:
+        if updateElement(parent, current, x.expanded, oldExpanded, kxi):
+          n = x.expanded.dom
+          doAssert n != nil, "expanded.dom is nil"
+        else:
+          n = oldExpanded.dom
+          doAssert n != nil, "old expanded.dom is nil"
       result = true
     else:
       detach(oldNode)
@@ -234,10 +246,10 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
       replaceById(kxi.rootId, n)
     else:
       parent.replaceChild(n, current)
+  elif res == similar:
+    updateStyles(newNode, oldNode, false)
   else:
-    if res == similar: updateStyles(newNode, oldNode, false)
     newNode.dom = oldNode.dom
-
     if newNode.kind != VNodeKind.text:
       let newLength = newNode.len
       var oldLength = oldNode.len
@@ -266,8 +278,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
           of different, changed: break
           of similar:
             #updateDom(a, b)
+            updateStyles(a[i], b, true)
             a[i] = b
-            #updateStyles(a, b, true)
             action
 
         while commonPrefix < minLength:
@@ -299,6 +311,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
 
         for i in pos..oldPos:
           detach(oldNode[i])
+          doAssert pos < current.childNodes.len
           current.removeChild(current.childNodes[pos])
 
 when false:

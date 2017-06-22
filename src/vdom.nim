@@ -129,6 +129,8 @@ type
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
     renderedVersion*: int ## Do not touch. Used by karax.
+    expanded*: VNode      ## Do not touch. Used by karax. The VDOM the component
+                          ## expanded to.
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
