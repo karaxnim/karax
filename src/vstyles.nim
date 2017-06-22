@@ -213,7 +213,9 @@ type
     attrs: array[StyleAttr, cstring]
     mask: set[StyleAttr]
 
-proc `==`*(a, b: VStyle): bool =
+proc kout[T](x: T) {.importc: "console.log", varargs.}
+
+proc eq*(a, b: VStyle): bool =
   if a.isNil:
     if b.isNil: return true
     else: return false
@@ -247,15 +249,21 @@ proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #".}
 
 proc merge*(a, b: VStyle): VStyle =
   ## merges two styles. ``b`` takes precedence over ``a``.
-  result = VStyle(mask: a.mask + b.mask)
+  result = VStyle(mask: {})
   for i in low(StyleAttr)..high(StyleAttr):
     result.attrs[i] = if b.attrs[i].isNil: a.attrs[i] else: b.attrs[i]
+    if result.attrs[i] != nil: incl(result.mask, i)
 
 proc applyStyle*(n: Node; s: VStyle) =
   ## apply the style to the real DOM node ``n``.
   n.style = Style()
   for x in s.mask:
     n.style.setStyle(toStyleAttrName[x], s.attrs[x])
+
+iterator pairs*(v: VStyle): (cstring, cstring) =
+  if v != nil:
+    for x in v.mask:
+      yield (toStyleAttrName[x], v.attrs[x])
 
 import jstrutils
 

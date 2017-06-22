@@ -119,6 +119,7 @@ type
     style*: VStyle ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
+    myid*: int
 
   VComponent* = ref object of VNode ## The abstract class for every karax component.
     renderImpl*: proc(self: VComponent): VNode

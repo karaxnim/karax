@@ -21,12 +21,20 @@ proc exec(cmd: string) =
 
 proc main =
   var op = initOptParser()
-  let rest = op.cmdLineRest
+  var rest = op.cmdLineRest
   var file = ""
+  var run = false
   while true:
     op.next()
     case op.kind
-    of cmdLongOption, cmdShortOption: discard
+    of cmdLongOption:
+      if op.key == "run":
+        run = true
+        rest = rest.replace("--run ")
+    of cmdShortOption:
+      if op.key == "r":
+        run = true
+        rest = rest.replace("-r ")
     of cmdArgument: file = op.key
     of cmdEnd: break
 
@@ -36,6 +44,6 @@ proc main =
   exec("nim js --out:nimcache/" & name & ".js " & rest)
   let dest = "nimcache" / name & ".html"
   writeFile(dest, html % name)
-  openDefaultBrowser(dest)
+  if run: openDefaultBrowser(dest)
 
 main()
