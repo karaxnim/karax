@@ -47,6 +47,7 @@ type
     onkeyup, ## A key was released.
     onkeydown, ## A key is pressed.
     onkeypressed, # A key was pressed.
+    onfocus, ## An element got the focus.
     onblur, ## An element lost the focus.
     onchange, ## The selected value of an element was changed.
     onscroll, ## The user scrolled within an element.

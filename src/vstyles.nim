@@ -150,6 +150,7 @@ type
     pageBreakInside
     perspective
     perspectiveOrigin
+    pointerEvents
     position
     quotes
     resize
@@ -262,4 +263,4 @@ proc rgb*(r, g, b: range[0..255]): cstring =
   cstring"rgb(" & &r & cstring", " & &g & cstring", " & &b & cstring")"
 
 proc rgba*(r, g, b: range[0..255], alpha: float): cstring =
-  cstring"rgb(" & &r & cstring", " & &g & cstring", " & &b & cstring", " & &alpha & cstring")"
+  cstring"rgba(" & &r & cstring", " & &g & cstring", " & &b & cstring", " & &alpha & cstring")"
