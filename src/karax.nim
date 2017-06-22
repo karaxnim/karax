@@ -219,11 +219,11 @@ proc updateDom(newNode, oldNode: VNode) =
     updateDom(newNode[i], oldNode[i])
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode;
-                   kxi: KaraxInstance): bool =
-  let res = eq(newNode, oldNode, deep=false)
-  if res <= different:
+                   kxi: KaraxInstance): EqResult =
+  result = eq(newNode, oldNode, deep=false)
+  if result <= different:
     var n: Node
-    if res == changed:
+    if result == changed:
       assert oldNode.kind == VNodeKind.component
       let x = VComponent(oldNode)
       let oldExpanded = x.expanded
@@ -232,13 +232,13 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
       if oldExpanded == nil:
         n = vnodeToDom(x.expanded, kxi)
       else:
-        if updateElement(parent, current, x.expanded, oldExpanded, kxi):
-          n = x.expanded.dom
-          doAssert n != nil, "expanded.dom is nil"
-        else:
+        if updateElement(parent, current, x.expanded, oldExpanded, kxi) >= similar:
+          x.expanded = oldExpanded
           n = oldExpanded.dom
           doAssert n != nil, "old expanded.dom is nil"
-      result = true
+        else:
+          n = x.expanded.dom
+          doAssert n != nil, "expanded.dom is nil"
     else:
       detach(oldNode)
       n = vnodeToDom(newNode, kxi)
@@ -246,7 +246,7 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
       replaceById(kxi.rootId, n)
     else:
       parent.replaceChild(n, current)
-  elif res == similar:
+  elif result == similar:
     updateStyles(newNode, oldNode, false)
   else:
     newNode.dom = oldNode.dom
@@ -295,7 +295,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
 
         var pos = min(oldPos, newPos) + 1
         for i in commonPrefix..pos-1:
-          if updateElement(current, current.childNodes[i], newNode[i], oldNode[i], kxi):
+          if updateElement(current, current.childNodes[i],
+                           newNode[i], oldNode[i], kxi) >= similar:
             newNode[i] = oldNode[i]
 
         var nextChildPos = oldPos + 1
