@@ -39,9 +39,8 @@ proc render(x: VComponent): VNode =
 
   kout cstring"rendering ", self.myid
   inc renderId
-  result = buildHtml(tdiv(style=style, key=renderId)):
-    input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip,
-          key=renderId)
+  result = buildHtml(tdiv(style=style)):
+    input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip)
 
 var gid = 0
 proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring""): TextInput =

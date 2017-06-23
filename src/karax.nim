@@ -182,9 +182,7 @@ proc eq(a, b: VNode; deep: bool): EqResult =
         result = similar
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
-  if not eq(a.style, b.style):
-    kout cstring"yes, styles differ"
-    return similar
+  if not eq(a.style, b.style): return similar
   # Do not test event listeners here!
   return result
 
@@ -212,9 +210,6 @@ proc updateStyles(newNode, oldNode: VNode; deep: bool) =
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
   if deep:
-    if newNode.len != oldNode.len:
-      kout cstring"argh ", newNode.len, " ", oldNode.len
-      kout newNode, oldNode
     doAssert newNode.len == oldNode.len
     for i in 0 ..< newNode.len:
       updateStyles(newNode[i], oldNode[i], deep)
@@ -232,6 +227,8 @@ proc printV(n: VNode; depth: cstring = "") =
   if n.kind == VNodeKind.component:
     let nn = VComponent(n)
     if nn.expanded != nil: printV(nn.expanded, ">>" & depth)
+  elif n.kind == VNodeKind.text:
+    kout depth, n.text
   for i in 0 ..< n.len:
     printV(n[i], depth & "  ")
 
@@ -251,17 +248,22 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
         n = vnodeToDom(x.expanded, kxi)
         state = 1
       else:
-        kout cstring"now comparing components"
-        printV(oldExpanded)
-        printV(x.expanded)
-        if updateElement(parent, current, x.expanded, oldExpanded, kxi) >= similar:
+        let res = updateElement(parent, current, x.expanded, oldExpanded, kxi)
+        if res != different:
           x.expanded = oldExpanded
           n = oldExpanded.dom
           doAssert n != nil, "old expanded.dom is nil"
+          #kout cstring"produced old DOM: ", cstring($res)
+          #printV(oldExpanded)
+          #printV(x.expanded)
+          return
         else:
           n = x.expanded.dom
           doAssert n != nil, "expanded.dom is nil"
           state = 2
+          #kout cstring"produced new DOM:"
+          #printV(oldExpanded)
+          #printV(x.expanded)
           return
     else:
       detach(oldNode)
@@ -270,8 +272,9 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
     if parent == nil:
       replaceById(kxi.rootId, n)
     else:
-      kout cstring"state ", state, parent, current
-      parent.replaceChild(n, current)
+      #kout cstring"state ", state, parent, current
+      if n != current:
+        parent.replaceChild(n, current)
   elif result == similar:
     updateStyles(newNode, oldNode, false)
   else:
@@ -301,7 +304,9 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
             a[i] = b
             #updateDom(a, b)
             action
-          of different, changed: break
+          of different, changed:
+            if result != different: result = r
+            break
           of similar:
             #updateDom(a, b)
             updateStyles(a[i], b, true)
@@ -325,6 +330,8 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
                            newNode[i], oldNode[i], kxi)
           if res != different:
             newNode[i] = oldNode[i]
+          else:
+            result = different
 
         var nextChildPos = oldPos + 1
         while pos <= newPos:
@@ -336,11 +343,13 @@ proc updateElement(parent, current: Node, newNode, oldNode: VNode;
           inc oldLength
           inc pos
           inc nextChildPos
+          result = different
 
         for i in pos..oldPos:
           detach(oldNode[i])
           doAssert pos < current.childNodes.len
           current.removeChild(current.childNodes[pos])
+          result = different
 
 when false:
   var drawTimeout: Timeout
@@ -352,7 +361,7 @@ proc dodraw(kxi: KaraxInstance) =
   kxi.toFocus = nil
   #if kxi.currentTree != nil:
   #  kout cstring"same? ", same(kxi.currentTree, document.getElementById(kxi.rootId))
-  kout cstring"dodraw -----------------------------"
+  #kout cstring"dodraw -----------------------------"
   if kxi.currentTree == nil:
     kxi.currentTree = newtree
     let asdom = vnodeToDom(kxi.currentTree, kxi)
@@ -361,7 +370,7 @@ proc dodraw(kxi: KaraxInstance) =
     let olddom = document.getElementById(kxi.rootId)
     discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
     kxi.currentTree = newtree
-  #kout cstring"same? ", same(kxi.currentTree, document.getElementById(kxi.rootId))
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback()
