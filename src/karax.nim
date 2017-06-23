@@ -152,13 +152,12 @@ proc same(n: VNode, e: Node): bool =
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
   x.parentNode.replaceChild(newTree, x)
-  #newTree.id = id
 
 type
   EqResult = enum
     changed, different, similar, identical
 
-proc eq(a, b: VNode; deep: bool): EqResult =
+proc eq(a, b: VNode): EqResult =
   if a.kind != b.kind: return different
   if a.id != b.id: return different
   result = identical
@@ -169,60 +168,25 @@ proc eq(a, b: VNode; deep: bool): EqResult =
     if a.text != b.text: return different
     if a.len != b.len: return different
     for i in 0..<a.len:
-      if eq(a[i], b[i], deep) == different: return different
+      if eq(a[i], b[i]) == different: return different
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text: return different
     let x = VComponent(b)
     assert x.changedImpl != nil
     return if x.changedImpl(x): changed else: identical
-  elif deep:
-    if a.len != b.len: return different
-    for i in 0..<a.len:
-      let res = eq(a[i], b[i], deep)
-      if res <= different: return different
-      elif res == similar:
-        # but continue, maybe something makes it 'different'!
-        result = similar
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
   if not eq(a.style, b.style): return similar
   # Do not test event listeners here!
   return result
 
-when false:
-  proc updateDirtyElements(parent, current: Node, newNode: VNode,
-                          kxi: KaraxInstance) =
-    if newNode.key >= 0 and isDirty(newNode.key):
-      unmarkDirty(newNode.key)
-      let n = vnodeToDom(newNode, kxi)
-      if parent == nil:
-        replaceById(kxi.rootId, n)
-      else:
-        parent.replaceChild(n, current)
-    elif newNode.kind != VNodeKind.text and newNode.kind != VNodeKind.vthunk and
-        newNode.kind != VNodeKind.dthunk:
-      for i in 0..newNode.len-1:
-        updateDirtyElements(current, current[i], newNode[i], kxi)
-        # leave early if we know there cannot be anything left to do:
-        #if dirtyCount <= 0: return
-
-proc updateStyles(newNode, oldNode: VNode; deep: bool) =
+proc updateStyles(newNode, oldNode: VNode) =
   # we keep the oldNode, but take over the style from the new node:
   if oldNode.dom != nil:
     if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
-  if deep:
-    doAssert newNode.len == oldNode.len
-    for i in 0 ..< newNode.len:
-      updateStyles(newNode[i], oldNode[i], deep)
-
-proc updateDom(newNode, oldNode: VNode) =
-  newNode.dom = oldNode.dom
-  assert newNode.len == oldNode.len
-  for i in 0 ..< newNode.len:
-    updateDom(newNode[i], oldNode[i])
 
 proc printV(n: VNode; depth: cstring = "") =
   kout depth, cstring($n.kind), n.myid, cstring"key ", n.key
@@ -264,55 +228,32 @@ proc apply(patches: seq[Patch]; kxi: KaraxInstance) =
 
 proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch];
           kxi: KaraxInstance): EqResult =
-  result = eq(newNode, oldNode, deep=false)
-  if result <= different:
-    var n: Node
-    if result == changed:
-      assert oldNode.kind == VNodeKind.component
-      let x = VComponent(oldNode)
-      let oldExpanded = x.expanded
-      x.expanded = x.renderImpl(x)
-      x.updatedImpl(x)
-      if oldExpanded == nil:
-        n = vnodeToDom(x.expanded, kxi)
-      else:
-        let res = diff(parent, current, x.expanded, oldExpanded, patches, kxi)
-        if res != different:
-          x.expanded = oldExpanded
-          n = oldExpanded.dom
-          doAssert n != nil, "old expanded.dom is nil"
-        else:
-          n = x.expanded.dom
-          doAssert n != nil, "expanded.dom is nil"
-        return
-    else:
-      detach(oldNode)
-      n = vnodeToDom(newNode, kxi)
-    patches.addPatch(pkReplace, parent, current, n)
-  elif result == similar:
-    updateStyles(newNode, oldNode, false)
-  else:
+  result = eq(newNode, oldNode)
+  case result
+  of identical:
     newNode.dom = oldNode.dom
     let newLength = newNode.len
     var oldLength = oldNode.len
     let minLength = min(newLength, oldLength)
+    if minLength == 0: return result
 
     assert oldNode.kind == newNode.kind
     var commonPrefix = 0
 
     template eqAndUpdate(a: VNode; i: int; b: VNode; j: int; info, action: untyped) =
       let oldLen = patches.len
-      if oldNode.kind notin {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
-        assert current != nil
-        assert current.childNodes[j] != nil, $info
-        assert oldNode.len == current.len
+      when false:
+        if oldNode.kind notin {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
+          assert current != nil
+          assert current.childNodes[j] != nil, $info
+          assert oldNode.len == current.len
 
       let r = if oldNode.kind in {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
                 diff(parent, current, a[i], b[j], patches, kxi)
               else:
                 diff(current, current.childNodes[j], a[i], b[j], patches, kxi)
       case r
-      of identical, changed:
+      of identical, changed, similar:
         a[i] = b[j]
         action
       of different:
@@ -320,10 +261,10 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
         setLen(patches, oldLen)
         if result != different: result = r
         break
-      of similar:
-        updateStyles(a[i], b[j], false)
-        a[i] = b[j]
-        action
+      #of similar:
+      #  updateStyles(a[i], b[j])
+      #  a[i] = b[j]
+      #  action
 
     while commonPrefix < minLength:
       eqAndUpdate(newNode, commonPrefix, oldNode, commonPrefix, cstring"prefix"):
@@ -338,20 +279,18 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
 
     var pos = min(oldPos, newPos) + 1
     for i in commonPrefix..pos-1:
-      let res = diff(current, current.childNodes[i],
-                        newNode[i], oldNode[i], patches, kxi)
-      if res != different:
+      if diff(current, current.childNodes[i],
+              newNode[i], oldNode[i], patches, kxi) != different:
         newNode[i] = oldNode[i]
       else:
         result = different
 
-    var nextChildPos = oldPos + 1
-    if nextChildPos == oldLength:
+    if oldPos + 1 == oldLength:
       for i in pos..newPos:
         patches.addPatch(pkAppend, current, nil, vnodeToDom(newNode[i], kxi))
         result = different
     else:
-      let before = current.childNodes[nextChildPos]
+      let before = current.childNodes[oldPos + 1]
       for i in pos..newPos:
         patches.addPatch(pkInsertBefore, current, before,
                         vnodeToDom(newNode[i], kxi))
@@ -359,153 +298,48 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
     # XXX call 'attach' here?
     for i in pos..oldPos:
       detach(oldNode[i])
-      doAssert i < current.childNodes.len
+      #doAssert i < current.childNodes.len
       patches.addPatch(pkRemove, current, current.childNodes[i], nil)
       result = different
 
-
-proc updateElement(parent, current: Node, newNode, oldNode: VNode;
-                   kxi: KaraxInstance): EqResult =
-  result = eq(newNode, oldNode, deep=false)
-  if result <= different:
-    var n: Node
-    var state = 0
-    if result == changed:
-      assert oldNode.kind == VNodeKind.component
-      let x = VComponent(oldNode)
-      let oldExpanded = x.expanded
-      x.expanded = x.renderImpl(x)
-      x.updatedImpl(x)
-      if oldExpanded == nil:
-        n = vnodeToDom(x.expanded, kxi)
-        state = 1
-      else:
-        let res = updateElement(parent, current, x.expanded, oldExpanded, kxi)
-        if res != different:
-          x.expanded = oldExpanded
-          n = oldExpanded.dom
-          doAssert n != nil, "old expanded.dom is nil"
-          #kout cstring"produced old DOM: ", cstring($res)
-          #printV(oldExpanded)
-          #printV(x.expanded)
-          return
-        else:
-          n = x.expanded.dom
-          doAssert n != nil, "expanded.dom is nil"
-          state = 2
-          #kout cstring"produced new DOM:"
-          #printV(oldExpanded)
-          #printV(x.expanded)
-          return
-    else:
+  of similar:
+    updateStyles(newNode, oldNode)
+  of changed:
+    assert oldNode.kind == VNodeKind.component
+    let x = VComponent(oldNode)
+    let oldExpanded = x.expanded
+    x.expanded = x.renderImpl(x)
+    x.updatedImpl(x)
+    if oldExpanded == nil:
       detach(oldNode)
-      n = vnodeToDom(newNode, kxi)
-      state = 3
-    if parent == nil:
-      replaceById(kxi.rootId, n)
+      let n = vnodeToDom(x.expanded, kxi)
+      patches.addPatch(pkReplace, parent, current, n)
     else:
-      #kout cstring"state ", state, parent, current
-      if n != current:
-        parent.replaceChild(n, current)
-  elif result == similar:
-    updateStyles(newNode, oldNode, false)
-  else:
-    newNode.dom = oldNode.dom
-    if newNode.kind != VNodeKind.text:
-      let newLength = newNode.len
-      var oldLength = oldNode.len
-      let minLength = min(newLength, oldLength)
-      assert oldNode.kind == newNode.kind
-      when defined(simpleDiff):
-        for i in 0..min(newLength, oldLength)-1:
-          updateElement(current, current[i], newNode[i], oldNode[i], kxi)
-        if newLength > oldLength:
-          for i in oldLength..newLength-1:
-            current.appendChild(vnodeToDom(newNode[i]))
-        elif oldLength > newLength:
-          for i in countdown(oldLength-1, newLength):
-            detach(oldNode[i])
-            current.removeChild(current.lastChild)
+      let res = diff(parent, current, x.expanded, oldExpanded, patches, kxi)
+      if res != different:
+        x.expanded = oldExpanded
+        assert oldExpanded.dom != nil, "old expanded.dom is nil"
       else:
-        var commonPrefix = 0
-
-        template eqAndUpdate(a: VNode; i: int; b: VNode; action: untyped) =
-          let r = eq(a[i], b, true)
-          case r
-          of identical:
-            a[i] = b
-            #updateDom(a, b)
-            action
-          of different, changed:
-            if result != different: result = r
-            break
-          of similar:
-            #updateDom(a, b)
-            updateStyles(a[i], b, true)
-            a[i] = b
-            action
-
-        while commonPrefix < minLength:
-          eqAndUpdate(newNode, commonPrefix, oldNode[commonPrefix]):
-            inc commonPrefix
-
-        var oldPos = oldLength - 1
-        var newPos = newLength - 1
-        while oldPos >= commonPrefix and newPos >= commonPrefix:
-          eqAndUpdate(newNode, newPos, oldNode[oldPos]):
-            dec oldPos
-            dec newPos
-
-        var pos = min(oldPos, newPos) + 1
-        for i in commonPrefix..pos-1:
-          let res = updateElement(current, current.childNodes[i],
-                           newNode[i], oldNode[i], kxi)
-          if res != different:
-            newNode[i] = oldNode[i]
-          else:
-            result = different
-
-        var nextChildPos = oldPos + 1
-        while pos <= newPos:
-          if nextChildPos == oldLength:
-            current.appendChild(vnodeToDom(newNode[pos], kxi))
-          else:
-            current.insertBefore(vnodeToDom(newNode[pos], kxi), current.childNodes[nextChildPos])
-          # added new Node, so old state of VDOM have one more Node
-          inc oldLength
-          inc pos
-          inc nextChildPos
-          result = different
-
-        for i in pos..oldPos:
-          detach(oldNode[i])
-          doAssert pos < current.childNodes.len
-          current.removeChild(current.childNodes[pos])
-          result = different
-
-when false:
-  var drawTimeout: Timeout
+        assert x.expanded.dom != nil, "expanded.dom is nil"
+  of different:
+    detach(oldNode)
+    let n = vnodeToDom(newNode, kxi)
+    patches.addPatch(pkReplace, parent, current, n)
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
   let newtree = kxi.renderer()
   newtree.id = kxi.rootId
   kxi.toFocus = nil
-  #if kxi.currentTree != nil:
-  #  kout cstring"same? ", same(kxi.currentTree, document.getElementById(kxi.rootId))
-  #kout cstring"dodraw -----------------------------"
   if kxi.currentTree == nil:
     kxi.currentTree = newtree
     let asdom = vnodeToDom(kxi.currentTree, kxi)
     replaceById(kxi.rootId, asdom)
   else:
     let olddom = document.getElementById(kxi.rootId)
-    when false:
-      discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
-    else:
-      var patches: seq[Patch] = @[]
-      discard diff(nil, olddom, newtree, kxi.currentTree, patches, kxi)
-      patches.apply(kxi)
+    var patches: seq[Patch] = @[]
+    discard diff(nil, olddom, newtree, kxi.currentTree, patches, kxi)
+    patches.apply(kxi)
     kxi.currentTree = newtree
   #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
