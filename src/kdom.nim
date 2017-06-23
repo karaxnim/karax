@@ -94,6 +94,8 @@ type
     previousSibling*: Node
     innerHTML*: cstring
     style*: Style
+    when defined(nodejs):
+      id*: cstring
 
   Document* = ref DocumentObj
   DocumentObj {.importc.} = object of NodeObj
@@ -395,12 +397,87 @@ type
   TimeOut* {.importc.} = ref object of RootObj
   Interval* {.importc.} = object of RootObj
 
-proc len*(x: Node): int {.importcpp: "#.childNodes.length".}
-proc `[]`*(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
+when defined(nodejs):
+  # we provide a dummy DOM for nodejs for testing purposes
+  proc len*(x: Node): int = x.childNodes.len
+  proc `[]`*(x: Node; idx: int): Element =
+    assert idx >= 0 and idx < x.childNodes.len
+    result = cast[Element](x.childNodes[idx])
+
+  var document* = Document(nodeType: DocumentNode)
+
+  proc getElem(x: Element; id: cstring): Element =
+    if x.id == id: return x
+    for i in 0..<x.len:
+      result = getElem(x[i], id)
+      if result != nil: return result
+
+  proc getElementById*(doc: Document; id: cstring): Element =
+    getElem(doc.body, id)
+  proc getElementById*(id: cstring): Element = document.getElementById(id)
+
+  proc appendChild*(parent, n: Node) =
+    n.parentNode = parent
+    parent.childNodes.add n
+
+  proc replaceChild*(parent, newNode, oldNode: Node) =
+    newNode.parentNode = parent
+    oldNode.parentNode = nil
+    var i = 0
+    while i < parent.len:
+      if Node(parent[i]) == oldNode:
+        parent.childNodes[i] = newNode
+        return
+      inc i
+    doAssert false, "old node not in node list"
+
+  proc removeChild*(parent, child: Node) =
+    child.parentNode = nil
+    var i = 0
+    while i < parent.len:
+      if Node(parent[i]) == child:
+        parent.childNodes.delete(i)
+        return
+      inc i
+    doAssert false, "old node not in node list"
+
+  proc insertBefore*(parent, newNode, before: Node) =
+    appendChild(parent, newNode)
+    var i = 0
+    while i < parent.len-1:
+      if Node(parent[i]) == before:
+        for j in countdown(parent.len-1, i-1):
+          parent.childNodes[j] = parent.childNodes[j-1]
+        parent.childNodes[i-1] = newNode
+        return
+      inc i
+    #doAssert false, "before not in node list"
+
+  proc createElement*(d: Document, identifier: cstring): Element =
+    new(result)
+    result.nodeName = identifier
+    result.nodeType = NodeType.ElementNode
+
+  proc createTextNode*(d: Document, identifier: cstring): Node =
+    new(result)
+    result.nodeName = "#text"
+    result.nodeValue = identifier
+    result.nodeType = NodeType.TextNode
+
+else:
+  proc len*(x: Node): int {.importcpp: "#.childNodes.length".}
+  proc `[]`*(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
+  proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
+  proc appendChild*(n, child: Node) {.importcpp.}
+  proc removeChild*(n, child: Node) {.importcpp.}
+  proc replaceChild*(n, newNode, oldNode: Node) {.importcpp.}
+  proc insertBefore*(n, newNode, before: Node) {.importcpp.}
+  proc getElementById*(d: Document, id: cstring): Element {.importcpp.}
+  proc createElement*(d: Document, identifier: cstring): Element {.importcpp.}
+  proc createTextNode*(d: Document, identifier: cstring): Node {.importcpp.}
 
 proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
 proc clearTimeout*(t: Timeout) {.importc, nodecl.}
-proc getElementById*(id: cstring): Element {.importc: "document.getElementById", nodecl.}
 
 {.push importcpp.}
 
@@ -445,19 +522,15 @@ proc requestAnimationFrame*(w: Window, function: proc (time: float)): int
 proc cancelAnimationFrame*(w: Window, id: int)
 
 # Node "methods"
-proc appendChild*(n, child: Node)
 proc appendData*(n: Node, data: cstring)
 proc cloneNode*(n: Node, copyContent: bool): Node
 proc deleteData*(n: Node, start, len: int)
 proc getAttribute*(n: Node, attr: cstring): cstring
 proc getAttributeNode*(n: Node, attr: cstring): Node
 proc hasChildNodes*(n: Node): bool
-proc insertBefore*(n, newNode, before: Node)
 proc insertData*(n: Node, position: int, data: cstring)
 proc removeAttribute*(n: Node, attr: cstring)
 proc removeAttributeNode*(n, attr: Node)
-proc removeChild*(n, child: Node)
-proc replaceChild*(n, newNode, oldNode: Node)
 proc replaceData*(n: Node, start, len: int, text: cstring)
 proc scrollIntoView*(n: Node)
 proc setAttribute*(n: Node, name, value: cstring)
@@ -466,9 +539,6 @@ proc setAttributeNode*(n: Node, attr: Node)
 # Document "methods"
 proc captureEvents*(d: Document, eventMask: int) {.deprecated.}
 proc createAttribute*(d: Document, identifier: cstring): Node
-proc createElement*(d: Document, identifier: cstring): Element
-proc createTextNode*(d: Document, identifier: cstring): Node
-proc getElementById*(d: Document, id: cstring): Element
 proc getElementsByName*(d: Document, name: cstring): seq[Element]
 proc getElementsByTagName*(d: Document, name: cstring): seq[Element]
 proc getElementsByClassName*(d: Document, name: cstring): seq[Element]
@@ -534,9 +604,11 @@ proc setAttr*(n: Node; key, val: cstring) {.importcpp: "#.setAttribute(@)".}
 
 var
   window* {.importc, nodecl.}: Window
-  document* {.importc, nodecl.}: Document
   navigator* {.importc, nodecl.}: Navigator
   screen* {.importc, nodecl.}: Screen
+
+when not defined(nodejs):
+  var document* {.importc, nodecl.}: Document
 
 proc decodeURI*(uri: cstring): cstring {.importc, nodecl.}
 proc encodeURI*(uri: cstring): cstring {.importc, nodecl.}

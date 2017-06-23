@@ -141,9 +141,13 @@ proc same(n: VNode, e: Node): bool =
   elif toTag[n.kind] == e.nodename:
     result = true
     if n.kind != VNodeKind.text:
-      if e.len != n.len: return false
+      if e.len != n.len:
+        kout e.len, n.len
+        return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i]): return false
+  else:
+    kout toTag[n.kind], e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -231,6 +235,134 @@ proc printV(n: VNode; depth: cstring = "") =
     kout depth, n.text
   for i in 0 ..< n.len:
     printV(n[i], depth & "  ")
+
+type
+  PatchKind = enum
+    pkReplace, pkRemove, pkAppend, pkInsertBefore
+  Patch = object
+    k: PatchKind
+    parent, current, n: Node
+
+proc addPatch(patches: var seq[Patch]; k: PatchKind; parent, current, n: Node) =
+  patches.add(Patch(k: k, parent: parent, current: current, n: n))
+
+proc apply(patches: seq[Patch]; kxi: KaraxInstance) =
+  for p in patches:
+    case p.k
+    of pkReplace:
+      if p.parent == nil:
+        replaceById(kxi.rootId, p.n)
+      else:
+        if p.n != p.current:
+          p.parent.replaceChild(p.n, p.current)
+    of pkRemove:
+      p.parent.removeChild(p.current)
+    of pkAppend:
+      p.parent.appendChild(p.n)
+    of pkInsertBefore:
+      p.parent.insertBefore(p.n, p.current)
+
+proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch];
+          kxi: KaraxInstance): EqResult =
+  result = eq(newNode, oldNode, deep=false)
+  if result <= different:
+    var n: Node
+    if result == changed:
+      assert oldNode.kind == VNodeKind.component
+      let x = VComponent(oldNode)
+      let oldExpanded = x.expanded
+      x.expanded = x.renderImpl(x)
+      x.updatedImpl(x)
+      if oldExpanded == nil:
+        n = vnodeToDom(x.expanded, kxi)
+      else:
+        let res = diff(parent, current, x.expanded, oldExpanded, patches, kxi)
+        if res != different:
+          x.expanded = oldExpanded
+          n = oldExpanded.dom
+          doAssert n != nil, "old expanded.dom is nil"
+        else:
+          n = x.expanded.dom
+          doAssert n != nil, "expanded.dom is nil"
+        return
+    else:
+      detach(oldNode)
+      n = vnodeToDom(newNode, kxi)
+    patches.addPatch(pkReplace, parent, current, n)
+  elif result == similar:
+    updateStyles(newNode, oldNode, false)
+  else:
+    newNode.dom = oldNode.dom
+    let newLength = newNode.len
+    var oldLength = oldNode.len
+    let minLength = min(newLength, oldLength)
+
+    assert oldNode.kind == newNode.kind
+    var commonPrefix = 0
+
+    template eqAndUpdate(a: VNode; i: int; b: VNode; j: int; info, action: untyped) =
+      let oldLen = patches.len
+      if oldNode.kind notin {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
+        assert current != nil
+        assert current.childNodes[j] != nil, $info
+        assert oldNode.len == current.len
+
+      let r = if oldNode.kind in {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
+                diff(parent, current, a[i], b[j], patches, kxi)
+              else:
+                diff(current, current.childNodes[j], a[i], b[j], patches, kxi)
+      case r
+      of identical, changed:
+        a[i] = b[j]
+        action
+      of different:
+        # undo what 'diff' would have done:
+        setLen(patches, oldLen)
+        if result != different: result = r
+        break
+      of similar:
+        updateStyles(a[i], b[j], true)
+        a[i] = b[j]
+        action
+
+    while commonPrefix < minLength:
+      eqAndUpdate(newNode, commonPrefix, oldNode, commonPrefix, cstring"prefix"):
+        inc commonPrefix
+
+    var oldPos = oldLength - 1
+    var newPos = newLength - 1
+    while oldPos >= commonPrefix and newPos >= commonPrefix:
+      eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
+        dec oldPos
+        dec newPos
+
+    var pos = min(oldPos, newPos) + 1
+    for i in commonPrefix..pos-1:
+      let res = diff(current, current.childNodes[i],
+                        newNode[i], oldNode[i], patches, kxi)
+      if res != different:
+        newNode[i] = oldNode[i]
+      else:
+        result = different
+
+    var nextChildPos = oldPos + 1
+    if nextChildPos == oldLength:
+      for i in pos..newPos:
+        patches.addPatch(pkAppend, current, nil, vnodeToDom(newNode[i], kxi))
+        result = different
+    else:
+      let before = current.childNodes[nextChildPos]
+      for i in pos..newPos:
+        patches.addPatch(pkInsertBefore, current, before,
+                        vnodeToDom(newNode[i], kxi))
+        result = different
+    # XXX call 'attach' here?
+    for i in pos..oldPos:
+      detach(oldNode[i])
+      doAssert i < current.childNodes.len
+      patches.addPatch(pkRemove, current, current.childNodes[i], nil)
+      result = different
+
 
 proc updateElement(parent, current: Node, newNode, oldNode: VNode;
                    kxi: KaraxInstance): EqResult =
@@ -368,9 +500,14 @@ proc dodraw(kxi: KaraxInstance) =
     replaceById(kxi.rootId, asdom)
   else:
     let olddom = document.getElementById(kxi.rootId)
-    discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
+    when false:
+      discard updateElement(nil, olddom, newtree, kxi.currentTree, kxi)
+    else:
+      var patches: seq[Patch] = @[]
+      discard diff(nil, olddom, newtree, kxi.currentTree, patches, kxi)
+      patches.apply(kxi)
     kxi.currentTree = newtree
-  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback()
@@ -387,7 +524,7 @@ proc redraw*(kxi: KaraxInstance = kxi) =
     if drawTimeout != nil:
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
-  elif false:
+  elif true:
     reqFrame(proc () = kxi.dodraw)
   else:
     dodraw(kxi)
@@ -442,7 +579,7 @@ proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
 proc loadScript*(jsfilename: cstring; kxi: KaraxInstance = kxi) =
-  let body = getElementById("body")
+  let body = document.getElementById("body")
   let s = document.createElement("script")
   s.setAttr "type", "text/javascript"
   s.setAttr "src", jsfilename

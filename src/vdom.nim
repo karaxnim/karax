@@ -114,8 +114,9 @@ type
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
     events*: seq[(EventKind, EventHandler)]
-    hash*: Hash
-    validHash*: bool
+    when false:
+      hash*: Hash
+      validHash*: bool
     style*: VStyle ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
@@ -248,32 +249,33 @@ proc toString*(n: VNode; result: var string; indent: int) =
   for i in 1..indent: result.add ' '
   result.add "\L</" & $n.kind & ">"
 
-proc calcHash*(n: VNode) =
-  if n.validHash: return
-  n.validHash = true
-  var h: Hash = ord n.kind
-  if n.id != nil:
-    h &= "id"
-    h &= n.id
-  if n.class != nil:
-    h &= "class"
-    h &= n.class
-  if n.key >= 0:
-    h &= "k"
-    h &= n.key
-  for k, v in attrs(n):
-    h &= " "
-    h &= k
-    h &= "="
-    h &= v
-  if n.kind == VNodeKind.text or n.text != nil:
-    h &= "t"
-    h &= n.text
-  else:
-    for child in items(n):
-      calcHash(child)
-      h &= child.hash
-  n.hash = h
+when false:
+  proc calcHash*(n: VNode) =
+    if n.validHash: return
+    n.validHash = true
+    var h: Hash = ord n.kind
+    if n.id != nil:
+      h &= "id"
+      h &= n.id
+    if n.class != nil:
+      h &= "class"
+      h &= n.class
+    if n.key >= 0:
+      h &= "k"
+      h &= n.key
+    for k, v in attrs(n):
+      h &= " "
+      h &= k
+      h &= "="
+      h &= v
+    if n.kind == VNodeKind.text or n.text != nil:
+      h &= "t"
+      h &= n.text
+    else:
+      for child in items(n):
+        calcHash(child)
+        h &= child.hash
+    n.hash = h
 
 proc `$`*(n: VNode): cstring =
   var res = ""
