@@ -321,7 +321,7 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
         if result != different: result = r
         break
       of similar:
-        updateStyles(a[i], b[j], true)
+        updateStyles(a[i], b[j], false)
         a[i] = b[j]
         action
 
