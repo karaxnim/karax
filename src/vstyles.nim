@@ -1,5 +1,5 @@
 
-import kdom, macros
+import kdom, macros, jdict
 
 type
   StyleAttr* {.pure.} = enum
@@ -208,62 +208,93 @@ macro buildLookupTables(): untyped =
 
 buildLookupTables()
 
-type
-  VStyle* = ref object
-    attrs: array[StyleAttr, cstring]
-    mask: set[StyleAttr]
+# I optimized the heck out of this representation since profiling showed
+# it's relevant.
+# even index: key, odd index: value; done this way for memory efficiency:
 
-proc kout[T](x: T) {.importc: "console.log", varargs.}
+type
+  VStyle* = JSeq[cstring]
 
 proc eq*(a, b: VStyle): bool =
   if a.isNil:
     if b.isNil: return true
     else: return false
   elif b.isNil: return false
-  if a.mask != b.mask: return false
-  for x in a.mask:
-    if a.attrs[x] != b.attrs[x]: return false
+  if a.len != b.len: return false
+  for i in 0..<a.len:
+    if a[i] != b[i]: return false
   return true
 
-proc setAttr*(s: VStyle; attr: StyleAttr, value: cstring) =
+proc kout[T](x: T) {.importc: "console.log", varargs.}
+
+proc setAttr(s: VStyle; a, value: cstring) {.noSideEffect.} =
+  var i = 0
+  while i < s.len:
+    if s[i] == a:
+      s[i+1] = value
+      return
+    elif s[i] > a:
+      s.add nil
+      s.add nil
+      # insertion point here:
+      for j in countdown(s.len-1, i, 2):
+        s[j] = s[j-2]
+        s[j-1] = s[j-3]
+      s[i] = a
+      s[i+1] = value
+      return
+    inc i, 2
+  s.add a
+  s.add value
+
+proc setAttr*(s: VStyle; attr: StyleAttr, value: cstring) {.noSideEffect.} =
   assert value != nil, "value must not be nil"
-  s.attrs[attr] = value
-  incl(s.mask, attr)
+  setAttr(s, toStyleAttrName[attr], value)
 
-proc getAttr*(s: VStyle; attr: StyleAttr): cstring =
+proc getAttr*(s: VStyle; attr: StyleAttr): cstring {.noSideEffect.} =
   ## returns 'nil' if the attribute has not been set.
-  result = s.attrs[attr]
+  var i = 0
+  let a = toStyleAttrName[attr]
+  while i < s.len:
+    if s[i] == a:
+      return s[i+1]
+    elif s[i] > a:
+      return nil
+    inc i, 2
 
-proc style*(pairs: varargs[(StyleAttr, cstring)]): VStyle =
+proc style*(pairs: varargs[(StyleAttr, cstring)]): VStyle {.noSideEffect.} =
   ## constructs a VStyle object from a list of (attribute, value)-pairs.
-  result = VStyle(mask: {})
+  result = newJSeq[cstring]()
   for x in pairs:
     result.setAttr x[0], x[1]
 
-proc style*(a: StyleAttr; val: cstring): VStyle =
+proc style*(a: StyleAttr; val: cstring): VStyle {.noSideEffect.} =
   ## constructs a VStyle object from a single (attribute, value)-pair.
-  result = VStyle(mask: {})
+  result = newJSeq[cstring]()
   result.setAttr a, val
 
-proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #".}
+proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #", noSideEffect.}
 
-proc merge*(a, b: VStyle): VStyle =
+proc merge*(a, b: VStyle): VStyle {.noSideEffect.} =
   ## merges two styles. ``b`` takes precedence over ``a``.
-  result = VStyle(mask: {})
-  for i in low(StyleAttr)..high(StyleAttr):
-    result.attrs[i] = if b.attrs[i].isNil: a.attrs[i] else: b.attrs[i]
-    if result.attrs[i] != nil: incl(result.mask, i)
+  result = newJSeq[cstring]()
+  for i in 0..<a.len:
+    result.add a[i]
+  for i in countup(0, b.len-1, 2):
+    setAttr(result, b[i], b[i+1])
 
-proc applyStyle*(n: Node; s: VStyle) =
+proc applyStyle*(n: Node; s: VStyle) {.noSideEffect.} =
   ## apply the style to the real DOM node ``n``.
-  n.style = Style()
-  for x in s.mask:
-    n.style.setStyle(toStyleAttrName[x], s.attrs[x])
 
-iterator pairs*(v: VStyle): (cstring, cstring) =
-  if v != nil:
-    for x in v.mask:
-      yield (toStyleAttrName[x], v.attrs[x])
+  #n.style = Style() # optimized, this is a hotspot:
+  {.emit: "`n`.style = {};".}
+  for i in countup(0, s.len-1, 2):
+    n.style.setStyle(s[i], s[i+1])
+
+iterator pairs*(s: VStyle): (cstring, cstring) {.noSideEffect.} =
+  if s != nil:
+    for i in countup(0, s.len-1, 2):
+      yield (s[i], s[i+1])
 
 import jstrutils
 

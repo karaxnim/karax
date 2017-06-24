@@ -11,3 +11,12 @@ proc contains*[K, V](d: JDict[K, V], k: K): bool {.importcpp: "#.hasOwnProperty(
 
 proc del*[K, V](d: JDict[K, V], k: K) {.importcpp: "delete #[#]".}
 
+type
+  JSeq*[T] = ref object
+
+proc `[]`*[T](s: JSeq[T], i: int): T {.importcpp: "#[#]", noSideEffect.}
+proc `[]=`*[T](s: JSeq[T], i: int, v: T) {.importcpp: "#[#] = #", noSideEffect.}
+
+proc newJSeq*[T](): JSeq[T] {.importcpp: "[@]".}
+proc len*[T](s: JSeq[T]): int {.importcpp: "#.length", noSideEffect.}
+proc add*[T](s: JSeq[T]; x: T) {.importcpp: "#.push(#)", noSideEffect.}
