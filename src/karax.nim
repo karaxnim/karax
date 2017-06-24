@@ -205,26 +205,30 @@ type
     pkReplace, pkRemove, pkAppend, pkInsertBefore
   Patch = object
     k: PatchKind
-    parent, current, n: Node
+    parent, current: Node
+    n: VNode
 
-proc addPatch(patches: var seq[Patch]; k: PatchKind; parent, current, n: Node) =
+proc addPatch(patches: var seq[Patch]; k: PatchKind; parent, current: Node;
+              n: VNode) =
   patches.add(Patch(k: k, parent: parent, current: current, n: n))
 
 proc apply(patches: seq[Patch]; kxi: KaraxInstance) =
   for p in patches:
     case p.k
     of pkReplace:
+      let nn = vnodeToDom(p.n, kxi)
       if p.parent == nil:
-        replaceById(kxi.rootId, p.n)
+        replaceById(kxi.rootId, nn)
       else:
-        if p.n != p.current:
-          p.parent.replaceChild(p.n, p.current)
+        p.parent.replaceChild(nn, p.current)
     of pkRemove:
       p.parent.removeChild(p.current)
     of pkAppend:
-      p.parent.appendChild(p.n)
+      let nn = vnodeToDom(p.n, kxi)
+      p.parent.appendChild(nn)
     of pkInsertBefore:
-      p.parent.insertBefore(p.n, p.current)
+      let nn = vnodeToDom(p.n, kxi)
+      p.parent.insertBefore(nn, p.current)
 
 proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch];
           kxi: KaraxInstance): EqResult =
@@ -248,7 +252,8 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
           assert current.childNodes[j] != nil, $info
           assert oldNode.len == current.len
 
-      let r = if oldNode.kind in {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
+      let r = if oldNode.kind == VNodeKind.component or oldNode.kind == VNodeKind.vthunk or
+                 oldNode.kind == VNodeKind.dthunk:
                 diff(parent, current, a[i], b[j], patches, kxi)
               else:
                 diff(current, current.childNodes[j], a[i], b[j], patches, kxi)
@@ -287,13 +292,12 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
-        patches.addPatch(pkAppend, current, nil, vnodeToDom(newNode[i], kxi))
+        patches.addPatch(pkAppend, current, nil, newNode[i])
         result = different
     else:
       let before = current.childNodes[oldPos + 1]
       for i in pos..newPos:
-        patches.addPatch(pkInsertBefore, current, before,
-                        vnodeToDom(newNode[i], kxi))
+        patches.addPatch(pkInsertBefore, current, before, newNode[i])
         result = different
     # XXX call 'attach' here?
     for i in pos..oldPos:
@@ -312,8 +316,7 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
     x.updatedImpl(x)
     if oldExpanded == nil:
       detach(oldNode)
-      let n = vnodeToDom(x.expanded, kxi)
-      patches.addPatch(pkReplace, parent, current, n)
+      patches.addPatch(pkReplace, parent, current, x.expanded)
     else:
       let res = diff(parent, current, x.expanded, oldExpanded, patches, kxi)
       if res != different:
@@ -323,8 +326,7 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
         assert x.expanded.dom != nil, "expanded.dom is nil"
   of different:
     detach(oldNode)
-    let n = vnodeToDom(newNode, kxi)
-    patches.addPatch(pkReplace, parent, current, n)
+    patches.addPatch(pkReplace, parent, current, newNode)
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
