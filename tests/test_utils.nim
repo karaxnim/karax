@@ -12,39 +12,60 @@ proc simpleTimeout*(p: proc()) =
 # --------------------- DOM validation ---------------------------------------
 type
   ExpNode* = ref object
-    tag*: cstring
+    nodeName*: cstring
     id*: cstring
+    class*: cstring
     text*: cstring
     # TODO: attributes etc.
     children*: seq[ExpNode]
 
   ExpNodes* = seq[ExpNode]
 
-proc tag*(tag: cstring; id, text: cstring = nil; children: ExpNodes = @[]): ExpNode =
+proc node*(nodeName: cstring; id, class: cstring = nil; children: ExpNodes = @[]): ExpNode =
   ExpNode(
-    tag: tag,
+    nodeName: nodeName,
     id: id,
-    text: text,
+    class: class,
+    text: nil,
     children: children,
   )
 
+proc ntext*(text: cstring): ExpNode =
+  ExpNode(
+    nodeName: "#text",
+    id: nil,
+    class: nil,
+    text: text,
+    children: @[],
+  )
+
+template equals(a, b, msg) =
+  doAssert a == b, "is not equal because " & $a & " != " & $b & ". Occurred in: " & msg
+
 proc expectDomToMatch*(domParent: Element, expNodes: ExpNodes) =
-  # We can't use domParent.len, only element nodes are relevant
-  var numDomElements = 0
-  for i in 0 ..< domParent.len:
-    if domParent[i].nodeType == ElementNode:
-      numDomElements += 1
-  doAssert numDomElements == expNodes.len, "Number of children differs"
+
+  equals domParent.len, expNodes.len, "Check number of children"
 
   for i in 0 ..< expNodes.len:
-    let domElement = domParent[i]
     let expElement = expNodes[i]
-    doAssert domElement.tagName.toLowerCase() == expElement.tag.toLowerCase(), "tag doesn't match"
-    if expElement.id != nil:
-      doAssert domElement.id == expElement.id, "id doesn't match"
-    if expElement.text != nil:
-      doAssert domElement.value == expElement.text, "text doesn't match"
-    expectDomToMatch(domElement, expElement.children)
+    let domElement = domParent[i]
+    if expElement.nodeName == "#text":
+      equals expElement.text, domElement.nodeValue, "Text comparison"
+    else:
+      # node name
+      equals domElement.nodeName.toLowerCase(), expElement.nodeName.toLowerCase(), "nodeName match"
+      # id
+      if expElement.id != nil:
+        equals domElement.id, expElement.id, "id matching"
+      else:
+        equals domElement.id, "", "id empty check"
+      # class
+      if expElement.class != nil:
+        equals domElement.class, expElement.class, "class matching"
+      else:
+        equals domElement.class, "", "class empty check"
+
+      expectDomToMatch(domElement, expElement.children)
 
 proc expectDomToMatch*(elementId: cstring, expNodes: ExpNodes) =
   let element = document.getElementById(elementId)

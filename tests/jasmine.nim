@@ -16,9 +16,12 @@ proc afterEach*(body: () -> void) {.importc.}
 proc afterAll*(body: () -> void) {.importc.}
 
 proc describe*(description: cstring, body: () -> void) {.importc.}
+proc xdescribe*(description: cstring, body: () -> void) {.importc.}
 
 proc it*(description: cstring, body: () -> void) {.importc.}
 proc it*(description: cstring, body: (Done) -> void) {.importc.}
+proc xit*(description: cstring, body: () -> void) {.importc.}
+proc xit*(description: cstring, body: (Done) -> void) {.importc.}
 
 type
   JasmineRequireObj* {.importc.} = ref object

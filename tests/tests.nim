@@ -19,7 +19,7 @@ describe("Dom diffing of simple seq model") do ():
 
   proc createDom(): VNode =
     result = buildHtml(tdiv()):
-      ul(id="ul"):
+      ul():
         for e in entries:
           createEntry(parseInt(e))
 
@@ -35,13 +35,13 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul", children = @[
-          tag("button", id="0"),
-          tag("button", id="1"),
-          tag("button", id="2"),
-          tag("button", id="3"),
-          tag("button", id="4"),
-          tag("button", id="5"),
+        node("ul", children = @[
+          node("button", id="0", children = @[ntext "0"]),
+          node("button", id="1", children = @[ntext "1"]),
+          node("button", id="2", children = @[ntext "2"]),
+          node("button", id="3", children = @[ntext "3"]),
+          node("button", id="4", children = @[ntext "4"]),
+          node("button", id="5", children = @[ntext "5"]),
         ])
       ])
       done()
@@ -54,14 +54,14 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul", children = @[
-          tag("button", id="0"),
-          tag("button", id="1"),
-          tag("button", id="2"),
-          tag("button", id="3"),
-          tag("button", id="4"),
-          tag("button", id="7"),
-          tag("button", id="5"),
+        node("ul", children = @[
+          node("button", id="0", children = @[ntext "0"]),
+          node("button", id="1", children = @[ntext "1"]),
+          node("button", id="2", children = @[ntext "2"]),
+          node("button", id="3", children = @[ntext "3"]),
+          node("button", id="4", children = @[ntext "4"]),
+          node("button", id="7", children = @[ntext "7"]),
+          node("button", id="5", children = @[ntext "5"]),
         ])
       ])
       done()
@@ -75,15 +75,15 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul", children = @[
-          tag("button", id="8"),
-          tag("button", id="0"),
-          tag("button", id="1"),
-          tag("button", id="2"),
-          tag("button", id="3"),
-          tag("button", id="4"),
-          tag("button", id="7"),
-          tag("button", id="5"),
+        node("ul", children = @[
+          node("button", id="8", children = @[ntext "8"]),
+          node("button", id="0", children = @[ntext "0"]),
+          node("button", id="1", children = @[ntext "1"]),
+          node("button", id="2", children = @[ntext "2"]),
+          node("button", id="3", children = @[ntext "3"]),
+          node("button", id="4", children = @[ntext "4"]),
+          node("button", id="7", children = @[ntext "7"]),
+          node("button", id="5", children = @[ntext "5"]),
         ])
       ])
       done()
@@ -96,11 +96,11 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul", children = @[
-          tag("button", id="2"),
-          tag("button", id="3"),
-          tag("button", id="4"),
-          tag("button", id="1"),
+        node("ul", children = @[
+          node("button", id="2", children = @[ntext "2"]),
+          node("button", id="3", children = @[ntext "3"]),
+          node("button", id="4", children = @[ntext "4"]),
+          node("button", id="1", children = @[ntext "1"]),
         ])
       ])
       done()
@@ -113,8 +113,8 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul", children = @[
-          tag("button", id="42"),
+        node("ul", children = @[
+          node("button", id="42", children = @[ntext "42"]),
         ])
       ])
       done()
@@ -127,7 +127,7 @@ describe("Dom diffing of simple seq model") do ():
     simpleTimeout() do ():
       # kout(document.getElementById("ROOT").innerHTML)
       expectDomToMatch("ROOT", @[
-        tag("ul")
+        node("ul")
       ])
       done()
 
@@ -150,13 +150,102 @@ describe("The testing framework") do ():
       # kout(document.body.innerHTML)
       # 2 => okay
       expectDomToMatch("ROOT", @[
-        tag("div"), tag("div"),
+        node("div"), node("div"),
       ])
       # 1 or 3 should raise
       expect(() => expectDomToMatch("ROOT", @[
-        tag("div"),
-      ])).toThrowErrorRegexp("Number of children differs")
+        node("div"),
+      ])).toThrowErrorRegexp("Check number of children")
       expect(() => expectDomToMatch("ROOT", @[
-        tag("div"), tag("div"), tag("div"),
-      ])).toThrowErrorRegexp("Number of children differs")
+        node("div"), node("div"), node("div"),
+      ])).toThrowErrorRegexp("Check number of children")
+      done()
+
+  it("should verify id") do (done: Done):
+    proc createDom(): VNode =
+      result = buildHtml():
+        tdiv():
+          tdiv(id="1")
+          tdiv(id="2")
+          tdiv()
+    setRenderer createDom
+    kxi.redraw()
+
+    simpleTimeout() do ():
+      expectDomToMatch("ROOT", @[
+        node("div", id="1"),
+        node("div", id="2"),
+        node("div"),
+      ])
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div", id="11"),
+        node("div", id="2"),
+        node("div"),
+      ])).toThrowErrorRegexp(".*id matching.*")
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div", id="1"),
+        node("div", id="2"),
+        node("div", id="3"),
+      ])).toThrowErrorRegexp(".*id matching.*")
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div"),
+        node("div"),
+        node("div"),
+      ])).toThrowErrorRegexp(".*id empty check.*")
+      done()
+
+  it("should verify class") do (done: Done):
+    proc createDom(): VNode =
+      result = buildHtml():
+        tdiv():
+          tdiv(class="1")
+          tdiv(class="2")
+          tdiv()
+    setRenderer createDom
+    kxi.redraw()
+
+    simpleTimeout() do ():
+      expectDomToMatch("ROOT", @[
+        node("div", class="1"),
+        node("div", class="2"),
+        node("div"),
+      ])
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div", class="11"),
+        node("div", class="2"),
+        node("div"),
+      ])).toThrowErrorRegexp(".*class matching.*")
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div", class="1"),
+        node("div", class="2"),
+        node("div", class="3"),
+      ])).toThrowErrorRegexp(".*class matching.*")
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div"),
+        node("div"),
+        node("div"),
+      ])).toThrowErrorRegexp(".*class empty check.*")
+      done()
+
+  it("should verify text nodes") do (done: Done):
+    proc createDom(): VNode =
+      result = buildHtml():
+        tdiv():
+          tdiv():
+            text "A"
+          tdiv():
+            text "B"
+            text "C"
+    setRenderer createDom
+    kxi.redraw()
+
+    simpleTimeout() do ():
+      expectDomToMatch("ROOT", @[
+        node("div", children = @[ntext "A"]),
+        node("div", children = @[ntext "B", ntext "C"]),
+      ])
+      expect(() => expectDomToMatch("ROOT", @[
+        node("div", children = @[ntext "a"]),
+        node("div", children = @[ntext "B", ntext "C"]),
+      ])).toThrowErrorRegexp(".*Text comparison.*")
       done()
