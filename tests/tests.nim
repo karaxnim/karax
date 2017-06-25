@@ -6,7 +6,7 @@ import jasmine
 installRootTag()
 
 
-describe("Dom diffing of simple seq model"):
+describe("Dom diffing of simple seq model") do ():
 
   proc initValues(): auto = @[0, 1, 2, 3, 4, 5].map(x => cstring($x))
 
@@ -129,4 +129,34 @@ describe("Dom diffing of simple seq model"):
       expectDomToMatch("ROOT", @[
         tag("ul")
       ])
+      done()
+
+
+describe("The testing framework") do ():
+
+  beforeAll() do ():
+    clearRootTag()
+
+  it("should verify number of children") do (done: Done):
+    proc createDom(): VNode =
+      result = buildHtml():
+        span(id="NOT-ROOT", class="test"): # id is not applied
+          tdiv()
+          tdiv()
+    setRenderer createDom
+    kxi.redraw()
+
+    simpleTimeout() do ():
+      # kout(document.body.innerHTML)
+      # 2 => okay
+      expectDomToMatch("ROOT", @[
+        tag("div"), tag("div"),
+      ])
+      # 1 or 3 should raise
+      expect(() => expectDomToMatch("ROOT", @[
+        tag("div"),
+      ])).toThrowErrorRegexp("Number of children differs")
+      expect(() => expectDomToMatch("ROOT", @[
+        tag("div"), tag("div"), tag("div"),
+      ])).toThrowErrorRegexp("Number of children differs")
       done()

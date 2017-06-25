@@ -1,5 +1,4 @@
 import kdom, jstrutils
-import jasmine
 
 proc installRootTag*() =
   document.body.innerHTML &= cstring"<div id='ROOT'></div>"
@@ -35,16 +34,16 @@ proc expectDomToMatch*(domParent: Element, expNodes: ExpNodes) =
   for i in 0 ..< domParent.len:
     if domParent[i].nodeType == ElementNode:
       numDomElements += 1
-  expect(numDomElements).toBe(expNodes.len, "Number of children differs")
+  doAssert numDomElements == expNodes.len, "Number of children differs"
 
   for i in 0 ..< expNodes.len:
     let domElement = domParent[i]
     let expElement = expNodes[i]
-    expect(domElement.tagName.toLowerCase()).toBe(expElement.tag.toLowerCase(), "tag doesn't match")
+    doAssert domElement.tagName.toLowerCase() == expElement.tag.toLowerCase(), "tag doesn't match"
     if expElement.id != nil:
-      expect(domElement.id).toBe(expElement.id, "id doesn't match")
+      doAssert domElement.id == expElement.id, "id doesn't match"
     if expElement.text != nil:
-      expect(domElement.value).toBe(expElement.text, "text doesn't match")
+      doAssert domElement.value == expElement.text, "text doesn't match"
     expectDomToMatch(domElement, expElement.children)
 
 proc expectDomToMatch*(elementId: cstring, expNodes: ExpNodes) =
