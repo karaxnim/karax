@@ -1,12 +1,14 @@
+## Note: Jasmine bindings are incomplete, but cover major functionality.
 import future
 
+# Not jasmine specific, maybe move into Karax core?
 type
   RegExp* = ref object
 
-  Done* = () -> void
-
 proc newRegExp*(s: cstring): RegExp {.importcpp: "new RegExp(#)".}
 
+type
+  Done* = () -> void
 
 proc beforeEach*(body: () -> void) {.importc.}
 proc beforeAll*(body: () -> void) {.importc.}

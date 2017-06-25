@@ -1,5 +1,4 @@
-import kdom, vdom, kdom, times, karax, karaxdsl, jdict, jstrutils, parseutils, sequtils
-
+import kdom, jstrutils
 import jasmine
 
 proc installRootTag*() =
@@ -8,11 +7,10 @@ proc installRootTag*() =
 proc clearRootTag*() =
   document.getElementById("ROOT").innerHTML = ""
 
-
 proc simpleTimeout*(p: proc()) =
   discard setTimeout(p, 100)
 
-
+# --------------------- DOM validation ---------------------------------------
 type
   ExpNode* = ref object
     tag*: cstring
