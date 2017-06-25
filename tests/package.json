@@ -1,0 +1,19 @@
+{
+  "name": "karax-unit-test-tests",
+  "version": "0.1.0",
+  "description": "Testing unit tests",
+  "scripts": {
+    "test": "npm run test:build --silent && npm run test:karma --silent",
+    "test:build": "nim js tests.nim",
+    "test:karma": "karma start karma.conf.js --singleRun",
+    "test:watch": "watch 'npm run test' . --interval=0.1"
+  },
+  "devDependencies": {
+    "jasmine": "^2.6.0",
+    "karma": "^1.7.0",
+    "karma-jasmine": "^1.1.0",
+    "karma-phantomjs-launcher": "^1.0.4",
+    "karma-spec-reporter": "0.0.31",
+    "watch": "^1.0.2"
+  }
+}

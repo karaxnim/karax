@@ -1,2 +1,4 @@
 nimcache/
 /tests/tester
+/.vscode
+/tests/node_modules

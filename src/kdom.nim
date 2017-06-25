@@ -129,6 +129,7 @@ type
     name*: cstring
     readOnly*: bool
     options*: seq[OptionElement]
+    tagName*: cstring
 
   # https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
   HtmlElement* = ref object of Element

@@ -9,6 +9,8 @@ proc contains*(a, b: cstring): bool {.importcpp: "(#.indexOf(#)>=0)", nodecl.}
 proc substr*(s: cstring; start: int): cstring {.importcpp: "substr", nodecl.}
 proc substr*(s: cstring; start, length: int): cstring {.importcpp: "substr", nodecl.}
 
+proc toLowerCase*(s: cstring): cstring {.importcpp: "(#).toLowerCase()", nodecl.}
+
 #proc len*(s: cstring): int {.importcpp: "#.length", nodecl.}
 proc `&`*(a, b: cstring): cstring {.importcpp: "(# + #)", nodecl.}
 proc toCstr*(s: int): cstring {.importcpp: "((#)+'')", nodecl.}
@@ -17,6 +19,7 @@ proc `&`*(s: bool): cstring {.importcpp: "((#)+'')", nodecl.}
 proc `&`*(s: float): cstring {.importcpp: "((#)+'')", nodecl.}
 
 proc `&`*(s: cstring): cstring {.importcpp: "(#)", nodecl.}
+proc `&=`*(a: cstring, b: cstring) {.importcpp: "(#) += (#)", nodecl.}
 
 proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
   asm """
