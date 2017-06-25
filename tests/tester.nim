@@ -3,6 +3,7 @@
 import os
 
 proc exec(cmd: string) =
+  echo "Running: ", cmd
   if os.execShellCmd(cmd) != 0:
     quit "command failed " & cmd
 
@@ -13,5 +14,9 @@ proc main =
   exec("nim js examples/scrollapp/scrollapp.nim")
   exec("nim js examples/mediaplayer/playerapp.nim")
   exec("nim js examples/carousel/carousel.nim")
+
+  setCurrentDir("tests")
+  exec("npm install")
+  exec("npm test")
 
 main()
