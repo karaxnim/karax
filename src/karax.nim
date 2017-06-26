@@ -208,12 +208,13 @@ type
     parent, current: Node
     n: VNode
 
-proc addPatch(patches: var seq[Patch]; k: PatchKind; parent, current: Node;
+proc addPatch(patches: JSeq[Patch]; k: PatchKind; parent, current: Node;
               n: VNode) =
   patches.add(Patch(k: k, parent: parent, current: current, n: n))
 
-proc apply(patches: seq[Patch]; kxi: KaraxInstance) =
-  for p in patches:
+proc apply(patches: JSeq[Patch]; kxi: KaraxInstance) =
+  for i in 0..<patches.len:
+    let p = patches[i]
     case p.k
     of pkReplace:
       let nn = vnodeToDom(p.n, kxi)
@@ -230,8 +231,7 @@ proc apply(patches: seq[Patch]; kxi: KaraxInstance) =
       let nn = vnodeToDom(p.n, kxi)
       p.parent.insertBefore(nn, p.current)
 
-proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch];
-          kxi: KaraxInstance): EqResult =
+proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): EqResult =
   result = eq(newNode, oldNode)
   case result
   of identical:
@@ -239,7 +239,7 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
     let newLength = newNode.len
     var oldLength = oldNode.len
     let minLength = min(newLength, oldLength)
-    if minLength == 0: return result
+    if newLength == 0 and oldLength == 0: return result
 
     assert oldNode.kind == newNode.kind
     var commonPrefix = 0
@@ -254,16 +254,16 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
 
       let r = if oldNode.kind == VNodeKind.component or oldNode.kind == VNodeKind.vthunk or
                  oldNode.kind == VNodeKind.dthunk:
-                diff(parent, current, a[i], b[j], patches, kxi)
+                diff(a[i], b[j], parent, current, patches)
               else:
-                diff(current, current.childNodes[j], a[i], b[j], patches, kxi)
+                diff(a[i], b[j], current, current.childNodes[j], patches)
       case r
       of identical, changed, similar:
         a[i] = b[j]
         action
       of different:
         # undo what 'diff' would have done:
-        setLen(patches, oldLen)
+        shrink(patches, oldLen)
         if result != different: result = r
         break
       #of similar:
@@ -284,8 +284,8 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
 
     var pos = min(oldPos, newPos) + 1
     for i in commonPrefix..pos-1:
-      if diff(current, current.childNodes[i],
-              newNode[i], oldNode[i], patches, kxi) != different:
+      if diff(newNode[i], oldNode[i], current, current.childNodes[i],
+              patches) != different:
         newNode[i] = oldNode[i]
       else:
         result = different
@@ -318,7 +318,7 @@ proc diff(parent, current: Node; newNode, oldNode: VNode; patches: var seq[Patch
       detach(oldNode)
       patches.addPatch(pkReplace, parent, current, x.expanded)
     else:
-      let res = diff(parent, current, x.expanded, oldExpanded, patches, kxi)
+      let res = diff(x.expanded, oldExpanded, parent, current, patches)
       if res != different:
         x.expanded = oldExpanded
         assert oldExpanded.dom != nil, "old expanded.dom is nil"
@@ -339,8 +339,8 @@ proc dodraw(kxi: KaraxInstance) =
     replaceById(kxi.rootId, asdom)
   else:
     let olddom = document.getElementById(kxi.rootId)
-    var patches: seq[Patch] = @[]
-    discard diff(nil, olddom, newtree, kxi.currentTree, patches, kxi)
+    var patches = newJSeq[Patch]()
+    discard diff(newtree, kxi.currentTree, nil, olddom, patches)
     patches.apply(kxi)
     kxi.currentTree = newtree
   #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
@@ -364,6 +364,8 @@ proc redraw*(kxi: KaraxInstance = kxi) =
     reqFrame(proc () = kxi.dodraw)
   else:
     dodraw(kxi)
+
+proc redrawSync*(kxi: KaraxInstance = kxi) = dodraw(kxi)
 
 proc init(ev: Event) =
   reqFrame(proc () = kxi.dodraw)

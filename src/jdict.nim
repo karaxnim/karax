@@ -20,3 +20,5 @@ proc `[]=`*[T](s: JSeq[T], i: int, v: T) {.importcpp: "#[#] = #", noSideEffect.}
 proc newJSeq*[T](): JSeq[T] {.importcpp: "[@]".}
 proc len*[T](s: JSeq[T]): int {.importcpp: "#.length", noSideEffect.}
 proc add*[T](s: JSeq[T]; x: T) {.importcpp: "#.push(#)", noSideEffect.}
+
+proc shrink*[T](s: JSeq[T]; shorterLen: int) {.importcpp: "#.length = #", noSideEffect.}
