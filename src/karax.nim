@@ -234,8 +234,10 @@ proc apply(patches: JSeq[Patch]; kxi: KaraxInstance) =
 proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): EqResult =
   result = eq(newNode, oldNode)
   case result
-  of identical:
+  of identical, similar:
     newNode.dom = oldNode.dom
+    if result == similar: updateStyles(newNode, oldNode)
+
     let newLength = newNode.len
     var oldLength = oldNode.len
     let minLength = min(newLength, oldLength)
@@ -306,8 +308,6 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
       patches.addPatch(pkRemove, current, current.childNodes[i], nil)
       result = different
 
-  of similar:
-    updateStyles(newNode, oldNode)
   of changed:
     assert oldNode.kind == VNodeKind.component
     let x = VComponent(oldNode)
