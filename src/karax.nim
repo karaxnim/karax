@@ -23,6 +23,7 @@ type
     postRenderCallback: proc ()
     toFocus: Node
     toFocusV: VNode
+    renderId: int
 
 var
   kxi*: KaraxInstance ## The current Karax instance. This is always used
@@ -354,7 +355,8 @@ proc dodraw(kxi: KaraxInstance) =
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
 
-proc reqFrame(callback: proc()) {.importc: "window.requestAnimationFrame".}
+proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
+proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
 
 proc redraw*(kxi: KaraxInstance = kxi) =
   # we buffer redraw requests:
@@ -363,14 +365,15 @@ proc redraw*(kxi: KaraxInstance = kxi) =
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
   elif true:
-    reqFrame(proc () = kxi.dodraw)
+    cancelFrame kxi.renderId
+    kxi.renderId = reqFrame(proc () = kxi.dodraw)
   else:
     dodraw(kxi)
 
 proc redrawSync*(kxi: KaraxInstance = kxi) = dodraw(kxi)
 
 proc init(ev: Event) =
-  reqFrame(proc () = kxi.dodraw)
+  kxi.renderId = reqFrame(proc () = kxi.dodraw)
 
 proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                   clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
