@@ -54,9 +54,18 @@ type
 
 proc renderComb(self: VComponent): VNode =
   let self = Combined(self)
+
+  proc bu(ev: Event; n: VNode) =
+    self.a.value = ""
+    self.b.value = ""
+    markDirty(self.a)
+    markDirty(self.b)
+
   result = buildHtml(tdiv(style=self.style)):
     self.a
     self.b
+    button(onclick=bu):
+      text "reset"
 
 proc changed(self: VComponent): bool =
   let self = Combined(self)

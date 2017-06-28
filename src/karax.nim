@@ -15,6 +15,14 @@ proc key*(e: Node): VKey =
 proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
 
 type
+  PatchKind = enum
+    pkReplace, pkRemove, pkAppend, pkInsertBefore
+  Patch = object
+    k: PatchKind
+    parent, current: Node
+    n: VNode
+
+type
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
                               ## know about this.
     rootId: cstring not nil
@@ -24,6 +32,9 @@ type
     toFocus: Node
     toFocusV: VNode
     renderId: int
+    patches: seq[Patch] # we reuse this to save allocations
+    patchLen: int
+
 
 var
   kxi*: KaraxInstance ## The current Karax instance. This is always used
@@ -33,8 +44,9 @@ var
                       ## in your 'buildHtml' statement, it needs to be named
                       ## 'kxi'.
 
-proc setFocus*(n: VNode; kxi: KaraxInstance = kxi) =
-  kxi.toFocusV = n
+proc setFocus*(n: VNode; enabled = true; kxi: KaraxInstance = kxi) =
+  if enabled:
+    kxi.toFocusV = n
 
 # ----------------- event wrapping ---------------------------------------
 
@@ -199,7 +211,7 @@ proc updateStyles(newNode, oldNode: VNode) =
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
 
-proc mergeEvents(newNode, oldNode: VNode) =
+proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   let d = oldNode.dom
   for i in 0..<oldNode.events.len:
     let k = oldNode.events[i][0]
@@ -222,21 +234,22 @@ proc printV(n: VNode; depth: cstring = "") =
   for i in 0 ..< n.len:
     printV(n[i], depth & "  ")
 
-type
-  PatchKind = enum
-    pkReplace, pkRemove, pkAppend, pkInsertBefore
-  Patch = object
-    k: PatchKind
-    parent, current: Node
-    n: VNode
+template addPatch(kxi: KaraxInstance; ka: PatchKind; parenta, currenta: Node;
+              na: VNode) =
+  let L = kxi.patchLen
+  if L >= kxi.patches.len:
+    # allocate more space:
+    kxi.patches.add(Patch(k: ka, parent: parenta, current: currenta, n: na))
+  else:
+    kxi.patches[L].k = ka
+    kxi.patches[L].parent = parenta
+    kxi.patches[L].current = currenta
+    kxi.patches[L].n = na
+  inc kxi.patchLen
 
-proc addPatch(patches: JSeq[Patch]; k: PatchKind; parent, current: Node;
-              n: VNode) =
-  patches.add(Patch(k: k, parent: parent, current: current, n: n))
-
-proc apply(patches: JSeq[Patch]; kxi: KaraxInstance) =
-  for i in 0..<patches.len:
-    let p = patches[i]
+proc apply(kxi: KaraxInstance) =
+  for i in 0..<kxi.patchLen:
+    let p = kxi.patches[i]
     case p.k
     of pkReplace:
       let nn = vnodeToDom(p.n, kxi)
@@ -252,15 +265,18 @@ proc apply(patches: JSeq[Patch]; kxi: KaraxInstance) =
     of pkInsertBefore:
       let nn = vnodeToDom(p.n, kxi)
       p.parent.insertBefore(nn, p.current)
+  kxi.patchLen = 0
 
-proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): EqResult =
+proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
   result = eq(newNode, oldNode)
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
     if result == similar: updateStyles(newNode, oldNode)
     if newNode.events.len != 0 or oldNode.events.len != 0:
-      mergeEvents(newNode, oldNode)
+      mergeEvents(newNode, oldNode, kxi)
+    if newNode.kind == VNodeKind.input or newNode.kind == VNodeKind.textarea:
+      oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
     var oldLength = oldNode.len
@@ -271,7 +287,7 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
     var commonPrefix = 0
 
     template eqAndUpdate(a: VNode; i: int; b: VNode; j: int; info, action: untyped) =
-      let oldLen = patches.len
+      let oldLen = kxi.patchLen
       when false:
         if oldNode.kind notin {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
           assert current != nil
@@ -280,16 +296,16 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
 
       let r = if oldNode.kind == VNodeKind.component or oldNode.kind == VNodeKind.vthunk or
                  oldNode.kind == VNodeKind.dthunk:
-                diff(a[i], b[j], parent, current, patches)
+                diff(a[i], b[j], parent, current, kxi)
               else:
-                diff(a[i], b[j], current, current.childNodes[j], patches)
+                diff(a[i], b[j], current, current.childNodes[j], kxi)
       case r
       of identical, changed, similar:
         a[i] = b[j]
         action
       of different:
         # undo what 'diff' would have done:
-        shrink(patches, oldLen)
+        kxi.patchLen = oldLen
         if result != different: result = r
         break
       #of similar:
@@ -311,25 +327,25 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
     var pos = min(oldPos, newPos) + 1
     for i in commonPrefix..pos-1:
       if diff(newNode[i], oldNode[i], current, current.childNodes[i],
-              patches) != different:
+              kxi) != different:
         newNode[i] = oldNode[i]
       else:
         result = different
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
-        patches.addPatch(pkAppend, current, nil, newNode[i])
+        kxi.addPatch(pkAppend, current, nil, newNode[i])
         result = different
     else:
       let before = current.childNodes[oldPos + 1]
       for i in pos..newPos:
-        patches.addPatch(pkInsertBefore, current, before, newNode[i])
+        kxi.addPatch(pkInsertBefore, current, before, newNode[i])
         result = different
     # XXX call 'attach' here?
     for i in pos..oldPos:
       detach(oldNode[i])
       #doAssert i < current.childNodes.len
-      patches.addPatch(pkRemove, current, current.childNodes[i], nil)
+      kxi.addPatch(pkRemove, current, current.childNodes[i], nil)
       result = different
 
   of changed:
@@ -340,9 +356,9 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
     x.updatedImpl(x)
     if oldExpanded == nil:
       detach(oldNode)
-      patches.addPatch(pkReplace, parent, current, x.expanded)
+      kxi.addPatch(pkReplace, parent, current, x.expanded)
     else:
-      let res = diff(x.expanded, oldExpanded, parent, current, patches)
+      let res = diff(x.expanded, oldExpanded, parent, current, kxi)
       if res != different:
         x.expanded = oldExpanded
         assert oldExpanded.dom != nil, "old expanded.dom is nil"
@@ -350,7 +366,7 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
         assert x.expanded.dom != nil, "expanded.dom is nil"
   of different:
     detach(oldNode)
-    patches.addPatch(pkReplace, parent, current, newNode)
+    kxi.addPatch(pkReplace, parent, current, newNode)
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
@@ -363,9 +379,9 @@ proc dodraw(kxi: KaraxInstance) =
     replaceById(kxi.rootId, asdom)
   else:
     let olddom = document.getElementById(kxi.rootId)
-    var patches = newJSeq[Patch]()
-    discard diff(newtree, kxi.currentTree, nil, olddom, patches)
-    patches.apply(kxi)
+    discard diff(newtree, kxi.currentTree, nil, olddom, kxi)
+    #kout cstring"patch len ", patches.len
+    apply(kxi)
     kxi.currentTree = newtree
   #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
@@ -375,6 +391,7 @@ proc dodraw(kxi: KaraxInstance) =
   # now that it's part of the DOM, give it the focus:
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
+  kxi.renderId = 0
 
 proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
 proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
@@ -386,8 +403,8 @@ proc redraw*(kxi: KaraxInstance = kxi) =
       clearTimeout(drawTimeout)
     drawTimeout = setTimeout(dodraw, 30)
   elif true:
-    cancelFrame kxi.renderId
-    kxi.renderId = reqFrame(proc () = kxi.dodraw)
+    if kxi.renderId == 0:
+      kxi.renderId = reqFrame(proc () = kxi.dodraw)
   else:
     dodraw(kxi)
 
@@ -400,7 +417,8 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                   clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
   result = KaraxInstance(rootId: root, renderer: renderer,
-                         postRenderCallback: clientPostRenderCallback)
+                         postRenderCallback: clientPostRenderCallback,
+                         patches: newSeq[Patch](60))
   kxi = result
   window.onload = init
 
