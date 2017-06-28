@@ -48,8 +48,9 @@ template keyeventBody() =
   # Do not call redraw() here! That is already done
   # by ``karax.addEventHandler``.
 
-proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
-  proc stdWrapper(): (proc (ev: Event)) =
+proc wrapEvent(d: Node; n: VNode; k: EventKind;
+               action: EventHandler): NativeEventHandler =
+  proc stdWrapper(): NativeEventHandler =
     let action = action
     let n = n
     result = proc (ev: Event) =
@@ -57,13 +58,13 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
         keyeventBody()
       else: action(ev, n)
 
-  proc enterWrapper(): (proc (ev: Event)) =
+  proc enterWrapper(): NativeEventHandler =
     let action = action
     let n = n
     result = proc (ev: Event) =
       if ev.keyCode == 13: keyeventBody()
 
-  proc laterWrapper(): (proc (ev: Event)) =
+  proc laterWrapper(): NativeEventHandler =
     let action = action
     let n = n
     var timer: Timeout
@@ -74,11 +75,14 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
 
   case k
   of EventKind.onkeyuplater:
-    d.addEventListener("keyup", laterWrapper())
+    result = laterWrapper()
+    d.addEventListener("keyup", result)
   of EventKind.onkeyupenter:
-    d.addEventListener("keyup", enterWrapper())
+    result = enterWrapper()
+    d.addEventListener("keyup", result)
   else:
-    d.addEventListener(toEventName[k], stdWrapper())
+    result = stdWrapper()
+    d.addEventListener(toEventName[k], result)
 
 # --------------------- DOM diff -----------------------------------------
 
@@ -89,6 +93,11 @@ template detach(n: VNode) =
   n.dom = nil
 template attach(n: VNode) =
   n.dom = result
+
+proc applyEvents(n: VNode; kxi: KaraxInstance) =
+  let dest = n.dom
+  for i in 0..<len(n.events):
+    n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
 
 proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
@@ -132,8 +141,7 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
   for k, v in attrs(n):
     if v != nil:
       result.setAttr(k, v)
-  for e, h in items(n.events):
-    wrapEvent(result, n, e, h)
+  applyEvents(n, kxi)
   if n == kxi.toFocusV and kxi.toFocus.isNil:
     kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
@@ -191,6 +199,17 @@ proc updateStyles(newNode, oldNode: VNode) =
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
 
+proc mergeEvents(newNode, oldNode: VNode) =
+  let d = oldNode.dom
+  for i in 0..<oldNode.events.len:
+    let k = oldNode.events[i][0]
+    let name = case k
+               of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
+               else: toEventName[k]
+    d.removeEventListener(name, oldNode.events[i][2])
+  shallowCopy(oldNode.events, newNode.events)
+  applyEvents(oldNode, kxi)
+
 proc printV(n: VNode; depth: cstring = "") =
   kout depth, cstring($n.kind), cstring"key ", n.key
   #for k, v in pairs(n.style):
@@ -240,6 +259,8 @@ proc diff(newNode, oldNode: VNode;parent, current: Node; patches: JSeq[Patch]): 
   of identical, similar:
     newNode.dom = oldNode.dom
     if result == similar: updateStyles(newNode, oldNode)
+    if newNode.events.len != 0 or oldNode.events.len != 0:
+      mergeEvents(newNode, oldNode)
 
     let newLength = newNode.len
     var oldLength = oldNode.len

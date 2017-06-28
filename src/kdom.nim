@@ -483,6 +483,7 @@ proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 
 # EventTarget "methods"
 proc addEventListener*(et: EventTarget, ev: cstring, cb: proc(ev: Event), useCapture: bool = false)
+proc removeEventListener*(et: EventTarget; ev: cstring; cb: proc(ev: Event))
 
 # Window "methods"
 proc alert*(w: Window, msg: cstring)

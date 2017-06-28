@@ -104,6 +104,7 @@ buildLookupTables()
 
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
+  NativeEventHandler* = proc (ev: Event) {.closure.}
   VKey* = int
 
   VNode* = ref object of RootObj
@@ -113,7 +114,7 @@ type
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
-    events*: seq[(EventKind, EventHandler)]
+    events*: seq[(EventKind, EventHandler, NativeEventHandler)]
     when false:
       hash*: Hash
       validHash*: bool
@@ -222,7 +223,7 @@ proc sameAttrs*(a, b: VNode): bool =
       if a.attrs[i] != b.attrs[i]: return false
 
 proc addEventListener*(n: VNode; event: EventKind; handler: EventHandler) =
-  n.events.add((event, handler))
+  n.events.add((event, handler, nil))
 
 template toStringAttr(field) =
   if n.field != nil:
