@@ -58,8 +58,12 @@ proc renderComb(self: VComponent): VNode =
     self.a
     self.b
 
+proc changed(self: VComponent): bool =
+  let self = Combined(self)
+  result = self.a.changedImpl(self.a) or self.b.changedImpl(self.b)
+
 proc newCombined*(style: VStyle = VStyle()): Combined =
-  result = newComponent(Combined, renderComb)
+  result = newComponent(Combined, renderComb, changed=changed)
   result.a = newTextInput(style, "AAA")
   result.b = newTextInput(style, "BBB")
 
