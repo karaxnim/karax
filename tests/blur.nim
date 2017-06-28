@@ -4,7 +4,6 @@ type TextInput* = ref object of VComponent
   value: cstring
   isActive: bool
 
-var renderId: int
 proc render(x: VComponent): VNode =
   let self = TextInput(x)
 
@@ -37,18 +36,16 @@ proc render(x: VComponent): VNode =
     self.isActive = not self.isActive
     markDirty(self)
 
-  kout cstring"rendering ", self.myid
-  inc renderId
-  result = buildHtml(tdiv(style=style)):
-    input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip)
+  proc onchanged(ev: Event; n: VNode) =
+    kout cstring"onchanged", n.value
 
-var gid = 0
+  result = buildHtml(tdiv(style=style)):
+    textarea(style=inputStyle, value=self.value, onblur=flip, onfocus=flip, onkeyup=onchanged)
+
 proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring""): TextInput =
   result = newComponent(TextInput, render)
   result.style = style
   result.value = value
-  inc gid
-  result.myid = gid
 
 proc createDom(): VNode =
   result = buildHtml(tdiv):

@@ -52,7 +52,9 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind; action: EventHandler) =
     let action = action
     let n = n
     result = proc (ev: Event) =
-      action(ev, n)
+      if n.kind == VNodeKind.textarea or n.kind == VNodeKind.input:
+        keyeventBody()
+      else: action(ev, n)
 
   proc enterWrapper(): (proc (ev: Event)) =
     let action = action
@@ -189,7 +191,7 @@ proc updateStyles(newNode, oldNode: VNode) =
   oldNode.style = newNode.style
 
 proc printV(n: VNode; depth: cstring = "") =
-  kout depth, cstring($n.kind), n.myid, cstring"key ", n.key
+  kout depth, cstring($n.kind), cstring"key ", n.key
   #for k, v in pairs(n.style):
   #  kout depth, "style: ", k, v
   if n.kind == VNodeKind.component:
