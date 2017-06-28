@@ -34,21 +34,37 @@ proc render(x: VComponent): VNode =
 
   proc flip(ev: Event; n: VNode) =
     self.isActive = not self.isActive
+    kout cstring"onflip", n.value
     markDirty(self)
 
   proc onchanged(ev: Event; n: VNode) =
     kout cstring"onchanged", n.value
 
   result = buildHtml(tdiv(style=style)):
-    textarea(style=inputStyle, value=self.value, onblur=flip, onfocus=flip, onkeyup=onchanged)
+    input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip, onkeyup=onchanged)
 
 proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring""): TextInput =
   result = newComponent(TextInput, render)
   result.style = style
   result.value = value
 
+type
+  Combined = ref object of VComponent
+    a, b: TextInput
+
+proc renderComb(self: VComponent): VNode =
+  let self = Combined(self)
+  result = buildHtml(tdiv(style=self.style)):
+    self.a
+    self.b
+
+proc newCombined*(style: VStyle = VStyle()): Combined =
+  result = newComponent(Combined, renderComb)
+  result.a = newTextInput(style, "AAA")
+  result.b = newTextInput(style, "BBB")
+
 proc createDom(): VNode =
   result = buildHtml(tdiv):
-    newTextInput(value=cstring"test")
+    newCombined()
 
 setRenderer createDom
