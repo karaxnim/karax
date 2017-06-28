@@ -86,7 +86,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           elif eqIdent(key, "setFocus"):
-            result.add newCall(x, tmp, x[1], ident"kxi")
+            result.add newCall(key, tmp, x[1], ident"kxi")
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
         elif ck != ComponentKind.Tag:

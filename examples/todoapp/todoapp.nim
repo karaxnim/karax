@@ -90,7 +90,7 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compac
       else:
         input(class = "edit", name = "title", key=id,
           onblur = focusLost,
-          onkeyupenter = editEntry, value = d, setFocus)
+          onkeyupenter = editEntry, value = d, setFocus=true)
 
 proc makeFooter(entriesCount, completedCount: int): VNode {.compact.} =
   result = buildHtml(footer(class = "footer")):
