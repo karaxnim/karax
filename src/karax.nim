@@ -16,7 +16,7 @@ proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
 
 type
   PatchKind = enum
-    pkReplace, pkRemove, pkAppend, pkInsertBefore
+    pkReplace, pkRemove, pkAppend, pkInsertBefore, pkDetach
   Patch = object
     k: PatchKind
     parent, current: Node
@@ -99,10 +99,8 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
 # --------------------- DOM diff -----------------------------------------
 
 template detach(n: VNode) =
-  if n.kind == VNodeKind.component:
-    let x = VComponent(n)
-    if x.onDetachImpl != nil: x.onDetachImpl(x)
-  n.dom = nil
+  addPatch(kxi, pkDetach, nil, nil, n)
+
 template attach(n: VNode) =
   n.dom = result
 
@@ -213,13 +211,12 @@ proc updateStyles(newNode, oldNode: VNode) =
 
 proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   let d = oldNode.dom
-  if d != nil:
-    for i in 0..<oldNode.events.len:
-      let k = oldNode.events[i][0]
-      let name = case k
+  for i in 0..<oldNode.events.len:
+    let k = oldNode.events[i][0]
+    let name = case k
                 of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
                 else: toEventName[k]
-      d.removeEventListener(name, oldNode.events[i][2])
+    d.removeEventListener(name, oldNode.events[i][2])
   shallowCopy(oldNode.events, newNode.events)
   applyEvents(oldNode, kxi)
 
@@ -235,7 +232,7 @@ proc printV(n: VNode; depth: cstring = "") =
   for i in 0 ..< n.len:
     printV(n[i], depth & "  ")
 
-template addPatch(kxi: KaraxInstance; ka: PatchKind; parenta, currenta: Node;
+proc addPatch(kxi: KaraxInstance; ka: PatchKind; parenta, currenta: Node;
               na: VNode) =
   let L = kxi.patchLen
   if L >= kxi.patches.len:
@@ -266,6 +263,12 @@ proc apply(kxi: KaraxInstance) =
     of pkInsertBefore:
       let nn = vnodeToDom(p.n, kxi)
       p.parent.insertBefore(nn, p.current)
+    of pkDetach:
+      let n = p.n
+      if n.kind == VNodeKind.component:
+        let x = VComponent(n)
+        if x.onDetachImpl != nil: x.onDetachImpl(x)
+      n.dom = nil
   kxi.patchLen = 0
 
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
@@ -273,6 +276,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
+    assert oldNode.dom != nil
     if result == similar: updateStyles(newNode, oldNode)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
@@ -280,9 +284,9 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     #  oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
-    var oldLength = oldNode.len
-    let minLength = min(newLength, oldLength)
+    let oldLength = oldNode.len
     if newLength == 0 and oldLength == 0: return result
+    let minLength = min(newLength, oldLength)
 
     assert oldNode.kind == newNode.kind
     var commonPrefix = 0
