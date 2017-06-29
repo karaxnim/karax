@@ -213,12 +213,13 @@ proc updateStyles(newNode, oldNode: VNode) =
 
 proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   let d = oldNode.dom
-  for i in 0..<oldNode.events.len:
-    let k = oldNode.events[i][0]
-    let name = case k
-               of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
-               else: toEventName[k]
-    d.removeEventListener(name, oldNode.events[i][2])
+  if d != nil:
+    for i in 0..<oldNode.events.len:
+      let k = oldNode.events[i][0]
+      let name = case k
+                of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
+                else: toEventName[k]
+      d.removeEventListener(name, oldNode.events[i][2])
   shallowCopy(oldNode.events, newNode.events)
   applyEvents(oldNode, kxi)
 
@@ -275,8 +276,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     if result == similar: updateStyles(newNode, oldNode)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
-    if newNode.kind == VNodeKind.input or newNode.kind == VNodeKind.textarea:
-      oldNode.dom.value = newNode.text
+    #if newNode.kind == VNodeKind.input or newNode.kind == VNodeKind.textarea:
+    #  oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
     var oldLength = oldNode.len
