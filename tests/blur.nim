@@ -3,6 +3,7 @@ import vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils
 type TextInput* = ref object of VComponent
   value: cstring
   isActive: bool
+  onchange: proc (value: cstring)
 
 proc render(x: VComponent): VNode =
   let self = TextInput(x)
@@ -38,15 +39,23 @@ proc render(x: VComponent): VNode =
     markDirty(self)
 
   proc onchanged(ev: Event; n: VNode) =
-    kout cstring"onchanged", n.value
+    if self.onchange != nil and self.value != n.value:
+      self.onchange n.value
+      self.value = n.value
 
   result = buildHtml(tdiv(style=style)):
     input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip, onkeyup=onchanged)
 
-proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring""): TextInput =
+proc setValue(x: TextInput; value: cstring) =
+  x.value = value
+  markDirty(x)
+
+proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring"",
+                   onchange: proc(v: cstring) = nil): TextInput =
   result = newComponent(TextInput, render)
   result.style = style
   result.value = value
+  result.onchange = onchange
 
 type
   Combined = ref object of VComponent
@@ -76,8 +85,36 @@ proc newCombined*(style: VStyle = VStyle()): Combined =
   result.a = newTextInput(style, "AAA")
   result.b = newTextInput(style, "BBB")
 
+
+var
+  persons: seq[cstring] = @[cstring"Karax", "Abathur", "Fenix"]
+  selected = -1
+  errmsg = cstring""
+  ti = newTextInput(VStyle(), "", proc (v: cstring) =
+    if v.len > 0:
+      if selected >= 0: persons[selected] = v
+      errmsg = ""
+    else:
+      errmsg = "name must not be empty"
+  )
+
+proc renderPerson(text: cstring, index: int): VNode =
+  proc select(ev: Event, n: VNode) =
+    selected = index
+    ti.setValue(persons[selected])
+
+  result = buildHtml():
+    tdiv(onClick=select):
+      text text
+
 proc createDom(): VNode =
   result = buildHtml(tdiv):
-    newCombined()
+    tdiv:
+      for index, text in persons.pairs:
+        renderPerson(text, index)
+    tdiv:
+      ti
+    tdiv:
+      text errmsg
 
 setRenderer createDom

@@ -54,9 +54,11 @@ template nativeValue(ev): cstring = cast[Element](ev.target).value
 template setNativeValue(ev, val) = cast[Element](ev.target).value = val
 
 template keyeventBody() =
-  n.value = nativeValue(ev)
+  let v = nativeValue(ev)
+  n.value = v
   action(ev, n)
-  setNativeValue(ev, n.value)
+  if n.value != v:
+    setNativeValue(ev, n.value)
   # Do not call redraw() here! That is already done
   # by ``karax.addEventHandler``.
 
@@ -276,12 +278,13 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
-    assert oldNode.dom != nil
     if result == similar: updateStyles(newNode, oldNode)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
-    #if newNode.kind == VNodeKind.input or newNode.kind == VNodeKind.textarea:
-    #  oldNode.dom.value = newNode.text
+    if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
+      if oldNode.text != newNode.text:
+        oldNode.text = newNode.text
+        oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
     let oldLength = oldNode.len
