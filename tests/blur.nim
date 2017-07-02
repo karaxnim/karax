@@ -41,18 +41,33 @@ proc render(x: VComponent): VNode =
   proc onchanged(ev: Event; n: VNode) =
     if self.onchange != nil and self.value != n.value:
       self.onchange n.value
-      self.value = n.value
+      #self.value = n.value
 
   result = buildHtml(tdiv(style=style)):
     input(style=inputStyle, value=self.value, onblur=flip, onfocus=flip, onkeyup=onchanged)
 
-proc setValue(x: TextInput; value: cstring) =
-  x.value = value
-  markDirty(x)
+#proc setValue(x: TextInput; value: cstring) =
+#  x.value = value
+#  markDirty(x)
+
+proc update(current, next: VComponent) =
+  let current = TextInput(current)
+  let next = TextInput(next)
+  if not current.isActive:
+    current.value = next.value
+    echo "updated! ", current.value
+  else:
+    echo "not updated! ", current.value
+  #markDirty(current)
+
+proc changed(current, next: VComponent): bool =
+  let current = TextInput(current)
+  let next = TextInput(next)
+  result = next.value != current.value or true
 
 proc newTextInput*(style: VStyle = VStyle(); value: cstring = cstring"",
                    onchange: proc(v: cstring) = nil): TextInput =
-  result = newComponent(TextInput, render)
+  result = newComponent(TextInput, render, changed=changed, updated=update)
   result.style = style
   result.value = value
   result.onchange = onchange
@@ -76,32 +91,25 @@ proc renderComb(self: VComponent): VNode =
     button(onclick=bu):
       text "reset"
 
-proc changed(self: VComponent): bool =
-  let self = Combined(self)
-  result = self.a.changedImpl(self.a) or self.b.changedImpl(self.b)
+when false:
+  proc changed(self: VComponent): bool =
+    let self = Combined(self)
+    result = self.a.changedImpl(self.a) or self.b.changedImpl(self.b)
 
-proc newCombined*(style: VStyle = VStyle()): Combined =
-  result = newComponent(Combined, renderComb, changed=changed)
-  result.a = newTextInput(style, "AAA")
-  result.b = newTextInput(style, "BBB")
+  proc newCombined*(style: VStyle = VStyle()): Combined =
+    result = newComponent(Combined, renderComb, changed=changed)
+    result.a = newTextInput(style, "AAA")
+    result.b = newTextInput(style, "BBB")
 
 
 var
   persons: seq[cstring] = @[cstring"Karax", "Abathur", "Fenix"]
   selected = -1
   errmsg = cstring""
-  ti = newTextInput(VStyle(), "", proc (v: cstring) =
-    if v.len > 0:
-      if selected >= 0: persons[selected] = v
-      errmsg = ""
-    else:
-      errmsg = "name must not be empty"
-  )
 
 proc renderPerson(text: cstring, index: int): VNode =
   proc select(ev: Event, n: VNode) =
     selected = index
-    ti.setValue(persons[selected])
 
   result = buildHtml():
     tdiv(onClick=select):
@@ -113,7 +121,13 @@ proc createDom(): VNode =
       for index, text in persons.pairs:
         renderPerson(text, index)
     tdiv:
-      ti
+      newTextInput(VStyle(), if selected >= 0: persons[selected] else: "", proc (v: cstring) =
+        if v.len > 0:
+          if selected >= 0: persons[selected] = v
+          errmsg = ""
+        else:
+          errmsg = "name must not be empty"
+      )
     tdiv:
       text errmsg
 

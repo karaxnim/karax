@@ -132,7 +132,8 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     assert x.renderImpl != nil
     if x.expanded == nil:
       x.expanded = x.renderImpl(x)
-      x.updatedImpl(x)
+      #  x.updatedImpl(x, nil)
+    assert x.expanded != nil
     result = vnodeToDom(x.expanded, kxi)
     attach n
     return result
@@ -197,7 +198,7 @@ proc eq(a, b: VNode): EqResult =
     if a.text != b.text: return different
     let x = VComponent(b)
     assert x.changedImpl != nil
-    return if x.changedImpl(x): changed else: identical
+    return if x.changedImpl(x, VComponent(a)): changed else: identical
   if not sameAttrs(a, b): return different
   if a.class != b.class: return different
   if not eq(a.style, b.style): return similar
@@ -282,6 +283,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
+      echo "comparing ", oldNode.text != newNode.text
       if oldNode.text != newNode.text:
         oldNode.text = newNode.text
         oldNode.dom.value = newNode.text
@@ -359,9 +361,11 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
   of changed:
     assert oldNode.kind == VNodeKind.component
     let x = VComponent(oldNode)
+    x.updatedImpl(x, VComponent newNode)
     let oldExpanded = x.expanded
     x.expanded = x.renderImpl(x)
-    x.updatedImpl(x)
+    x.version = VComponent(newNode).version
+    #x.updatedImpl(x)
     if oldExpanded == nil:
       detach(oldNode)
       kxi.addPatch(pkReplace, parent, current, x.expanded)

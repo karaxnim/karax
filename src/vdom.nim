@@ -124,14 +124,13 @@ type
 
   VComponent* = ref object of VNode ## The abstract class for every karax component.
     renderImpl*: proc(self: VComponent): VNode
-    changedImpl*: proc(self: VComponent): bool
-    updatedImpl*: proc(self: VComponent)
+    changedImpl*: proc(self, newInstance: VComponent): bool
+    updatedImpl*: proc(self, newInstance: VComponent)
     onAttachImpl*: proc(self: VComponent)
     onDetachImpl*: proc(self: VComponent)
     version*: int         ## Update this to trigger a redraw by karax. Usually you
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
-    renderedVersion*: int ## Do not touch. Used by karax.
     expanded*: VNode      ## Do not touch. Used by karax. The VDOM the component
                           ## expanded to.
 
@@ -153,19 +152,19 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
 
-proc defaultChangedImpl*(v: VComponent): bool =
+proc defaultChangedImpl*(v, newInstance: VComponent): bool =
   ## The default implementation of 'changed'.
-  result = v.version != v.renderedVersion
+  result = v.version != newInstance.version
 
-proc defaultUpdatedImpl*(v: VComponent) =
-  v.renderedVersion = v.version
+proc defaultUpdatedImpl*(v, newInstance: VComponent) =
+  discard
 
 template newComponent*[T](t: typeDesc[T];
                  render: (proc(self: VComponent): VNode) not nil,
                  onAttach: proc(self: VComponent) = nil,
                  onDetach: proc(self: VComponent) = nil,
-                 changed: (proc(self: VComponent): bool) = defaultChangedImpl,
-                 updated: proc(self: VComponent) = defaultUpdatedImpl): T =
+                 changed: (proc(self, newInstance: VComponent): bool) = defaultChangedImpl,
+                 updated: proc(self, newInstance: VComponent) = defaultUpdatedImpl): T =
   ## Use this template to create new components.
   T(kind: VNodeKind.component, key: -1,
     text: cstring(astToStr(t)), renderImpl: render,
