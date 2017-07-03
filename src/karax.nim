@@ -34,6 +34,7 @@ type
     renderId: int
     patches: seq[Patch] # we reuse this to save allocations
     patchLen: int
+    recursion: int
 
 
 var
@@ -161,6 +162,9 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
 proc same(n: VNode, e: Node): bool =
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e)
+  elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
+    # we don't check these for now:
+    result = true
   elif toTag[n.kind] == e.nodename:
     result = true
     if n.kind != VNodeKind.text:
@@ -178,7 +182,7 @@ proc replaceById(id: cstring; newTree: Node) =
 
 type
   EqResult = enum
-    changed, different, similar, identical
+    changed, different, similar, identical, usenewNode
 
 proc eq(a, b: VNode): EqResult =
   if a.kind != b.kind: return different
@@ -274,6 +278,13 @@ proc apply(kxi: KaraxInstance) =
   kxi.patchLen = 0
 
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
+  if kxi.recursion > 100:
+    echo "newNode ", newNode.kind, " oldNode ", oldNode.kind, " eq ", eq(newNode, oldNode)
+    if oldNode.kind == VNodeKind.text:
+      echo oldNode.text
+    return
+    #doAssert false, "overflow!"
+  inc kxi.recursion
   result = eq(newNode, oldNode)
   case result
   of identical, similar:
@@ -293,68 +304,85 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
 
     assert oldNode.kind == newNode.kind
     var commonPrefix = 0
+    let isSpecial = oldNode.kind == VNodeKind.component or
+                    oldNode.kind == VNodeKind.vthunk or
+                    oldNode.kind == VNodeKind.dthunk
 
     template eqAndUpdate(a: VNode; i: int; b: VNode; j: int; info, action: untyped) =
       let oldLen = kxi.patchLen
-      when false:
-        if oldNode.kind notin {VNodeKind.component, VNodeKind.vthunk, VNodeKind.dthunk}:
-          assert current != nil
-          assert current.childNodes[j] != nil, $info
-          assert oldNode.len == current.len
-
-      let r = if oldNode.kind == VNodeKind.component or oldNode.kind == VNodeKind.vthunk or
-                 oldNode.kind == VNodeKind.dthunk:
+      assert i < a.len
+      assert j < b.len
+      let r = if isSpecial:
                 diff(a[i], b[j], parent, current, kxi)
               else:
-                diff(a[i], b[j], current, current.childNodes[j], kxi)
+                (assert j < current.len;
+                diff(a[i], b[j], current, current.childNodes[j], kxi))
       case r
       of identical, changed, similar:
         a[i] = b[j]
         action
+      of usenewNode:
+        b[j] = a[i]
+        action
       of different:
         # undo what 'diff' would have done:
         kxi.patchLen = oldLen
-        if result != different: result = r
+        #if result != different: result = r
         break
-      #of similar:
-      #  updateStyles(a[i], b[j])
-      #  a[i] = b[j]
-      #  action
-
+    # compute common prefix:
     while commonPrefix < minLength:
       eqAndUpdate(newNode, commonPrefix, oldNode, commonPrefix, cstring"prefix"):
         inc commonPrefix
 
+    # compute common suffix:
     var oldPos = oldLength - 1
     var newPos = newLength - 1
     while oldPos >= commonPrefix and newPos >= commonPrefix:
       eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
         dec oldPos
         dec newPos
+        echo "came here"
 
-    var pos = min(oldPos, newPos) + 1
-    for i in commonPrefix..pos-1:
-      if diff(newNode[i], oldNode[i], current, current.childNodes[i],
-              kxi) != different:
-        newNode[i] = oldNode[i]
-      else:
-        result = different
+    let pos = min(oldPos, newPos) + 1
+    # now the different children are in commonPrefix .. pos - 1:
+    when false:
+      for i in commonPrefix..pos-1:
+        detach(oldNode[i])
+        kxi.addPatch(pkReplace, current, current.childNodes[i], newNode[i])
+    when true:
+      for i in commonPrefix..pos-1:
+        let r = diff(newNode[i], oldNode[i], current, current.childNodes[i],
+                kxi)
+        if r == usenewNode:
+          oldNode[i] = newNode[i]
+        elif r != different:
+          newNode[i] = oldNode[i]
+        #else:
+        #  result = different
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
         kxi.addPatch(pkAppend, current, nil, newNode[i])
-        result = different
+        result = usenewNode
+        #result = different
     else:
       let before = current.childNodes[oldPos + 1]
       for i in pos..newPos:
         kxi.addPatch(pkInsertBefore, current, before, newNode[i])
-        result = different
+        result = usenewNode
+        #result = different
     # XXX call 'attach' here?
     for i in pos..oldPos:
       detach(oldNode[i])
       #doAssert i < current.childNodes.len
       kxi.addPatch(pkRemove, current, current.childNodes[i], nil)
-      result = different
+      result = usenewNode #different
+    # after the applied patch, conceptually the nodes are identical, so
+    # no further search is required. 'changed' needs to be propagated
+    # for the component system to work. 'similar' was transformed into
+    # identical too:
+    #if result == different or result == similar:
+    #  result = identical
 
   of changed:
     assert oldNode.kind == VNodeKind.component
@@ -375,6 +403,16 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
   of different:
     detach(oldNode)
     kxi.addPatch(pkReplace, parent, current, newNode)
+  of usenewNode: doAssert(false, "eq returned usenewNode")
+  dec kxi.recursion
+
+when defined(stats):
+  proc depth(n: VNode; total: var int): int =
+    var m = 0
+    for i in 0..<n.len:
+      m = max(m, depth(n[i], total))
+    result = m + 1
+    inc total
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
@@ -391,7 +429,7 @@ proc dodraw(kxi: KaraxInstance) =
     #kout cstring"patch len ", patches.len
     apply(kxi)
     kxi.currentTree = newtree
-  #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback()
@@ -400,6 +438,10 @@ proc dodraw(kxi: KaraxInstance) =
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
   kxi.renderId = 0
+  kxi.recursion = 0
+  when defined(stats):
+    var total = 0
+    echo "depth ", depth(kxi.currentTree, total), " total ", total
 
 proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
 proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}

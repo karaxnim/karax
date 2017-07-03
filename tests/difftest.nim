@@ -9,12 +9,27 @@ proc hasDom(n: Vnode) =
     doAssert n.dom != nil
     for i in 0..<n.len: hasDom(n[i])
 
-proc doDiff(a, b: VNode) =
-  var patches = newJSeq[Patch]()
-  echo diff(b, a, nil, vnodeToDom(a, kxi), patches)
-  for i in 0..<patches.len:
-    echo patches[i]
+proc shortRepr(n: VNode): string =
+  if n == nil:
+    result = "nil"
+  elif n.kind == VNodeKind.text:
+    result = $n.text
+  else:
+    result = $n.kind
+    for i in 0..<n.len:
+      result &= " " & shortRepr(n[i])
+
+proc doDiff(a, b: VNode; expected: varargs[string]) =
+  discard diff(b, a, nil, vnodeToDom(a, kxi), kxi)
+  for i in 0..<kxi.patchLen:
+    let p = $kxi.patches[i].k & " " & shortRepr(kxi.patches[i].n)
+    echo "got ", p
+    if i >= expected.len:
+      echo "patches differ; expected nothing but got: ", p
+    elif p != expected[i]:
+      echo "patches differ; expected ", expected[i], " but got: ", p
   #hasDom(kxi.currentTree)
+  kxi.patchLen = 0
 
 proc testAppend() =
   let a = buildHtml(tdiv):
@@ -26,7 +41,7 @@ proc testAppend() =
       li: text "A"
       li: text "B"
       li: text "C"
-  doDiff(a, b)
+  doDiff(a, b, "pkAppend li C")
 
 proc testInsert() =
   let a = buildHtml(tdiv):
@@ -38,7 +53,7 @@ proc testInsert() =
       li: text "A"
       li: text "B"
       li: text "C"
-  doDiff(a, b)
+  doDiff(a, b, "pkInsert li B")
 
 proc testDelete() =
   let a = buildHtml(tdiv):
@@ -49,10 +64,12 @@ proc testDelete() =
   let b = buildHtml(tdiv):
     ul:
       discard
-  doDiff(a, b)
+  doDiff(a, b, "pkDetach li A", "pkRemove nil",
+               "pkDetach li B", "pkRemove nil",
+               "pkDetach li C", "pkRemove nil")
 
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard)
 
-testAppend()
+#testAppend()
 testInsert()
-testDelete()
+#testDelete()
