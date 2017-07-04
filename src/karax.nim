@@ -282,7 +282,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     echo "newNode ", newNode.kind, " oldNode ", oldNode.kind, " eq ", eq(newNode, oldNode)
     if oldNode.kind == VNodeKind.text:
       echo oldNode.text
-    return
+    #return
     #doAssert false, "overflow!"
   inc kxi.recursion
   result = eq(newNode, oldNode)
@@ -315,7 +315,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       let r = if isSpecial:
                 diff(a[i], b[j], parent, current, kxi)
               else:
-                (assert j < current.len;
+                (assert same(b, current); #(j < current.len, "j: " & $j & " len " & $current.len);
                 diff(a[i], b[j], current, current.childNodes[j], kxi))
       case r
       of identical, changed, similar:
@@ -327,7 +327,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       of different:
         # undo what 'diff' would have done:
         kxi.patchLen = oldLen
-        #if result != different: result = r
+        if result != different: result = r
         break
     # compute common prefix:
     while commonPrefix < minLength:
@@ -341,7 +341,6 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
         dec oldPos
         dec newPos
-        echo "came here"
 
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:

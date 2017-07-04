@@ -19,15 +19,18 @@ proc shortRepr(n: VNode): string =
     for i in 0..<n.len:
       result &= " " & shortRepr(n[i])
 
+var err = 0
+
 proc doDiff(a, b: VNode; expected: varargs[string]) =
   discard diff(b, a, nil, vnodeToDom(a, kxi), kxi)
   for i in 0..<kxi.patchLen:
     let p = $kxi.patches[i].k & " " & shortRepr(kxi.patches[i].n)
-    echo "got ", p
     if i >= expected.len:
       echo "patches differ; expected nothing but got: ", p
+      inc err
     elif p != expected[i]:
       echo "patches differ; expected ", expected[i], " but got: ", p
+      inc err
   #hasDom(kxi.currentTree)
   kxi.patchLen = 0
 
@@ -53,7 +56,24 @@ proc testInsert() =
       li: text "A"
       li: text "B"
       li: text "C"
-  doDiff(a, b, "pkInsert li B")
+  doDiff(a, b, "pkInsertBefore li B")
+
+proc testInsert2() =
+  let a = buildHtml(tdiv):
+    tdiv:
+      tdiv:
+        ul:
+          li: text "A"
+          li: text "D"
+  let b = buildHtml(tdiv):
+    tdiv:
+      tdiv:
+        ul:
+          li: text "A"
+          li: text "B"
+          li: text "C"
+          li: text "D"
+  doDiff(a, b, "pkInsertBefore li B", "pkInsertBefore li C")
 
 proc testDelete() =
   let a = buildHtml(tdiv):
@@ -70,6 +90,11 @@ proc testDelete() =
 
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard)
 
-#testAppend()
+testAppend()
 testInsert()
-#testDelete()
+testInsert2()
+testDelete()
+if err == 0:
+  echo "Success"
+else:
+  quit 1
