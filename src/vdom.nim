@@ -131,8 +131,11 @@ type
     version*: int         ## Update this to trigger a redraw by karax. Usually you
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
+    renderedVersion*: int ## Do not touch. Used by karax. The last version of the
+                          ## component we rendered.
     expanded*: VNode      ## Do not touch. Used by karax. The VDOM the component
                           ## expanded to.
+    debugId*: int
 
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
@@ -154,10 +157,15 @@ proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 
 proc defaultChangedImpl*(v, newInstance: VComponent): bool =
   ## The default implementation of 'changed'.
-  result = v.version != newInstance.version
+  result = v.version != v.renderedVersion
 
 proc defaultUpdatedImpl*(v, newInstance: VComponent) =
   discard
+
+var gid = 0
+proc getDebugId(): int =
+  inc(gid)
+  gid
 
 template newComponent*[T](t: typeDesc[T];
                  render: (proc(self: VComponent): VNode) not nil,
@@ -169,7 +177,8 @@ template newComponent*[T](t: typeDesc[T];
   T(kind: VNodeKind.component, key: -1,
     text: cstring(astToStr(t)), renderImpl: render,
     changedImpl: changed, updatedImpl: updated,
-    onAttachImpl: onAttach, onDetachImpl: onDetach)
+    onAttachImpl: onAttach, onDetachImpl: onDetach,
+    debugId: getDebugId())
 
 template markDirty*(c: VComponent) =
   ## mark the component as dirty so that it is re-rendered.

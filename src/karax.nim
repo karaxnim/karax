@@ -283,7 +283,6 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
-      echo "comparing ", oldNode.text != newNode.text
       if oldNode.text != newNode.text:
         oldNode.text = newNode.text
         oldNode.dom.value = newNode.text
@@ -364,8 +363,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     x.updatedImpl(x, VComponent newNode)
     let oldExpanded = x.expanded
     x.expanded = x.renderImpl(x)
-    x.version = VComponent(newNode).version
-    #x.updatedImpl(x)
+    x.renderedVersion = x.version
+    #echo "expanding ", x.debugId
     if oldExpanded == nil:
       detach(oldNode)
       kxi.addPatch(pkReplace, parent, current, x.expanded)
