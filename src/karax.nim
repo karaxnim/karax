@@ -339,14 +339,12 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       let r = if isSpecial:
                 diff(a[i], b[j], parent, current, kxi)
               else:
-                (assert same(b, current); #(j < current.len, "j: " & $j & " len " & $current.len);
-                diff(a[i], b[j], current, current.childNodes[j], kxi))
+                diff(a[i], b[j], current, current.childNodes[j], kxi)
       case r
       of identical, changed, similar:
         a[i] = b[j]
         action
       of usenewNode:
-        #b[j] = a[i]
         kxi.addPatchV(b, j, a[i])
         action
       of different:
@@ -370,44 +368,32 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
 
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:
-    when false:
-      for i in commonPrefix..pos-1:
-        detach(oldNode[i])
-        kxi.addPatch(pkReplace, current, current.childNodes[i], newNode[i])
-    when true:
-      for i in commonPrefix..pos-1:
-        let r = diff(newNode[i], oldNode[i], current, current.childNodes[i],
-                kxi)
-        if r == usenewNode:
-          oldNode[i] = newNode[i]
-        elif r != different:
-          newNode[i] = oldNode[i]
-        #else:
-        #  result = different
+    for i in commonPrefix..pos-1:
+      let r = diff(newNode[i], oldNode[i], current, current.childNodes[i],
+              kxi)
+      if r == usenewNode:
+        #oldNode[i] = newNode[i]
+        kxi.addPatchV(oldNode, i, newNode[i])
+      elif r != different:
+        newNode[i] = oldNode[i]
+      #else:
+      #  result = different
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
         kxi.addPatch(pkAppend, current, nil, newNode[i])
         result = usenewNode
-        #result = different
     else:
       let before = current.childNodes[oldPos + 1]
       for i in pos..newPos:
         kxi.addPatch(pkInsertBefore, current, before, newNode[i])
         result = usenewNode
-        #result = different
     # XXX call 'attach' here?
     for i in pos..oldPos:
       detach(oldNode[i])
       #doAssert i < current.childNodes.len
       kxi.addPatch(pkRemove, current, current.childNodes[i], nil)
-      result = usenewNode #different
-    # after the applied patch, conceptually the nodes are identical, so
-    # no further search is required. 'changed' needs to be propagated
-    # for the component system to work. 'similar' was transformed into
-    # identical too:
-    #if result == different or result == similar:
-    #  result = identical
+      result = usenewNode
 
   of changed:
     assert oldNode.kind == VNodeKind.component
@@ -456,7 +442,7 @@ proc dodraw(kxi: KaraxInstance) =
     #kout cstring"patch len ", patches.len
     apply(kxi)
     kxi.currentTree = newtree
-  #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback()
