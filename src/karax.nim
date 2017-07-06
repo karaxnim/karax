@@ -21,6 +21,9 @@ type
     k: PatchKind
     parent, current: Node
     n: VNode
+  PatchV = object
+    parent, newChild: VNode
+    pos: int
 
 type
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
@@ -34,7 +37,11 @@ type
     renderId: int
     patches: seq[Patch] # we reuse this to save allocations
     patchLen: int
-    recursion: int
+    patchesV: seq[PatchV]
+    patchLenV: int
+    runCount: int
+    when defined(stats):
+      recursion: int
 
 
 var
@@ -251,6 +258,17 @@ proc addPatch(kxi: KaraxInstance; ka: PatchKind; parenta, currenta: Node;
     kxi.patches[L].n = na
   inc kxi.patchLen
 
+proc addPatchV(kxi: KaraxInstance; parent: VNode; pos: int; newChild: VNode) =
+  let L = kxi.patchLenV
+  if L >= kxi.patchesV.len:
+    # allocate more space:
+    kxi.patchesV.add(PatchV(parent: parent, newChild: newChild, pos: pos))
+  else:
+    kxi.patchesV[L].parent = parent
+    kxi.patchesV[L].newChild = newChild
+    kxi.patchesV[L].pos = pos
+  inc kxi.patchLenV
+
 proc apply(kxi: KaraxInstance) =
   for i in 0..<kxi.patchLen:
     let p = kxi.patches[i]
@@ -276,15 +294,20 @@ proc apply(kxi: KaraxInstance) =
         if x.onDetachImpl != nil: x.onDetachImpl(x)
       n.dom = nil
   kxi.patchLen = 0
+  for i in 0..<kxi.patchLenV:
+    let p = kxi.patchesV[i]
+    p.parent[p.pos] = p.newChild
+  kxi.patchLenV = 0
 
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
-  if kxi.recursion > 100:
-    echo "newNode ", newNode.kind, " oldNode ", oldNode.kind, " eq ", eq(newNode, oldNode)
-    if oldNode.kind == VNodeKind.text:
-      echo oldNode.text
-    #return
-    #doAssert false, "overflow!"
-  inc kxi.recursion
+  when defined(stats):
+    if kxi.recursion > 100:
+      echo "newNode ", newNode.kind, " oldNode ", oldNode.kind, " eq ", eq(newNode, oldNode)
+      if oldNode.kind == VNodeKind.text:
+        echo oldNode.text
+      #return
+      #doAssert false, "overflow!"
+    inc kxi.recursion
   result = eq(newNode, oldNode)
   case result
   of identical, similar:
@@ -310,6 +333,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
 
     template eqAndUpdate(a: VNode; i: int; b: VNode; j: int; info, action: untyped) =
       let oldLen = kxi.patchLen
+      let oldLenV = kxi.patchLenV
       assert i < a.len
       assert j < b.len
       let r = if isSpecial:
@@ -322,11 +346,13 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
         a[i] = b[j]
         action
       of usenewNode:
-        b[j] = a[i]
+        #b[j] = a[i]
+        kxi.addPatchV(b, j, a[i])
         action
       of different:
         # undo what 'diff' would have done:
         kxi.patchLen = oldLen
+        kxi.patchLenV = oldLenV
         if result != different: result = r
         break
     # compute common prefix:
@@ -403,7 +429,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     detach(oldNode)
     kxi.addPatch(pkReplace, parent, current, newNode)
   of usenewNode: doAssert(false, "eq returned usenewNode")
-  dec kxi.recursion
+  when defined(stats):
+    dec kxi.recursion
 
 when defined(stats):
   proc depth(n: VNode; total: var int): int =
@@ -416,6 +443,7 @@ when defined(stats):
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
   let newtree = kxi.renderer()
+  inc kxi.runCount
   newtree.id = kxi.rootId
   kxi.toFocus = nil
   if kxi.currentTree == nil:
@@ -428,7 +456,7 @@ proc dodraw(kxi: KaraxInstance) =
     #kout cstring"patch len ", patches.len
     apply(kxi)
     kxi.currentTree = newtree
-  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  #doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback()
@@ -437,8 +465,8 @@ proc dodraw(kxi: KaraxInstance) =
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
   kxi.renderId = 0
-  kxi.recursion = 0
   when defined(stats):
+    kxi.recursion = 0
     var total = 0
     echo "depth ", depth(kxi.currentTree, total), " total ", total
 
@@ -467,7 +495,8 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
   ## Setup Karax. Usually the return value can be ignored.
   result = KaraxInstance(rootId: root, renderer: renderer,
                          postRenderCallback: clientPostRenderCallback,
-                         patches: newSeq[Patch](60))
+                         patches: newSeq[Patch](60),
+                         patchesV: newSeq[PatchV](30))
   kxi = result
   window.onload = init
 

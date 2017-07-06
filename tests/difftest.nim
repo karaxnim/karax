@@ -43,8 +43,10 @@ proc testAppend() =
     ul:
       li: text "A"
       li: text "B"
-      li: text "C"
-  doDiff(a, b, "pkAppend li C")
+      li:
+        tdiv:
+          text "C"
+  doDiff(a, b, "pkAppend li div C")
 
 proc testInsert() =
   let a = buildHtml(tdiv):
@@ -88,12 +90,80 @@ proc testDelete() =
                "pkDetach li B", "pkRemove nil",
                "pkDetach li C", "pkRemove nil")
 
+proc testDeleteMiddle() =
+  let a = buildHtml(tdiv):
+    ul:
+      li:
+        tdiv: text "A"
+      li:
+        tdiv: text "B"
+      li:
+        tdiv: text "C"
+      li:
+        tdiv: text "D"
+      li:
+        tdiv: text "E"
+      li:
+        tdiv: text "F"
+      li:
+        tdiv: text "G"
+      li:
+        tdiv: text "H"
+  let b = buildHtml(tdiv):
+    ul:
+      li:
+        tdiv: text "A"
+      li:
+        tdiv: text "B"
+      li:
+        tdiv: text "C"
+      li:
+        tdiv: text "D"
+      li:
+        tdiv: text "E"
+      li:
+        tdiv: text "F"
+      li:
+        tdiv: text "H"
+  doDiff(a, b, "pkDetach li div G", "pkRemove nil")
+
+proc createEntry(id: cstring): VNode =
+  result = buildHtml():
+    button(id="" & id):
+      text id
+
+proc createEntries(entries: seq[cstring]): VNode =
+  result = buildHtml(tdiv()):
+    ul(id="ul"):
+      for e in entries:
+        createEntry(e)
+    for r in entries:
+      tdiv:
+        text r
+
+proc testWild() =
+  var entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring"7", cstring("5")]
+  let a = createEntries(entries)
+  entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
+  let b = createEntries(entries)
+  doDiff(a, b, "pkDetach button 7", "pkRemove nil", "pkDetach div 7", "pkRemove nil")
+
+proc testWildInsert() =
+  var entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
+  let a = createEntries(entries)
+  entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring"7", cstring("5")]
+  let b = createEntries(entries)
+  doDiff(a, b, "pkInsertBefore button 7", "pkInsertBefore div 7")
+
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard)
 
 testAppend()
 testInsert()
 testInsert2()
 testDelete()
+testWild()
+testWildInsert()
+testDeleteMiddle()
 if err == 0:
   echo "Success"
 else:

@@ -26,7 +26,6 @@ proc check(name: cstring; order: seq[int]) =
   let result = checkOrder(order)
   results.add name & (if result: cstring" - OK" else: cstring" -FAIL")
 
-# result: 0 1 2 3 4 7 5
 proc test1() =
   results.add cstring"test1 started"
   entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
