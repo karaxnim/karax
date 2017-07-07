@@ -167,9 +167,9 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
 
-proc same(n: VNode, e: Node): bool =
+proc same(n: VNode, e: Node; nesting = 0): bool =
   if n.kind == VNodeKind.component:
-    result = same(VComponent(n).expanded, e)
+    result = same(VComponent(n).expanded, e, nesting+1)
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these for now:
     result = true
@@ -177,10 +177,10 @@ proc same(n: VNode, e: Node): bool =
     result = true
     if n.kind != VNodeKind.text:
       if e.len != n.len:
-        kout e.len, n.len
+        kout e.len, n.len, toTag[n.kind], nesting
         return false
       for i in 0 ..< n.len:
-        if not same(n[i], e[i]): return false
+        if not same(n[i], e[i], nesting+1): return false
   else:
     kout toTag[n.kind], e.nodename
 
@@ -298,6 +298,7 @@ proc apply(kxi: KaraxInstance) =
   for i in 0..<kxi.patchLenV:
     let p = kxi.patchesV[i]
     p.parent[p.pos] = p.newChild
+    assert p.newChild.dom != nil
   kxi.patchLenV = 0
 
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
@@ -310,6 +311,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       #doAssert false, "overflow!"
     inc kxi.recursion
   result = eq(newNode, oldNode)
+  assert(same(oldNode, current))
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
@@ -378,7 +380,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       elif r != different:
         newNode[i] = oldNode[i]
       #else:
-      #  result = different
+      #  result = usenewNode
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
@@ -403,13 +405,16 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     let oldExpanded = x.expanded
     x.expanded = x.renderImpl(x)
     x.renderedVersion = x.version
-    #echo "expanding ", x.debugId
     if oldExpanded == nil:
       detach(oldNode)
       kxi.addPatch(pkReplace, parent, current, x.expanded)
     else:
       let res = diff(x.expanded, oldExpanded, parent, current, kxi)
-      if res != different:
+      if res == usenewNode:
+        #oldNode[i] = newNode[i]
+        #kxi.addPatchV(oldNode, i, newNode[i])
+        kxi.addPatch(pkReplace, parent, current, x.expanded)
+      elif res != different:
         x.expanded = oldExpanded
         assert oldExpanded.dom != nil, "old expanded.dom is nil"
       else:
@@ -440,6 +445,7 @@ proc dodraw(kxi: KaraxInstance) =
     let asdom = vnodeToDom(kxi.currentTree, kxi)
     replaceById(kxi.rootId, asdom)
   else:
+    doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
     let olddom = document.getElementById(kxi.rootId)
     discard diff(newtree, kxi.currentTree, nil, olddom, kxi)
     #kout cstring"patch len ", patches.len
