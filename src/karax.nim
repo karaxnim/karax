@@ -311,7 +311,6 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       #doAssert false, "overflow!"
     inc kxi.recursion
   result = eq(newNode, oldNode)
-  assert(same(oldNode, current))
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
@@ -350,6 +349,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       of usenewNode:
         kxi.addPatchV(b, j, a[i])
         action
+        # unfortunately, we need to propagate the changes upwards:
+        result = useNewNode
       of different:
         # undo what 'diff' would have done:
         kxi.patchLen = oldLen
@@ -372,8 +373,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:
     for i in commonPrefix..pos-1:
-      let r = diff(newNode[i], oldNode[i], current, current.childNodes[i],
-              kxi)
+      let r = diff(newNode[i], oldNode[i], current, current.childNodes[i], kxi)
       if r == usenewNode:
         #oldNode[i] = newNode[i]
         kxi.addPatchV(oldNode, i, newNode[i])
