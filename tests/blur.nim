@@ -59,7 +59,7 @@ proc update(current, next: VComponent) =
   let next = TextInput(next)
   current.value = next.value
   current.guid = next.guid
-  next.isActive = current.isActive
+  #next.isActive = current.isActive
 
 proc newTextInput*(style: VStyle = VStyle(); guid: cstring; value: cstring = cstring"",
                    onchange: proc(v: cstring) = nil): TextInput =
@@ -107,10 +107,12 @@ var
 proc renderPerson(text: cstring, index: int): VNode =
   proc select(ev: Event, n: VNode) =
     selected = index
+    errmsg = ""
 
   result = buildHtml():
-    tdiv(onClick=select):
+    tdiv:
       text text
+      button(onClick = select)
 
 proc createDom(): VNode =
   result = buildHtml(tdiv):

@@ -411,9 +411,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     else:
       let res = diff(x.expanded, oldExpanded, parent, current, kxi)
       if res == usenewNode:
-        #oldNode[i] = newNode[i]
-        #kxi.addPatchV(oldNode, i, newNode[i])
-        kxi.addPatch(pkReplace, parent, current, x.expanded)
+        #kxi.addPatch(pkReplace, parent, current, x.expanded)
+        discard "diff created a patchset for us, so this is fine"
       elif res != different:
         x.expanded = oldExpanded
         assert oldExpanded.dom != nil, "old expanded.dom is nil"
