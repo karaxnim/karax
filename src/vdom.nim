@@ -199,6 +199,9 @@ proc getAttr*(n: VNode; key: cstring): cstring =
   for i in countup(0, n.attrs.len-2, 2):
     if n.attrs[i] == key: return n.attrs[i+1]
 
+proc takeOverAttr*(newNode, oldNode: VNode) =
+  oldNode.attrs = newNode.attrs
+
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y

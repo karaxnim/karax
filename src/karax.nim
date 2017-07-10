@@ -210,9 +210,8 @@ proc eq(a, b: VNode): EqResult =
     let x = VComponent(b)
     assert x.changedImpl != nil
     return if x.changedImpl(x, VComponent(a)): changed else: identical
-  if not sameAttrs(a, b): return different
   if a.class != b.class: return different
-  if not eq(a.style, b.style): return similar
+  if not eq(a.style, b.style) or not sameAttrs(a, b): return similar
   # Do not test event listeners here!
   return result
 
@@ -222,6 +221,16 @@ proc updateStyles(newNode, oldNode: VNode) =
     if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
+
+proc updateAttributes(newNode, oldNode: VNode) =
+  # we keep the oldNode, but take over the attributes from the new node:
+  if oldNode.dom != nil:
+    for k, _ in attrs(oldNode):
+      oldNode.dom.removeAttribute(k)
+    for k, v in attrs(newNode):
+      if v != nil:
+        oldNode.dom.setAttr(k, v)
+  takeOverAttr(newNode, oldNode)
 
 proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   let d = oldNode.dom
@@ -301,6 +310,8 @@ proc apply(kxi: KaraxInstance) =
     assert p.newChild.dom != nil
   kxi.patchLenV = 0
 
+var outputted = false
+
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
   when defined(stats):
     if kxi.recursion > 100:
@@ -314,7 +325,9 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
   case result
   of identical, similar:
     newNode.dom = oldNode.dom
-    if result == similar: updateStyles(newNode, oldNode)
+    if result == similar:
+      updateStyles(newNode, oldNode)
+      updateAttributes(newNode, oldNode)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
