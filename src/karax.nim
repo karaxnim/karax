@@ -24,6 +24,9 @@ type
   PatchV = object
     parent, newChild: VNode
     pos: int
+  ComponentPair = object
+    oldNode, newNode: VComponent
+    parent, current: Node
 
 type
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
@@ -40,6 +43,7 @@ type
     patchesV: seq[PatchV]
     patchLenV: int
     runCount: int
+    components: seq[ComponentPair]
     when defined(stats):
       recursion: int
 
@@ -190,7 +194,7 @@ proc replaceById(id: cstring; newTree: Node) =
 
 type
   EqResult = enum
-    changed, different, similar, identical, usenewNode
+    componentsIdentical, different, similar, identical, usenewNode
 
 proc eq(a, b: VNode): EqResult =
   if a.kind != b.kind: return different
@@ -207,9 +211,7 @@ proc eq(a, b: VNode): EqResult =
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text: return different
-    let x = VComponent(b)
-    assert x.changedImpl != nil
-    return if x.changedImpl(x, VComponent(a)): changed else: identical
+    return componentsIdentical
   if a.class != b.class: return different
   if not eq(a.style, b.style) or not sameAttrs(a, b): return similar
   # Do not test event listeners here!
@@ -279,7 +281,7 @@ proc addPatchV(kxi: KaraxInstance; parent: VNode; pos: int; newChild: VNode) =
     kxi.patchesV[L].pos = pos
   inc kxi.patchLenV
 
-proc apply(kxi: KaraxInstance) =
+proc applyPatch(kxi: KaraxInstance) =
   for i in 0..<kxi.patchLen:
     let p = kxi.patches[i]
     case p.k
@@ -310,8 +312,6 @@ proc apply(kxi: KaraxInstance) =
     assert p.newChild.dom != nil
   kxi.patchLenV = 0
 
-var outputted = false
-
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
   when defined(stats):
     if kxi.recursion > 100:
@@ -323,11 +323,16 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     inc kxi.recursion
   result = eq(newNode, oldNode)
   case result
-  of identical, similar:
+  of identical, componentsIdentical, similar:
     newNode.dom = oldNode.dom
     if result == similar:
       updateStyles(newNode, oldNode)
       updateAttributes(newNode, oldNode)
+    elif result == componentsIdentical:
+      kxi.components.add ComponentPair(oldNode: VComponent(oldNode),
+                                       newNode: VComponent(newNode),
+                                       parent: parent,
+                                       current: current)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
@@ -356,7 +361,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
               else:
                 diff(a[i], b[j], current, current.childNodes[j], kxi)
       case r
-      of identical, changed, similar:
+      of identical, componentsIdentical, similar:
         a[i] = b[j]
         action
       of usenewNode:
@@ -410,33 +415,44 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
       #doAssert i < current.childNodes.len
       kxi.addPatch(pkRemove, current, current.childNodes[i], nil)
       result = usenewNode
-
-  of changed:
-    assert oldNode.kind == VNodeKind.component
-    let x = VComponent(oldNode)
-    x.updatedImpl(x, VComponent newNode)
-    let oldExpanded = x.expanded
-    x.expanded = x.renderImpl(x)
-    x.renderedVersion = x.version
-    if oldExpanded == nil:
-      detach(oldNode)
-      kxi.addPatch(pkReplace, parent, current, x.expanded)
-    else:
-      let res = diff(x.expanded, oldExpanded, parent, current, kxi)
-      if res == usenewNode:
-        #kxi.addPatch(pkReplace, parent, current, x.expanded)
-        discard "diff created a patchset for us, so this is fine"
-      elif res != different:
-        x.expanded = oldExpanded
-        assert oldExpanded.dom != nil, "old expanded.dom is nil"
-      else:
-        assert x.expanded.dom != nil, "expanded.dom is nil"
   of different:
     detach(oldNode)
     kxi.addPatch(pkReplace, parent, current, newNode)
   of usenewNode: doAssert(false, "eq returned usenewNode")
   when defined(stats):
     dec kxi.recursion
+
+proc applyComponents(kxi: KaraxInstance) =
+  # the first 'diff' pass detects components in the VDOM. The
+  # 'applyComponents' expands components and so on until no
+  # components are left to check.
+  var i = 0
+  # beware: 'diff' appends to kxi.components!
+  # So this is actually a fixpoint iteration:
+  while i < kxi.components.len:
+    let x = kxi.components[i].oldNode
+    let newNode = kxi.components[i].newNode
+    if x.changedImpl != nil and x.changedImpl(x, newNode):
+      let current = kxi.components[i].current
+      let parent = kxi.components[i].parent
+      x.updatedImpl(x, newNode)
+      let oldExpanded = x.expanded
+      x.expanded = x.renderImpl(x)
+      x.renderedVersion = x.version
+      if oldExpanded == nil:
+        detach(x)
+        kxi.addPatch(pkReplace, parent, current, x.expanded)
+      else:
+        let res = diff(x.expanded, oldExpanded, parent, current, kxi)
+        if res == usenewNode:
+          discard "diff created a patchset for us, so this is fine"
+        elif res != different:
+          x.expanded = oldExpanded
+          assert oldExpanded.dom != nil, "old expanded.dom is nil"
+        else:
+          assert x.expanded.dom != nil, "expanded.dom is nil"
+    inc i
+  setLen(kxi.components, 0)
 
 when defined(stats):
   proc depth(n: VNode; total: var int): int =
@@ -453,16 +469,16 @@ proc dodraw(kxi: KaraxInstance) =
   newtree.id = kxi.rootId
   kxi.toFocus = nil
   if kxi.currentTree == nil:
-    kxi.currentTree = newtree
-    let asdom = vnodeToDom(kxi.currentTree, kxi)
+    let asdom = vnodeToDom(newtree, kxi)
     replaceById(kxi.rootId, asdom)
   else:
     doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
     let olddom = document.getElementById(kxi.rootId)
     discard diff(newtree, kxi.currentTree, nil, olddom, kxi)
     #kout cstring"patch len ", patches.len
-    apply(kxi)
-    kxi.currentTree = newtree
+  applyComponents(kxi)
+  applyPatch(kxi)
+  kxi.currentTree = newtree
   doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
@@ -503,7 +519,8 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
   result = KaraxInstance(rootId: root, renderer: renderer,
                          postRenderCallback: clientPostRenderCallback,
                          patches: newSeq[Patch](60),
-                         patchesV: newSeq[PatchV](30))
+                         patchesV: newSeq[PatchV](30),
+                         components: @[])
   kxi = result
   window.onload = init
 
