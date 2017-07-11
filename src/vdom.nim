@@ -105,6 +105,9 @@ buildLookupTables()
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   NativeEventHandler* = proc (ev: Event) {.closure.}
+
+  EventHandlers* = seq[(EventKind, EventHandler, NativeEventHandler)]
+
   VKey* = cstring
 
   VNode* = ref object of RootObj
@@ -114,7 +117,7 @@ type
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[cstring]
-    events*: seq[(EventKind, EventHandler, NativeEventHandler)]
+    events*: EventHandlers
     when false:
       hash*: Hash
       validHash*: bool
@@ -157,9 +160,21 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, index: -1, kids: @args)
 
+proc setEvent(v: VNode; kind: EventKind; handler: EventHandler) =
+  assert handler != nil
+  for i in 0..<v.events.len:
+    if v.events[i][0] == kind:
+      v.events[i][1] = handler
+      return
+  v.events.add((kind, handler, nil))
+
+proc mergeEvents*(v: VNode; handlers: EventHandlers) =
+  ## Overrides or adds the event handlers to `v`'s internal event handler list.
+  for h in handlers: v.setEvent(h[0], h[1])
+
 proc defaultChangedImpl*(v, newInstance: VComponent): bool =
   ## The default implementation of 'changed'.
-  result = v.version != v.renderedVersion
+  result = v.key != newInstance.key or v.version != v.renderedVersion
 
 proc defaultUpdatedImpl*(v, newInstance: VComponent) =
   discard

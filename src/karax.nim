@@ -61,6 +61,7 @@ template setNativeValue(ev, val) = cast[Element](ev.target).value = val
 template keyeventBody() =
   let v = nativeValue(ev)
   n.value = v
+  assert action != nil
   action(ev, n)
   if n.value != v:
     setNativeValue(ev, n.value)
