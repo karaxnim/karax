@@ -239,8 +239,8 @@ proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   for i in 0..<oldNode.events.len:
     let k = oldNode.events[i][0]
     let name = case k
-                of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
-                else: toEventName[k]
+               of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
+               else: toEventName[k]
     d.removeEventListener(name, oldNode.events[i][2])
   shallowCopy(oldNode.events, newNode.events)
   applyEvents(oldNode, kxi)
