@@ -15,7 +15,7 @@ proc `width=`(n: Node, w: int) {.importcpp: "#.width = #".}
 proc mplayer*(id, resource: cstring): VNode {.compact.} =
   proc handler(ev: Event; n: VNode) =
     let myVideo = document.getElementById(id)
-    case n.key
+    case n.index
     of Play:
       if myVideo.paused:
         myVideo.play()
@@ -27,13 +27,13 @@ proc mplayer*(id, resource: cstring): VNode {.compact.} =
     else: discard
 
   result = buildHtml(tdiv):
-    button(onclick=handler, key=Play):
+    button(onclick=handler, index=Play):
       text "Play/Pause"
-    button(onclick=handler, key=Big):
+    button(onclick=handler, index=Big):
       text "Big"
-    button(onclick=handler, key=Small):
+    button(onclick=handler, index=Small):
       text "Small"
-    button(onclick=handler, key=Normal):
+    button(onclick=handler, index=Normal):
       text "Normal"
     br()
     br()

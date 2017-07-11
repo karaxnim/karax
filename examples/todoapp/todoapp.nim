@@ -45,19 +45,19 @@ proc onTodoEnter(ev: Event; n: VNode) =
   n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
-  updateEntry(n.key, cstring(nil), false)
+  updateEntry(n.index, cstring(nil), false)
 
 proc editHandler(ev: Event; n: VNode) =
-  selectedEntry = n.key
+  selectedEntry = n.index
 
 proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
 
 proc editEntry(ev: Event; n: VNode) =
-  setEntryContent(n.key, n.value)
+  setEntryContent(n.index, n.value)
   selectedEntry = -1
 
 proc toggleEntry(ev: Event; n: VNode) =
-  let id = n.key
+  let id = n.index
   markAsCompleted(id, not isCompleted(id))
 
 proc onAllDone(ev: Event; n: VNode) =
@@ -83,12 +83,12 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compac
       if not selected:
         tdiv(class = "view"):
           input(class = "toggle", `type` = "checkbox", checked = toChecked(completed),
-                onclick=toggleEntry, key=id)
-          label(onDblClick=editHandler, key=id):
+                onclick=toggleEntry, index=id)
+          label(onDblClick=editHandler, index=id):
             text d
-          button(class = "destroy", key=id, onclick=removeHandler)
+          button(class = "destroy", index=id, onclick=removeHandler)
       else:
-        input(class = "edit", name = "title", key=id,
+        input(class = "edit", name = "title", index=id,
           onblur = focusLost,
           onkeyupenter = editEntry, value = d, setFocus=true)
 

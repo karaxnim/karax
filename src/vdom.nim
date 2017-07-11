@@ -105,11 +105,11 @@ buildLookupTables()
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
   NativeEventHandler* = proc (ev: Event) {.closure.}
-  VKey* = int
+  VKey* = cstring
 
   VNode* = ref object of RootObj
     kind*: VNodeKind
-    key*: VKey
+    index*: int ## a generally useful 'index'
     id*, class*, text*: cstring
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
@@ -123,6 +123,8 @@ type
                ## is not part of the virtual DOM anymore.
 
   VComponent* = ref object of VNode ## The abstract class for every karax component.
+    key*: VKey                      ## key that determines if two components are
+                                    ## identical.
     renderImpl*: proc(self: VComponent): VNode
     changedImpl*: proc(self, newInstance: VComponent): bool
     updatedImpl*: proc(self, newInstance: VComponent)
@@ -140,20 +142,20 @@ type
 proc value*(n: VNode): cstring = n.text
 proc `value=`*(n: VNode; v: cstring) = n.text = v
 
-proc intValue*(n: VNode): int = n.key
-proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, key: i)
-proc vn*(b: bool): VNode = VNode(kind: VNodeKind.int, key: ord(b))
-proc vn*(x: cstring): VNode = VNode(kind: VNodeKind.text, key: -1, text: x)
+proc intValue*(n: VNode): int = n.index
+proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, index: i)
+proc vn*(b: bool): VNode = VNode(kind: VNodeKind.int, index: ord(b))
+proc vn*(x: cstring): VNode = VNode(kind: VNodeKind.text, index: -1, text: x)
 
 template callThunk*(fn: typed; n: VNode): untyped =
   ## for internal usage only.
   fn(n.kids)
 
 proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.vthunk, text: name, key: -1, kids: @args)
+  VNode(kind: VNodeKind.vthunk, text: name, index: -1, kids: @args)
 
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.dthunk, text: name, key: -1, kids: @args)
+  VNode(kind: VNodeKind.dthunk, text: name, index: -1, kids: @args)
 
 proc defaultChangedImpl*(v, newInstance: VComponent): bool =
   ## The default implementation of 'changed'.
@@ -174,7 +176,7 @@ template newComponent*[T](t: typeDesc[T];
                  changed: (proc(self, newInstance: VComponent): bool) = defaultChangedImpl,
                  updated: proc(self, newInstance: VComponent) = defaultUpdatedImpl): T =
   ## Use this template to create new components.
-  T(kind: VNodeKind.component, key: -1,
+  T(kind: VNodeKind.component, index: -1,
     text: cstring(astToStr(t)), renderImpl: render,
     changedImpl: changed, updatedImpl: updated,
     onAttachImpl: onAttach, onDetachImpl: onDetach,
@@ -206,7 +208,7 @@ proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
 proc add*(parent, kid: VNode) = parent.kids.add kid
-proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, key: -1)
+proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, index: -1)
 
 proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =
   result = newVNode(kind)
@@ -217,8 +219,8 @@ proc tree*(kind: VNodeKind; attrs: openarray[(cstring, cstring)];
   result = tree(kind, kids)
   for a in attrs: result.setAttr(a[0], a[1])
 
-proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), key: -1)
-proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, key: -1)
+proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
+proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]

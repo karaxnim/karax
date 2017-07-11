@@ -7,13 +7,6 @@ export kdom.Event
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## the preferred way of debugging karax applications.
 
-proc hasProp(e: Node; prop: cstring): bool {.importcpp: "(#.hasOwnProperty(#))".}
-proc rawkey(e: Node): VKey {.importcpp: "#.karaxKey", nodecl.}
-proc key*(e: Node): VKey =
-  if e.hasProp"karaxKey": result = e.rawkey
-  else: result = -1
-proc `key=`*(e: Node; x: VKey) {.importcpp: "#.karaxKey = #", nodecl.}
-
 type
   PatchKind = enum
     pkReplace, pkRemove, pkAppend, pkInsertBefore, pkDetach
@@ -200,7 +193,7 @@ proc eq(a, b: VNode): EqResult =
   if a.kind != b.kind: return different
   if a.id != b.id: return different
   result = identical
-  if a.key != b.key: return different
+  if a.index != b.index: return different
   if a.kind == VNodeKind.text:
     if a.text != b.text: return different
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
@@ -211,6 +204,7 @@ proc eq(a, b: VNode): EqResult =
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text: return different
+    if VComponent(a).key != VComponent(b).key: return different
     return componentsIdentical
   if a.class != b.class: return different
   if not eq(a.style, b.style) or not sameAttrs(a, b): return similar
@@ -246,7 +240,7 @@ proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   applyEvents(oldNode, kxi)
 
 proc printV(n: VNode; depth: cstring = "") =
-  kout depth, cstring($n.kind), cstring"key ", n.key
+  kout depth, cstring($n.kind), cstring"key ", n.index
   #for k, v in pairs(n.style):
   #  kout depth, "style: ", k, v
   if n.kind == VNodeKind.component:
@@ -323,16 +317,16 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     inc kxi.recursion
   result = eq(newNode, oldNode)
   case result
-  of identical, componentsIdentical, similar:
+  of componentsIdentical:
+    kxi.components.add ComponentPair(oldNode: VComponent(oldNode),
+                                      newNode: VComponent(newNode),
+                                      parent: parent,
+                                      current: current)
+  of identical, similar:
     newNode.dom = oldNode.dom
     if result == similar:
       updateStyles(newNode, oldNode)
       updateAttributes(newNode, oldNode)
-    elif result == componentsIdentical:
-      kxi.components.add ComponentPair(oldNode: VComponent(oldNode),
-                                       newNode: VComponent(newNode),
-                                       parent: parent,
-                                       current: current)
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
