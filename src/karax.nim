@@ -190,13 +190,33 @@ type
   EqResult = enum
     componentsIdentical, different, similar, identical, usenewNode
 
+  DifferEnum = enum
+    deKind, deId, deIndex, deText, deComponent, deClass,
+    deSimilar
+
+when defined(profileKarax):
+  var
+    reasons: array[DifferEnum, int]
+
+  proc echa(a: array[DifferEnum, int]) =
+    for i in low(DifferEnum)..high(DifferEnum):
+      echo i, " value: ", a[i]
+
 proc eq(a, b: VNode): EqResult =
-  if a.kind != b.kind: return different
-  if a.id != b.id: return different
+  if a.kind != b.kind:
+    when defined(profileKarax): inc reasons[deKind]
+    return different
+  if a.id != b.id:
+    when defined(profileKarax): inc reasons[deId]
+    return different
   result = identical
-  if a.index != b.index: return different
+  if a.index != b.index:
+    when defined(profileKarax): inc reasons[deIndex]
+    return different
   if a.kind == VNodeKind.text:
-    if a.text != b.text: return different
+    if a.text != b.text:
+      when defined(profileKarax): inc reasons[deText]
+      return similar
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
     if a.text != b.text: return different
     if a.len != b.len: return different
@@ -204,11 +224,19 @@ proc eq(a, b: VNode): EqResult =
       if eq(a[i], b[i]) == different: return different
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
-    if a.text != b.text: return different
-    if VComponent(a).key != VComponent(b).key: return different
+    if a.text != b.text:
+      when defined(profileKarax): inc reasons[deComponent]
+      return different
+    if VComponent(a).key != VComponent(b).key:
+      when defined(profileKarax): inc reasons[deComponent]
+      return different
     return componentsIdentical
-  if a.class != b.class: return different
-  if not eq(a.style, b.style) or not sameAttrs(a, b): return similar
+  if a.class != b.class:
+    when defined(profileKarax): inc reasons[deClass]
+    return different
+  if not eq(a.style, b.style) or not sameAttrs(a, b):
+    when defined(profileKarax): inc reasons[deSimilar]
+    return similar
   # Do not test event listeners here!
   return result
 
@@ -328,6 +356,10 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     if result == similar:
       updateStyles(newNode, oldNode)
       updateAttributes(newNode, oldNode)
+      if oldNode.kind == VNodeKind.text:
+        oldNode.text = newNode.text
+        oldNode.dom.nodeValue = newNode.text
+
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
     if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
@@ -471,7 +503,14 @@ proc dodraw(kxi: KaraxInstance) =
     let olddom = document.getElementById(kxi.rootId)
     discard diff(newtree, kxi.currentTree, nil, olddom, kxi)
     #kout cstring"patch len ", patches.len
+  when defined(profileKarax):
+    echo "<<<<<<<<<<<<<<"
+    echa reasons
   applyComponents(kxi)
+  when defined(profileKarax):
+    echo "--------------"
+    echa reasons
+    echo ">>>>>>>>>>>>>>"
   applyPatch(kxi)
   kxi.currentTree = newtree
   doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))

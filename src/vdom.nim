@@ -217,7 +217,7 @@ proc getAttr*(n: VNode; key: cstring): cstring =
     if n.attrs[i] == key: return n.attrs[i+1]
 
 proc takeOverAttr*(newNode, oldNode: VNode) =
-  oldNode.attrs = newNode.attrs
+  shallowCopy oldNode.attrs, newNode.attrs
 
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
