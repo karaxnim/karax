@@ -190,11 +190,12 @@ type
   EqResult = enum
     componentsIdentical, different, similar, identical, usenewNode
 
-  DifferEnum = enum
-    deKind, deId, deIndex, deText, deComponent, deClass,
-    deSimilar
-
 when defined(profileKarax):
+  type
+    DifferEnum = enum
+      deKind, deId, deIndex, deText, deComponent, deClass,
+      deSimilar
+
   var
     reasons: array[DifferEnum, int]
 
@@ -225,6 +226,9 @@ proc eq(a, b: VNode): EqResult =
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text:
+      when defined(profileKarax): inc reasons[deComponent]
+      return different
+    if VComponent(a).key.isNil and VComponent(b).key.isNil:
       when defined(profileKarax): inc reasons[deComponent]
       return different
     if VComponent(a).key != VComponent(b).key:

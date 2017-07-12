@@ -115,7 +115,7 @@ proc createDom(): VNode =
         renderPerson(text, index)
     tdiv:
       newTextInput(VStyle(), &persons.len, ""):
-        proc onkeyuplater(ev: Event; n: VNode) =
+        proc onkeyupenter(ev: Event; n: VNode) =
           let v = n.value
           if v.len > 0:
             persons.add v

@@ -160,17 +160,17 @@ proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
 proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, index: -1, kids: @args)
 
-proc setEvent(v: VNode; kind: EventKind; handler: EventHandler) =
+proc setEventIfNoConflict(v: VNode; kind: EventKind; handler: EventHandler) =
   assert handler != nil
   for i in 0..<v.events.len:
     if v.events[i][0] == kind:
-      v.events[i][1] = handler
+      #v.events[i][1] = handler
       return
   v.events.add((kind, handler, nil))
 
 proc mergeEvents*(v: VNode; handlers: EventHandlers) =
   ## Overrides or adds the event handlers to `v`'s internal event handler list.
-  for h in handlers: v.setEvent(h[0], h[1])
+  for h in handlers: v.setEventIfNoConflict(h[0], h[1])
 
 proc defaultChangedImpl*(v, newInstance: VComponent): bool =
   ## The default implementation of 'changed'.
