@@ -228,9 +228,9 @@ proc eq(a, b: VNode): EqResult =
     if a.text != b.text:
       when defined(profileKarax): inc reasons[deComponent]
       return different
-    if VComponent(a).key.isNil and VComponent(b).key.isNil:
-      when defined(profileKarax): inc reasons[deComponent]
-      return different
+    #if VComponent(a).key.isNil and VComponent(b).key.isNil:
+    #  when defined(profileKarax): inc reasons[deComponent]
+    #  return different
     if VComponent(a).key != VComponent(b).key:
       when defined(profileKarax): inc reasons[deComponent]
       return different

@@ -54,7 +54,7 @@ proc newTextInput*(style: VStyle = VStyle(); key: cstring;
   result = newComponent(TextInput, render, changed=changed, updated=update)
   result.style = style
   result.value = value
-  result.key = key
+  #result.key = key
 
 when false:
   type
