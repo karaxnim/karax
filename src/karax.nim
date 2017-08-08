@@ -463,24 +463,38 @@ proc applyComponents(kxi: KaraxInstance) =
   while i < kxi.components.len:
     let x = kxi.components[i].oldNode
     let newNode = kxi.components[i].newNode
+    when defined(karaxDebug):
+      echo "Processing component ", newNode.text, " changed impl set ", x.changedImpl != nil
     if x.changedImpl != nil and x.changedImpl(x, newNode):
+      when defined(karaxDebug):
+        echo "Component ", newNode.text, " did change"
       let current = kxi.components[i].current
       let parent = kxi.components[i].parent
       x.updatedImpl(x, newNode)
       let oldExpanded = x.expanded
       x.expanded = x.renderImpl(x)
+      when defined(karaxDebug):
+        echo "Component ", newNode.text, " re-rendered"
       x.renderedVersion = x.version
       if oldExpanded == nil:
         detach(x)
         kxi.addPatch(pkReplace, parent, current, x.expanded)
+        when defined(karaxDebug):
+          echo "Component ", newNode.text, ": old expansion didn't exist"
       else:
         let res = diff(x.expanded, oldExpanded, parent, current, kxi)
         if res == usenewNode:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered a DOM change (case A)"
           discard "diff created a patchset for us, so this is fine"
         elif res != different:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered no DOM change whatsoever"
           x.expanded = oldExpanded
           assert oldExpanded.dom != nil, "old expanded.dom is nil"
         else:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered a DOM change (case B)"
           assert x.expanded.dom != nil, "expanded.dom is nil"
     inc i
   setLen(kxi.components, 0)
