@@ -37,6 +37,7 @@ type
     patchLenV: int
     runCount: int
     components: seq[ComponentPair]
+    surpressRedraws*: bool
     when defined(stats):
       recursion: int
 
@@ -117,7 +118,7 @@ proc applyEvents(n: VNode; kxi: KaraxInstance) =
   for i in 0..<len(n.events):
     n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
 
-proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
+proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
@@ -134,6 +135,7 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     return result
   elif n.kind == VNodeKind.component:
     let x = VComponent(n)
+    if x.realDomImpl != nil: return x.realDomImpl(x)
     if x.onAttachImpl != nil: x.onAttachImpl(x)
     assert x.renderImpl != nil
     if x.expanded == nil:
@@ -465,7 +467,11 @@ proc applyComponents(kxi: KaraxInstance) =
     let newNode = kxi.components[i].newNode
     when defined(karaxDebug):
       echo "Processing component ", newNode.text, " changed impl set ", x.changedImpl != nil
-    if x.changedImpl != nil and x.changedImpl(x, newNode):
+    if x.realDomImpl != nil:
+      let current = kxi.components[i].current
+      let parent = kxi.components[i].parent
+      kxi.addPatch(pkReplace, parent, current, x)
+    elif x.changedImpl != nil and x.changedImpl(x, newNode):
       when defined(karaxDebug):
         echo "Component ", newNode.text, " did change"
       let current = kxi.components[i].current
@@ -506,6 +512,14 @@ when defined(stats):
       m = max(m, depth(n[i], total))
     result = m + 1
     inc total
+
+proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
+  let olddom = oldNode.dom
+  discard diff(newNode, oldNode, nil, olddom, kxi)
+  applyComponents(kxi)
+  applyPatch(kxi)
+  if kxi.currentTree == oldNode:
+    kxi.currentTree = newNode
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
@@ -576,6 +590,18 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
   kxi = result
   window.onload = init
 
+proc setInitializer*(renderer: proc (): VNode, root: cstring = "ROOT",
+                    clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+  ## Setup Karax. Usually the return value can be ignored.
+  result = KaraxInstance(rootId: root, renderer: renderer,
+                        postRenderCallback: clientPostRenderCallback,
+                        patches: newSeq[Patch](60),
+                        patchesV: newSeq[PatchV](30),
+                        components: @[],
+                        surpressRedraws: true)
+  kxi = result
+  window.onload = init
+
 proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
                       kxi: KaraxInstance = kxi) =
   ## Implements the foundation of Karax's event management.
@@ -585,7 +611,7 @@ proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
   ## a ``redraw``.
   proc wrapper(ev: Event; n: VNode) =
     action(ev, n)
-    redraw(kxi)
+    if not kxi.surpressRedraws: redraw(kxi)
   addEventListener(n, k, wrapper)
 
 proc setOnHashChange*(action: proc (hashPart: cstring)) =

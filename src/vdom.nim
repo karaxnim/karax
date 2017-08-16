@@ -133,6 +133,7 @@ type
     updatedImpl*: proc(self, newInstance: VComponent)
     onAttachImpl*: proc(self: VComponent)
     onDetachImpl*: proc(self: VComponent)
+    realDomImpl*: proc(self: VComponent): kdom.Node
     version*: int         ## Update this to trigger a redraw by karax. Usually you
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
@@ -185,7 +186,7 @@ proc getDebugId(): int =
   gid
 
 template newComponent*[T](t: typeDesc[T];
-                 render: (proc(self: VComponent): VNode) not nil,
+                 render: (proc(self: VComponent): VNode) = nil,
                  onAttach: proc(self: VComponent) = nil,
                  onDetach: proc(self: VComponent) = nil,
                  changed: (proc(self, newInstance: VComponent): bool) = defaultChangedImpl,
