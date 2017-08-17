@@ -187,6 +187,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
   x.parentNode.replaceChild(newTree, x)
+  newTree.id = id
 
 type
   EqResult = enum

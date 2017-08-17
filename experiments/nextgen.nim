@@ -1,5 +1,5 @@
 
-import kdom, jdict, jstrutils
+import vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils
 
 type
   Message = enum
@@ -155,27 +155,19 @@ type
 
 var gu = newReactive(User(firstname: "Some", lastname: "Body"))
 
-proc renderUser(u: Reactive[User]): Node =
-  result = document.createElement("button")
-  result.appendChild document.createTextNode(u.now.firstname & " " & u.now.lastname)
-  result.addEventListener "click", proc (ev: Event) =
-    gu <- User(firstname: "Another", lastname: "Guy")
+proc renderUser(u: Reactive[User]): VNode =
+  result = buildHtml(button):
+    text u.now.firstname & " " & u.now.lastname
+    proc onclick(ev: Event; n: VNode) =
+      gu <- User(firstname: "Another", lastname: "Guy")
 
-proc replaceById(id: cstring; newTree: Node) =
-  let x = document.getElementById(id)
-  x.parentNode.replaceChild(newTree, x)
-  newTree.id = id
-
-template track(r: ReactiveBase; a, b: Node) =
+template track(r: ReactiveBase; a, b: VNode) =
   r.addSink proc(m: Message; pos: int) =
     if m == Changed:
-      a.parentNode.replaceChild(b, a)
+      runDiff(kxi, a, b)
 
-proc main(): Node =
+proc main(): VNode =
   result = renderUser(gu)
   track gu, result, renderUser(gu)
 
-proc init(ev: Event) =
-  replaceById("ROOT", main())
-
-window.onload = init
+setInitializer(main)
