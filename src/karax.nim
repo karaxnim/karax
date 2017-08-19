@@ -514,6 +514,24 @@ when defined(stats):
     result = m + 1
     inc total
 
+proc runDel*(kxi: KaraxInstance; parent: VNode; position: int) =
+  detach(parent[position])
+  let current = parent.dom
+  kxi.addPatch(pkRemove, current, current.childNodes[position], nil)
+  parent.delete(position)
+  applyPatch(kxi)
+
+proc runIns*(kxi: KaraxInstance; parent, kid: VNode; position: int) =
+  let current = parent.dom
+  if position >= parent.len:
+    kxi.addPatch(pkAppend, current, nil, kid)
+    parent.add(kid)
+  else:
+    let before = current.childNodes[position]
+    kxi.addPatch(pkInsertBefore, current, before, kid)
+    parent.insert(kid, position)
+  applyPatch(kxi)
+
 proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
   let olddom = oldNode.dom
   discard diff(newNode, oldNode, nil, olddom, kxi)

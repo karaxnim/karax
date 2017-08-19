@@ -224,6 +224,10 @@ proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
 proc add*(parent, kid: VNode) = parent.kids.add kid
+proc delete*(parent: VNode; position: int) =
+  parent.kids.delete(position)
+proc insert*(parent, kid: VNode; position: int) =
+   parent.kids.insert(kid, position)
 proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, index: -1)
 
 proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =

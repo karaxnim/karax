@@ -32,7 +32,7 @@ type
     s: seq[T]
     L: RInt
 
-proc addSink[T](x: Reactive[T]; sink: proc(msg: Message; pos: int)) =
+proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
   x.sinks.add sink
 
 proc addSink(x: ReactiveBase; key: cstring; sink: proc(msg: Message; pos: int)) =
@@ -88,7 +88,7 @@ proc `<-`*[T](x: Reactive[T], val: T) =
   x.broadcast(Mark)
   x.broadcast(Changed)
 
-proc changed*(x: ReactiveBase) =
+proc notifyObservers*(x: ReactiveBase) =
   x.broadcast(Mark)
   x.broadcast(Changed)
 
@@ -125,10 +125,17 @@ proc newRSeq*[T](data: seq[T]): RSeq[T] =
   for i in 0..high(data):
     result.s[i] = data[i]
 
-proc `[]=`[T](x: RSeq[T]; index: int; v: T) =
+proc `[]=`*[T](x: RSeq[T]; index: int; v: T) =
   x.s[index] = v
 
-proc `[]`[T](x: RSeq[T]; index: int): T = x.s[index]
+proc `[]`*[T](x: RSeq[T]; index: int): T = x.s[index]
+proc len*[T](x: RSeq[T]): int = x.s.len
+
+proc add*[T](x: RSeq[T]; y: T) =
+  let position = x.s.len
+  x.s.add(y)
+  x.broadcast(Mark)
+  x.broadcast(Inserted, position)
 
 proc insert*[T](x: RSeq[T]; y: T; position = 0) =
   x.s.insert(y, position)
@@ -139,6 +146,16 @@ proc delete*[T](x: RSeq[T]; position = 0) =
   x.s.delete(position)
   x.broadcast(Mark)
   x.broadcast(Deleted, position)
+
+proc deleteElem*[T](x: RSeq[T]; y: T) =
+  var position = -1
+  for i in 0..<x.len:
+    if x[i] == y:
+      position = i; break
+  if position >= 0:
+    x.s.delete(position)
+    x.broadcast(Mark)
+    x.broadcast(Deleted, position)
 
 proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
   let xl = x.L.value
@@ -159,24 +176,60 @@ proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
 import macros
 
 template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
-  when r is Reactive:
+  when r is ReactiveBase:
     addSink r, key, proc(m: Message; pos: int) =
       if m == Changed:
         runDiff(kxi, a, b)
+
+template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
+  bind addSink, Message, RSeq, Changed, Deleted, Inserted
+  addSink r, proc(m: Message; pos: int) =
+    #when r is RSeq:
+    #echo "Message: ", m, " ", pos
+    if m == Changed: karax.runDiff(kxi, a, b)
+
+template doTrackResize*(r: ReactiveBase; a, b: untyped) {.dirty.} =
+  bind addSink, Message, RSeq, Changed, Deleted, Inserted
+  addSink r, proc(m: Message; pos: int) =
+    #when r is RSeq:
+    #echo "Message: ", m, " ", pos
+    case m
+    of Deleted: karax.runDel(kxi, a, pos)
+    of Inserted:
+      karax.runIns(kxi, a, b, pos)
+    else: discard
+
+template notifyImpl(r: untyped) =
+  when r is ReactiveBase:
+    notifyObservers(r)
+
+proc root(n: NimNode): NimNode =
+  result = n
+  while result.kind in {nnkDotExpr, nnkBracketExpr}: result = result[0]
+
+proc analyse(n: NimNode; paramList: seq[NimNode]): NimNode =
+  result = n
+  #if n.kind in {nnkAsgn, nnkFastAsgn}:
+  #
+  #   n[0]
+  #else:
+  #  recurse()
 
 macro track*(procDef: untyped): untyped =
   let params = params(procDef)
   let key = lineInfo(procDef)
   var call = newCall(procDef.name)
   var trackings = newStmtList()
-  for b in procDef.body: trackings.add b
+  var paramList: seq[NimNode] = @[]
   for j in 1..<params.len:
     let x = params[j]
     expectKind x, nnkIdentDefs
-    for i in 0..x.len-3:
-      let param = x[i]
-      call.add param
-      trackings.add getAst(trackImpl(param, key, ident"result", call))
+    for i in 0..x.len-3: paramList.add(x[i])
+
+  for b in procDef.body: trackings.add analyse(b, paramList)
+  for param in paramList:
+    call.add param
+    trackings.add getAst(trackImpl(param, key, ident"result", call))
 
   result = copyNimTree(procDef)
   result.body = trackings
