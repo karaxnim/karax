@@ -8,6 +8,7 @@ type
     Mark
     Inserted
     Deleted
+    Replaced
 
   State = object
     stale: int
@@ -70,7 +71,7 @@ template wrapObserver(f: untyped) =
     of Mark:
       if state.stale == 0: x.broadcast(msg, pos)
       inc state.stale
-    of Inserted, Deleted:
+    of Inserted, Deleted, Replaced:
       dec state.stale
       if state.stale == 0:
         x.broadcast(msg, pos)
@@ -92,12 +93,20 @@ proc notifyObservers*(x: ReactiveBase) =
   x.broadcast(Mark)
   x.broadcast(Changed)
 
-proc subscribe[T](x: Reactive[T], f: proc(x: T)) =
+proc subscribeVal*[T](x: Reactive[T], f: proc(x: T)) =
   let reactor = proc (msg: Message, pos: int) =
     case msg:
     of Mark: discard
     of Changed, Unchanged: f(x.value)
-    of Inserted, Deleted: discard
+    of Inserted, Deleted, Replaced: discard
+  x.addSink reactor
+
+proc subscribeSelf*[T: ReactiveBase](x: T, f: proc()) =
+  let reactor = proc (msg: Message, pos: int) =
+    case msg:
+    of Mark: discard
+    of Changed, Unchanged: f()
+    of Inserted, Deleted, Replaced: discard
   x.addSink reactor
 
 template lift1(op: untyped) =
@@ -127,6 +136,8 @@ proc newRSeq*[T](data: seq[T]): RSeq[T] =
 
 proc `[]=`*[T](x: RSeq[T]; index: int; v: T) =
   x.s[index] = v
+  x.broadcast(Mark)
+  x.broadcast(Replaced, index)
 
 proc `[]`*[T](x: RSeq[T]; index: int): T = x.s[index]
 proc len*[T](x: RSeq[T]): int = x.s.len

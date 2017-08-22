@@ -239,8 +239,15 @@ proc tree*(kind: VNodeKind; attrs: openarray[(cstring, cstring)];
   result = tree(kind, kids)
   for a in attrs: result.setAttr(a[0], a[1])
 
-proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
-proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
+proc rawtext*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
+proc rawtext*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
+
+import reactive
+
+proc text*(s: RString): VNode =
+  result = VNode(kind: VNodeKind.text, text: s, index: -1)
+  s.subscribe proc(v: cstring) =
+    result.dom.value = v
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]
