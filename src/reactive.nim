@@ -1,6 +1,4 @@
 
-import jdict
-
 type
   Message = enum
     Unchanged
@@ -19,7 +17,7 @@ type
   ReactiveBase* = ref object of RootObj ## everything that is a "reactive"
                                         ## value derives from that
     sinks*: seq[proc(msg: Message, pos: int)]
-    dups: JDict[cstring, bool] # prevent duplicate registrations
+    id: int
   Reactive*[T] = ref object of ReactiveBase
     value*: T
 
@@ -33,14 +31,16 @@ type
     s: seq[T]
     L: RInt
 
-proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
-  x.sinks.add sink
+var rid: int
 
-proc addSink(x: ReactiveBase; key: cstring; sink: proc(msg: Message; pos: int)) =
-  if x.dups == nil: x.dups = newJDict[cstring, bool]()
-  if not x.dups.contains(key):
-    x.dups[key] = true
-    x.sinks.add sink
+proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
+  #if x.sinks.len > 0:
+  #  x.sinks[0] = sink
+  #else:
+  x.sinks.add sink
+  if x.id == 0:
+    inc rid
+    x.id = rid
 
 proc broadcast(x: ReactiveBase, msg: Message; pos = 0) =
   for s in x.sinks: s(msg, pos)
@@ -93,7 +93,7 @@ proc notifyObservers*(x: ReactiveBase) =
   x.broadcast(Mark)
   x.broadcast(Changed)
 
-proc subscribeVal*[T](x: Reactive[T], f: proc(x: T)) =
+proc subscribe*[T](x: Reactive[T], f: proc(x: T)) =
   let reactor = proc (msg: Message, pos: int) =
     case msg:
     of Mark: discard
@@ -186,11 +186,10 @@ proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
 
 import macros
 
-template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
+template trackImpl(r: ReactiveBase; a, b: untyped) =
   when r is ReactiveBase:
-    addSink r, key, proc(m: Message; pos: int) =
-      if m == Changed:
-        runDiff(kxi, a, b)
+    addSink r, proc(m: Message; pos: int) =
+      if m == Changed: karax.runDiff(kxi, a, b)
 
 template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
   bind addSink, Message, RSeq, Changed, Deleted, Inserted
@@ -207,40 +206,30 @@ template doTrackResize*(r: ReactiveBase; a, b: untyped) {.dirty.} =
     case m
     of Deleted: karax.runDel(kxi, a, pos)
     of Inserted:
+      let it {.used.} = r[pos]
       karax.runIns(kxi, a, b, pos)
     else: discard
 
-template notifyImpl(r: untyped) =
-  when r is ReactiveBase:
-    notifyObservers(r)
-
-proc root(n: NimNode): NimNode =
-  result = n
-  while result.kind in {nnkDotExpr, nnkBracketExpr}: result = result[0]
-
-proc analyse(n: NimNode; paramList: seq[NimNode]): NimNode =
-  result = n
-  #if n.kind in {nnkAsgn, nnkFastAsgn}:
-  #
-  #   n[0]
-  #else:
-  #  recurse()
-
 macro track*(procDef: untyped): untyped =
   let params = params(procDef)
-  let key = lineInfo(procDef)
-  var call = newCall(procDef.name)
   var trackings = newStmtList()
-  var paramList: seq[NimNode] = @[]
+  var inner = copyNimTree(procDef)
+  inner[0] = ident($procDef.name & "Inner")
+  var call = newCall(inner[0])
+  trackings.add inner
+  trackings.add newAssignment(ident"result", call)
+
   for j in 1..<params.len:
     let x = params[j]
     expectKind x, nnkIdentDefs
-    for i in 0..x.len-3: paramList.add(x[i])
+    for i in 0..x.len-3:
+      let param = x[i]
+      call.add(param)
 
-  for b in procDef.body: trackings.add analyse(b, paramList)
-  for param in paramList:
-    call.add param
-    trackings.add getAst(trackImpl(param, key, ident"result", call))
+  for j in 1..<call.len:
+    trackings.add getAst(trackImpl(call[j], ident"result", call))
 
   result = copyNimTree(procDef)
   result.body = trackings
+  when defined(debugKaraxDsl):
+    echo repr result

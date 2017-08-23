@@ -220,6 +220,20 @@ proc getAttr*(n: VNode; key: cstring): cstring =
 proc takeOverAttr*(newNode, oldNode: VNode) =
   shallowCopy oldNode.attrs, newNode.attrs
 
+proc takeOverFields*(newNode, oldNode: VNode) =
+  template take(field) =
+    shallowCopy oldNode.field, newNode.field
+  take kind
+  take index
+  take id
+  take class
+  take text
+  take kids
+  take attrs
+  take events
+  take style
+  take dom
+
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
@@ -239,15 +253,8 @@ proc tree*(kind: VNodeKind; attrs: openarray[(cstring, cstring)];
   result = tree(kind, kids)
   for a in attrs: result.setAttr(a[0], a[1])
 
-proc rawtext*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
-proc rawtext*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
-
-import reactive
-
-proc text*(s: RString): VNode =
-  result = VNode(kind: VNodeKind.text, text: s, index: -1)
-  s.subscribe proc(v: cstring) =
-    result.dom.value = v
+proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
+proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]

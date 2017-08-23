@@ -1,7 +1,7 @@
 
 import vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, reactive
 
-proc newTextInput*(text: RString; focus: RBool): VNode =
+proc newTextInput*(text: RString; focus: RBool): VNode {.track.} =
   proc onFlip(ev: Event; target: VNode) =
     focus <- not focus.value
 
@@ -23,20 +23,22 @@ var
 type
   User = ref object of ReactiveBase
     firstname, lastname: cstring
+    selected: bool
 
 var gu = newRSeq(@[ (User(firstname: "Some", lastname: "Body")),
                     (User(firstname: "Some", lastname: "One")),
                     (User(firstname: "Some", lastname: "Two"))])
-var selected = newReactive[User](nil)
+var prevSelected: User = nil #newReactive[User](nil)
 
 proc toUI*(): RString =
   result = RString()
   result.subscribe proc (v: cstring) =
     if v.len > 0:
-      if selected >= 0:
+      let p = prevSelected #selected.value
+      if p != nil:
         # XXX what's happening here?
-        persons[selected].firstname = v
-        notifyObservers(persons[selected])
+        p.firstname = v
+        notifyObservers(p)
       errmsg <- ""
     else:
       errmsg <- "name must not be empty"
@@ -76,20 +78,31 @@ discard """
   let t = text(u.firstname & " " & u.lastname)
   observe(u, t.update(u.firstname & " " & u.lastname))
   t
-"""
 
 template observe(s: cstring): RString =
   let tmp = rstr(s)
   u.subscribeSelf proc () =
     tmp <- s
   temp
+"""
 
-proc renderUser(u: User; selected: RBool): VNode =
+proc renderUser(u: User): VNode {.track.} =
   result = buildHtml(tdiv):
-    let displayName = observe(u.firstname & " " & u.lastname)
-    if selected == u:
-      newTextInput displayName, focus
+    let displayName = u.firstname & " " & u.lastname
+    if u.selected:
+      # == selected.value:
+      !(inp <- displayName)
+      newTextInput inp, focus
     else:
+      button:
+        text "..."
+        proc onclick(ev: Event; n: VNode) =
+          if prevSelected != nil:
+            prevSelected.selected = false
+            notifyObservers(prevSelected)
+          u.selected = true
+          notifyObservers(u)
+          prevSelected = u
       text displayName
     button:
       text "(x)"
@@ -103,6 +116,25 @@ template vmap(x: RSeq; elem, f: untyped): VNode =
   doTrackResize(x, tmp, f(x[pos]))
   tmp
 
+template vmapIt(x: RSeq; elem, call: untyped): VNode =
+  var it {.inject}: type(x[0])
+  let tmp = buildHtml(elem):
+    for i in 0..<len(x):
+      it = x[i]
+      call
+  doTrackResize(x, tmp, call)
+  tmp
+
+proc hasNativeNode(parent, x: Node): bool =
+  if parent == x: return true
+  for i in 0..<parent.len:
+    if hasNativeNode(parent[i], x): return true
+
+proc text*(s: RString): VNode =
+  result = text(s.value)
+  s.subscribe proc(v: cstring) =
+    if result.dom != nil: result.dom.nodeValue = v
+
 proc main(gu: RSeq[User]): VNode =
   result = buildHtml(tdiv):
     tdiv:
@@ -113,8 +145,7 @@ proc main(gu: RSeq[User]): VNode =
           gu.add User(firstname: "Added", lastname: &clicks)
     tdiv:
       text errmsg
-    vmap(gu, tdiv, renderUser)
-
+    vmapIt(gu, tdiv, renderUser(it))
 
 proc init(): VNode = main(gu)
 

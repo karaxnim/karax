@@ -177,7 +177,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
     result = true
     if n.kind != VNodeKind.text:
       if e.len != n.len:
-        kout e.len, n.len, toTag[n.kind], nesting
+        echo "expected ", e.len, " real ", n.len, toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
@@ -520,6 +520,7 @@ proc runDel*(kxi: KaraxInstance; parent: VNode; position: int) =
   kxi.addPatch(pkRemove, current, current.childNodes[position], nil)
   parent.delete(position)
   applyPatch(kxi)
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
 proc runIns*(kxi: KaraxInstance; parent, kid: VNode; position: int) =
   let current = parent.dom
@@ -531,14 +532,18 @@ proc runIns*(kxi: KaraxInstance; parent, kid: VNode; position: int) =
     kxi.addPatch(pkInsertBefore, current, before, kid)
     parent.insert(kid, position)
   applyPatch(kxi)
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
 proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
   let olddom = oldNode.dom
-  discard diff(newNode, oldNode, nil, olddom, kxi)
+  doAssert olddom != nil
+  if diff(newNode, oldNode, nil, olddom, kxi) == usenewNode:
+    takeOverFields(newNode, oldNode)
   applyComponents(kxi)
   applyPatch(kxi)
   if kxi.currentTree == oldNode:
     kxi.currentTree = newNode
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
