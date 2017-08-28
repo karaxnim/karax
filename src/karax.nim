@@ -182,7 +182,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
-    kout toTag[n.kind], e.nodename
+    echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -334,7 +334,8 @@ proc applyPatch(kxi: KaraxInstance) =
       if n.kind == VNodeKind.component:
         let x = VComponent(n)
         if x.onDetachImpl != nil: x.onDetachImpl(x)
-      n.dom = nil
+      # XXX for some reason this causes assertion errors otherwise:
+      if not kxi.surpressRedraws: n.dom = nil
   kxi.patchLen = 0
   for i in 0..<kxi.patchLenV:
     let p = kxi.patchesV[i]
@@ -537,8 +538,11 @@ proc runIns*(kxi: KaraxInstance; parent, kid: VNode; position: int) =
 proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
   let olddom = oldNode.dom
   doAssert olddom != nil
-  if diff(newNode, oldNode, nil, olddom, kxi) == usenewNode:
-    takeOverFields(newNode, oldNode)
+  discard diff(newNode, oldNode, nil, olddom, kxi)
+  # this is a bit nasty: Since we cannot patch the 'parent' of
+  # the current VNode (because we don't store it at all!), we
+  # need to override the fields individually:
+  takeOverFields(newNode, oldNode)
   applyComponents(kxi)
   applyPatch(kxi)
   if kxi.currentTree == oldNode:
