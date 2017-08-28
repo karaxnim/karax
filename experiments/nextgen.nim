@@ -19,26 +19,25 @@ proc textInput*(text: RString; focus: RBool): VNode {.track.} =
 var
   errmsg = rstr("")
 
-type
-  User = ref object of ReactiveBase
-    firstname, lastname: cstring
-    selected: bool
+makeReactive:
+  type
+    User = ref object
+      firstname, lastname: cstring
+      selected: bool
 
-var gu = newRSeq(@[ (User(firstname: "Some", lastname: "Body")),
-                    (User(firstname: "Some", lastname: "One")),
-                    (User(firstname: "Some", lastname: "Two"))])
+var gu = newRSeq(@[ (User(rawFirstname: "Some", rawLastname: "Body")),
+                    (User(rawFirstname: "Some", rawLastname: "One")),
+                    (User(rawFirstname: "Some", rawLastname: "Two"))])
 var prevSelected: User = nil #newReactive[User](nil)
 
 proc unselect() =
   if prevSelected != nil:
     prevSelected.selected = false
-    notifyObservers(prevSelected)
     prevSelected = nil
 
 proc select(u: User) =
   unselect()
   u.selected = true
-  notifyObservers(u)
   prevSelected = u
 
 proc toUI*(isFirstname: bool): RString =
@@ -51,14 +50,13 @@ proc toUI*(isFirstname: bool): RString =
           p.firstname = v
         else:
           p.lastname = v
-        notifyObservers(p)
         unselect()
       errmsg <- ""
     else:
       errmsg <- "name must not be empty"
 
-var firstname = toUI(true)
-var lastname = toUI(false)
+var inpFirstname = toUI(true)
+var inpLastname = toUI(false)
 
 proc adaptFocus(def = false): RBool =
   result = RBool()
@@ -67,8 +65,6 @@ proc adaptFocus(def = false): RBool =
     result.subscribe proc (hasFocus: bool) =
       if not hasFocus:
         unselect()
-        firstname.notifyObservers()
-        lastname.notifyObservers()
 
 var focusA = adaptFocus()
 var focusB = adaptFocus()
@@ -87,33 +83,15 @@ proc styler(): VStyle =
 
 var clicks = 0
 
-discard """
-  # Text gets a *reactive* string in the first place!
-  # Text can register and knows how to update itself!
-  proc toReact(): RString =
-    observe(u):
-      u.firstname & u.lastname
-
-  let t = text(u.firstname & " " & u.lastname)
-  observe(u, t.update(u.firstname & " " & u.lastname))
-  t
-
-template observe(s: cstring): RString =
-  let tmp = rstr(s)
-  u.subscribeSelf proc () =
-    tmp <- s
-  temp
-"""
-
 proc renderUser(u: User): VNode {.track.} =
   result = buildHtml(tdiv):
     if u.selected:
-      firstname <- u.firstname
+      inpFirstname <- u.firstname
       tdiv:
-        textInput firstname, focusA
-      lastname <- u.lastname
+        textInput inpFirstname, focusA
+      inpLastname <- u.lastname
       tdiv:
-        textInput lastname, focusB
+        textInput inpLastname, focusB
     else:
       button:
         text "..."
@@ -125,32 +103,6 @@ proc renderUser(u: User): VNode {.track.} =
       proc onclick(ev: Event; n: VNode) =
         gu.deleteElem(u)
 
-template vmap(x: RSeq; elem, f: untyped): VNode =
-  let tmp = buildHtml(elem):
-    for i in 0..<len(x):
-      f(x[i])
-  doTrackResize(x, tmp, f(x[pos]))
-  tmp
-
-template vmapIt(x: RSeq; elem, call: untyped): VNode =
-  var it {.inject}: type(x[0])
-  let tmp = buildHtml(elem):
-    for i in 0..<len(x):
-      it = x[i]
-      call
-  doTrackResize(x, tmp, call)
-  tmp
-
-proc hasNativeNode(parent, x: Node): bool =
-  if parent == x: return true
-  for i in 0..<parent.len:
-    if hasNativeNode(parent[i], x): return true
-
-proc text*(s: RString): VNode =
-  result = text(s.value)
-  s.subscribe proc(v: cstring) =
-    if result.dom != nil: result.dom.nodeValue = v
-
 proc main(gu: RSeq[User]): VNode =
   result = buildHtml(tdiv):
     tdiv:
@@ -158,7 +110,7 @@ proc main(gu: RSeq[User]): VNode =
         text "Add User"
         proc onclick(ev: Event; n: VNode) =
           inc clicks
-          gu.add User(firstname: "Added", lastname: &clicks)
+          gu.add User(rawFirstname: "Added", rawLastname: &clicks)
     tdiv:
       text errmsg
     vmapIt(gu, tdiv, renderUser(it))

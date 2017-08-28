@@ -283,16 +283,10 @@ macro track*(procDef: untyped): untyped =
   when defined(debugKaraxDsl):
     echo repr result
 
-macro mut(t: typed): untyped =
-  if getType(t).typeKind == ntyRef:
-    result = t
-  else:
-    result = newTree(nnkVarTy, t)
-
 proc generatePrivateAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
   template helper(name, hidden, typ, fieldTyp) {.dirty.} =
     proc name(self: typ): fieldTyp = self.hidden
-    proc `name=`(self: mut typ; val: fieldTyp) =
+    proc `name=`(self: typ; val: fieldTyp) =
       self.hidden = val
       notifyObservers(self)
   result = getAst(helper(name, hidden, typ, fieldTyp))
@@ -300,7 +294,7 @@ proc generatePrivateAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
 proc generatePublicAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
   template helper(name, hidden, typ, fieldTyp) {.dirty.} =
     proc name*(self: typ): fieldTyp = self.hidden
-    proc `name=`*(self: mut typ; val: fieldTyp) =
+    proc `name=`*(self: typ; val: fieldTyp) =
       self.hidden = val
       notifyObservers(self)
   result = getAst(helper(name, hidden, typ, fieldTyp))
@@ -334,6 +328,29 @@ macro makeReactive*(n: untyped): untyped =
   result = a
   when defined(debugKaraxDsl):
     echo repr result
+
+import vdom
+
+template vmap*(x: RSeq; elem, f: untyped): VNode =
+  let tmp = buildHtml(elem):
+    for i in 0..<len(x):
+      f(x[i])
+  doTrackResize(x, tmp, f(x[pos]))
+  tmp
+
+template vmapIt*(x: RSeq; elem, call: untyped): VNode =
+  var it {.inject}: type(x[0])
+  let tmp = buildHtml(elem):
+    for i in 0..<len(x):
+      it = x[i]
+      call
+  doTrackResize(x, tmp, call)
+  tmp
+
+proc text*(s: RString): VNode =
+  result = text(s.value)
+  s.subscribe proc(v: cstring) =
+    if result.dom != nil: result.dom.nodeValue = v
 
 when isMainModule:
   makeReactive:
