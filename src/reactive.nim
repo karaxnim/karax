@@ -1,4 +1,6 @@
 
+import jdict
+
 type
   Message = enum
     Unchanged
@@ -14,9 +16,11 @@ type
     phantom: bool
 
 type
+  SinkSeq = seq[proc(msg: Message, pos: int)]
   ReactiveBase* = ref object of RootObj ## everything that is a "reactive"
                                         ## value derives from that
-    sinks*: seq[proc(msg: Message, pos: int)]
+    sinks*: SinkSeq
+    dups: JDict[cstring, bool]
     id: int
   Reactive*[T] = ref object of ReactiveBase
     value*: T
@@ -33,10 +37,16 @@ type
 
 var rid: int
 
+proc addSink(x: ReactiveBase; key: cstring; sink: proc(msg: Message; pos: int)) =
+  if x.dups == nil: x.dups = newJDict[cstring, bool]()
+  if not x.dups.contains(key):
+    x.dups[key] = true
+    x.sinks.add sink
+    if x.id == 0:
+      inc rid
+      x.id = rid
+
 proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
-  #if x.sinks.len > 0:
-  #  x.sinks[0] = sink
-  #else:
   x.sinks.add sink
   if x.id == 0:
     inc rid
@@ -76,6 +86,29 @@ template wrapObserver(f: untyped) =
       if state.stale == 0:
         x.broadcast(msg, pos)
         #state.phantom = true
+  helper
+
+template glitchFree(f: untyped) =
+  var state: State
+  proc helper(msg: Message; pos: int) =
+    case msg.kind:
+    of Changed, Unchanged:
+      state.outdated = state.outdated or (msg.kind == Changed)
+      dec state.stale
+      if state.stale == 0:
+        if state.outdated:
+          x.value = f
+          x.broadcast(msg.kind, pos)
+          state.outdated = false
+        else:
+          x.broadcast(Unchanged, pos)
+    of Mark:
+      if state.stale == 0: x.broadcast(msg, pos)
+      inc state.stale
+    of Inserted, Deleted, Replaced:
+      dec state.stale
+      if state.stale == 0:
+        x.broadcast(msg, pos)
   helper
 
 proc `:=`[T](x: Reactive[T], f: proc(): T) =
@@ -186,17 +219,29 @@ proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
 
 import macros
 
-template trackImpl(r: ReactiveBase; a, b: untyped) =
+template protect(r: ReactiveBase; body: untyped) =
+  var tmp: seq[proc(msg: Message, pos: int)]
+  swap(r.sinks, tmp)
+  body
+  swap(r.sinks, tmp)
+
+template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
   when r is ReactiveBase:
-    addSink r, proc(m: Message; pos: int) =
-      if m == Changed: karax.runDiff(kxi, a, b)
+    addSink r, key, proc(m: Message; pos: int) =
+      if m == Changed:
+        protect r:
+          echo "runDiff A"
+          karax.runDiff(kxi, a, b)
 
 template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
   bind addSink, Message, RSeq, Changed, Deleted, Inserted
   addSink r, proc(m: Message; pos: int) =
     #when r is RSeq:
     #echo "Message: ", m, " ", pos
-    if m == Changed: karax.runDiff(kxi, a, b)
+    if m == Changed:
+      protect r:
+        echo "runDiff B"
+        karax.runDiff(kxi, a, b)
 
 template doTrackResize*(r: ReactiveBase; a, b: untyped) {.dirty.} =
   bind addSink, Message, RSeq, Changed, Deleted, Inserted
@@ -226,10 +271,75 @@ macro track*(procDef: untyped): untyped =
       let param = x[i]
       call.add(param)
 
+  let key = lineInfo(procDef)
   for j in 1..<call.len:
-    trackings.add getAst(trackImpl(call[j], ident"result", call))
+    trackings.add getAst(trackImpl(call[j], key, ident"result", call))
 
   result = copyNimTree(procDef)
   result.body = trackings
   when defined(debugKaraxDsl):
     echo repr result
+
+macro mut(t: typed): untyped =
+  if getType(t).typeKind == ntyRef:
+    result = t
+  else:
+    result = newTree(nnkVarTy, t)
+
+proc generatePrivateAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
+  template helper(name, hidden, typ, fieldTyp) {.dirty.} =
+    proc name(self: typ): fieldTyp = self.hidden
+    proc `name=`(self: mut typ; val: fieldTyp) =
+      self.hidden = val
+      notifyObservers(self)
+  result = getAst(helper(name, hidden, typ, fieldTyp))
+
+proc generatePublicAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
+  template helper(name, hidden, typ, fieldTyp) {.dirty.} =
+    proc name*(self: typ): fieldTyp = self.hidden
+    proc `name=`*(self: mut typ; val: fieldTyp) =
+      self.hidden = val
+      notifyObservers(self)
+  result = getAst(helper(name, hidden, typ, fieldTyp))
+
+proc transform(n: NimNode; stmts, obj: NimNode): NimNode =
+  if n.kind == nnkIdentDefs and obj.kind == nnkIdent:
+    for i in 0..n.len-3:
+      let it = n[i]
+      let itB = if it.kind == nnkPostFix: it[1] else: it
+      let hidden = newIdentNode("raw" & $itB)
+      if it.kind == nnkPostFix:
+        stmts.add generatePublicAccessors(itB, hidden, obj, n[n.len-2])
+      else:
+        stmts.add generatePrivateAccessors(itB, hidden, obj, n[n.len-2])
+      n[i] = hidden
+    result = n
+  else:
+    var objB = if n.kind == nnkTypeDef: n[0] else: obj
+    result = copyNimNode(n)
+    for i in 0..<n.len:
+      if n.kind == nnkObjectTy and i == 1 and n[1].kind == nnkEmpty:
+        result.add newTree(nnkOfInherit, ident("ReactiveBase"))
+      else:
+        result.add transform(n[i], stmts, objB)
+
+macro makeReactive*(n: untyped): untyped =
+  var a = newStmtList()
+  a.add newEmptyNode()
+  let t = transform(n, a, newEmptyNode())
+  a[0] = t
+  result = a
+  when defined(debugKaraxDsl):
+    echo repr result
+
+when isMainModule:
+  makeReactive:
+    type
+      Foo = ref object of ReactiveBase
+        x, y: int
+      Bar = ref object of ReactiveBase
+        z: string
+        exported*: int
+      Another = ref object
+        a, b: cstring
+        c: bool
