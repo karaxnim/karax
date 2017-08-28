@@ -108,10 +108,10 @@ template observe(s: cstring): RString =
 proc renderUser(u: User): VNode {.track.} =
   result = buildHtml(tdiv):
     if u.selected:
-      !(firstname <- u.firstname)
+      firstname <- u.firstname
       tdiv:
         textInput firstname, focusA
-      !(lastname <- u.lastname)
+      lastname <- u.lastname
       tdiv:
         textInput lastname, focusB
     else:
