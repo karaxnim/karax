@@ -1,13 +1,12 @@
 
 import vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, reactive
 
-proc newTextInput*(text: RString; focus: RBool): VNode {.track.} =
+proc textInput*(text: RString; focus: RBool): VNode {.track.} =
   proc onFlip(ev: Event; target: VNode) =
     focus <- not focus.value
 
   proc onKeyupEnter(ev: Event; target: VNode) =
     text <- target.value
-    #text.notifyObservers()
 
   proc onkeyup(ev: Event; n: VNode) =
     # keep displayValue up to date, but do not tell the client yet!
@@ -30,29 +29,49 @@ var gu = newRSeq(@[ (User(firstname: "Some", lastname: "Body")),
                     (User(firstname: "Some", lastname: "Two"))])
 var prevSelected: User = nil #newReactive[User](nil)
 
-proc toUI*(): RString =
+proc unselect() =
+  if prevSelected != nil:
+    prevSelected.selected = false
+    notifyObservers(prevSelected)
+    prevSelected = nil
+
+proc select(u: User) =
+  unselect()
+  u.selected = true
+  notifyObservers(u)
+  prevSelected = u
+
+proc toUI*(isFirstname: bool): RString =
   result = RString()
   result.subscribe proc (v: cstring) =
     if v.len > 0:
       let p = prevSelected #selected.value
       if p != nil:
-        # XXX what's happening here?
-        p.firstname = v
+        if isFirstName:
+          p.firstname = v
+        else:
+          p.lastname = v
         notifyObservers(p)
+        unselect()
       errmsg <- ""
     else:
       errmsg <- "name must not be empty"
 
-var inp = toUI()
+var firstname = toUI(true)
+var lastname = toUI(false)
 
 proc adaptFocus(def = false): RBool =
   result = RBool()
   result.value = def
-  result.subscribe proc (hasFocus: bool) =
-    if not hasFocus:
-      inp.notifyObservers()
+  when false:
+    result.subscribe proc (hasFocus: bool) =
+      if not hasFocus:
+        unselect()
+        firstname.notifyObservers()
+        lastname.notifyObservers()
 
-var focus = adaptFocus()
+var focusA = adaptFocus()
+var focusB = adaptFocus()
 
 proc styler(): VStyle =
   result = style(
@@ -61,7 +80,7 @@ proc styler(): VStyle =
     (StyleAttr.paddingRight, cstring"5px"),
     (StyleAttr.height, cstring"30px"),
     (StyleAttr.lineHeight, cstring"30px"),
-    (StyleAttr.border, cstring"solid 8px " & (if focus.value: cstring"red" else: cstring"black")),
+    (StyleAttr.border, cstring"solid 8px " & (if focusA.value: cstring"red" else: cstring"black")),
     (StyleAttr.fontSize, cstring"12px"),
     (StyleAttr.fontWeight, cstring"600")
   )
@@ -88,22 +107,19 @@ template observe(s: cstring): RString =
 
 proc renderUser(u: User): VNode {.track.} =
   result = buildHtml(tdiv):
-    let displayName = u.firstname & " " & u.lastname
     if u.selected:
-      # == selected.value:
-      !(inp <- displayName)
-      newTextInput inp, focus
+      !(firstname <- u.firstname)
+      tdiv:
+        textInput firstname, focusA
+      !(lastname <- u.lastname)
+      tdiv:
+        textInput lastname, focusB
     else:
       button:
         text "..."
         proc onclick(ev: Event; n: VNode) =
-          if prevSelected != nil:
-            prevSelected.selected = false
-            notifyObservers(prevSelected)
-          u.selected = true
-          notifyObservers(u)
-          prevSelected = u
-      text displayName
+          select(u)
+      text u.firstname & " " & u.lastname
     button:
       text "(x)"
       proc onclick(ev: Event; n: VNode) =

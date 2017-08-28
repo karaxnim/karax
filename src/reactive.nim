@@ -52,8 +52,11 @@ proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
     inc rid
     x.id = rid
 
+var inhibited: int
+
 proc broadcast(x: ReactiveBase, msg: Message; pos = 0) =
-  for s in x.sinks: s(msg, pos)
+  if inhibited == 0:
+    for s in x.sinks: s(msg, pos)
 
 var toTrack: proc (msg: Message; pos: int) = nil
 
@@ -220,10 +223,12 @@ proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
 import macros
 
 template protect(r: ReactiveBase; body: untyped) =
-  var tmp: seq[proc(msg: Message, pos: int)]
-  swap(r.sinks, tmp)
+  #var tmp: seq[proc(msg: Message, pos: int)]
+  #swap(r.sinks, tmp)
+  inc inhibited
   body
-  swap(r.sinks, tmp)
+  dec inhibited
+  #swap(r.sinks, tmp)
 
 template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
   when r is ReactiveBase:
