@@ -230,7 +230,6 @@ template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
     addSink r, key, proc(m: Message; pos: int) =
       if m == Changed:
         protect r:
-          echo "runDiff A"
           karax.runDiff(kxi, a, b)
 
 template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
@@ -240,7 +239,6 @@ template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
     #echo "Message: ", m, " ", pos
     if m == Changed:
       protect r:
-        echo "runDiff B"
         karax.runDiff(kxi, a, b)
 
 template doTrackResize*(r: ReactiveBase; a, b: untyped) {.dirty.} =
