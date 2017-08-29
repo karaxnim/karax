@@ -20,7 +20,7 @@ type
   ReactiveBase* = ref object of RootObj ## everything that is a "reactive"
                                         ## value derives from that
     sinks*: SinkSeq
-    dups: JDict[cstring, bool]
+    dups: JDict[cstring, int]
     id: int
   Reactive*[T] = ref object of ReactiveBase
     value*: T
@@ -38,13 +38,16 @@ type
 var rid: int
 
 proc addSink(x: ReactiveBase; key: cstring; sink: proc(msg: Message; pos: int)) =
-  if x.dups == nil: x.dups = newJDict[cstring, bool]()
+  if x.dups == nil: x.dups = newJDict[cstring, int]()
   if not x.dups.contains(key):
-    x.dups[key] = true
+    x.dups[key] = x.sinks.len
     x.sinks.add sink
     if x.id == 0:
       inc rid
       x.id = rid
+  else:
+    # update existing entry:
+    x.sinks[x.dups[key]] = sink
 
 proc addSink(x: ReactiveBase; sink: proc(msg: Message; pos: int)) =
   x.sinks.add sink
@@ -58,12 +61,16 @@ proc broadcast(x: ReactiveBase, msg: Message; pos = 0) =
   if inhibited == 0:
     for s in x.sinks: s(msg, pos)
 
-var toTrack: proc (msg: Message; pos: int) = nil
+var toTrack: seq[(cstring, proc (msg: Message; pos: int))] = @[]
 
-proc now*[T](x: Reactive[T]): T =
-  if toTrack != nil:
-    x.addSink toTrack
-  result = x.value
+template withTrack(key, t, body) =
+  toTrack.add((key, t))
+  body
+  discard toTrack.pop()
+
+proc trackDependency*(r: ReactiveBase) =
+  for t in toTrack:
+    r.addSink t[0], t[1]
 
 template wrapObserver(f: untyped) =
   var state: State
@@ -113,11 +120,6 @@ template glitchFree(f: untyped) =
       if state.stale == 0:
         x.broadcast(msg, pos)
   helper
-
-proc `:=`[T](x: Reactive[T], f: proc(): T) =
-  toTrack = wrapObserver(f())
-  x.value = f()
-  toTrack = nil
 
 proc `<-`*[T](x: Reactive[T], val: T) =
   #if x.value != val:
@@ -204,25 +206,31 @@ proc deleteElem*[T](x: RSeq[T]; y: T) =
     x.broadcast(Mark)
     x.broadcast(Deleted, position)
 
-proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
-  let xl = x.L.value
-  let res = newRSeq[U](xl)
-  for i in 0..<xl:
-    res.s[i] := proc(): U = f(x[i].now)
+when false:
+  proc `:=`[T](x: Reactive[T], f: proc(): T) =
+    toTrack = wrapObserver(f())
+    x.value = f()
+    toTrack = nil
 
-  let reactor = proc (msg: Message, pos: int) =
-    case msg:
-    of Mark, Changed, Unchanged: discard "nothing to do"
-    of Inserted:
-      res.insert(f(x[pos]), pos)
-    of Deleted:
-      res.delete(pos)
-  x.addSink reactor
-  result = res
+  proc map*[T, U](x: RSeq[T], f: proc(x: T): U): RSeq[U] =
+    let xl = x.L.value
+    let res = newRSeq[U](xl)
+    for i in 0..<xl:
+      res.s[i] := proc(): U = f(x[i].now)
+
+    let reactor = proc (msg: Message, pos: int) =
+      case msg:
+      of Mark, Changed, Unchanged: discard "nothing to do"
+      of Inserted:
+        res.insert(f(x[pos]), pos)
+      of Deleted:
+        res.delete(pos)
+    x.addSink reactor
+    result = res
 
 import macros
 
-template protect(r: ReactiveBase; body: untyped) =
+template protect(body: untyped) =
   #var tmp: seq[proc(msg: Message, pos: int)]
   #swap(r.sinks, tmp)
   inc inhibited
@@ -230,14 +238,17 @@ template protect(r: ReactiveBase; body: untyped) =
   dec inhibited
   #swap(r.sinks, tmp)
 
-template trackImpl(r: ReactiveBase; key: cstring; a, b: untyped) =
-  when r is ReactiveBase:
-    addSink r, key, proc(m: Message; pos: int) =
-      if m == Changed:
-        protect r:
-          karax.runDiff(kxi, a, b)
+template trackStart(key: cstring; a, b: untyped) =
+  proc differ(m: Message; pos: int) =
+    if m == Changed:
+      protect:
+        karax.runDiff(kxi, a, b)
+  toTrack.add((key, differ))
 
-template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
+template trackEnd() =
+  discard toTrack.pop()
+
+template doTrack(r: ReactiveBase; a, b: untyped) {.dirty.} =
   bind addSink, Message, RSeq, Changed, Deleted, Inserted
   addSink r, proc(m: Message; pos: int) =
     #when r is RSeq:
@@ -246,7 +257,7 @@ template doTrack*(r: ReactiveBase; a, b: untyped) {.dirty.} =
       protect r:
         karax.runDiff(kxi, a, b)
 
-template doTrackResize*(r: ReactiveBase; a, b: untyped) {.dirty.} =
+template doTrackResize(r: ReactiveBase; a, b: untyped) {.dirty.} =
   bind addSink, Message, RSeq, Changed, Deleted, Inserted
   addSink r, proc(m: Message; pos: int) =
     #when r is RSeq:
@@ -264,8 +275,6 @@ macro track*(procDef: untyped): untyped =
   var inner = copyNimTree(procDef)
   inner[0] = ident($procDef.name & "Inner")
   var call = newCall(inner[0])
-  trackings.add inner
-  trackings.add newAssignment(ident"result", call)
 
   for j in 1..<params.len:
     let x = params[j]
@@ -274,9 +283,11 @@ macro track*(procDef: untyped): untyped =
       let param = x[i]
       call.add(param)
 
-  let key = lineInfo(procDef)
-  for j in 1..<call.len:
-    trackings.add getAst(trackImpl(call[j], key, ident"result", call))
+  trackings.add inner
+  let key = newCall("cstring", newLit lineInfo(procDef))
+  trackings.add getAst(trackStart(key, ident"result", call))
+  trackings.add newAssignment(ident"result", call)
+  trackings.add getAst(trackEnd())
 
   result = copyNimTree(procDef)
   result.body = trackings
@@ -285,7 +296,9 @@ macro track*(procDef: untyped): untyped =
 
 proc generatePrivateAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
   template helper(name, hidden, typ, fieldTyp) {.dirty.} =
-    proc name(self: typ): fieldTyp = self.hidden
+    proc name(self: typ): fieldTyp =
+      trackDependency(self)
+      result = self.hidden
     proc `name=`(self: typ; val: fieldTyp) =
       self.hidden = val
       notifyObservers(self)
@@ -293,7 +306,9 @@ proc generatePrivateAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
 
 proc generatePublicAccessors(name, hidden, typ, fieldTyp: NimNode): NimNode =
   template helper(name, hidden, typ, fieldTyp) {.dirty.} =
-    proc name*(self: typ): fieldTyp = self.hidden
+    proc name*(self: typ): fieldTyp =
+      trackDependency(self)
+      result = self.hidden
     proc `name=`*(self: typ; val: fieldTyp) =
       self.hidden = val
       notifyObservers(self)
