@@ -164,7 +164,7 @@ proc newReactive*[T](x: T): Reactive[T] =
 proc rstr*(x: cstring): RString =
   result = RString(value: x)
 
-proc newRSeq*[T](len: int): RSeq[T] =
+proc newRSeq*[T](len: int = 0): RSeq[T] =
   result = RSeq[T](s: newSeq[T](len), L: newReactive[int](0))
 
 proc newRSeq*[T](data: seq[T]): RSeq[T] =
@@ -354,7 +354,7 @@ template vmap*(x: RSeq; elem, f: untyped): VNode =
   tmp
 
 template vmapIt*(x: RSeq; elem, call: untyped): VNode =
-  var it {.inject}: type(x[0])
+  var it {.inject.}: type(x[0])
   let tmp = buildHtml(elem):
     for i in 0..<len(x):
       it = x[i]
