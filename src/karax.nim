@@ -75,7 +75,7 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
     let action = action
     let n = n
     result = proc (ev: Event) =
-      if n.kind == VNodeKind.textarea or n.kind == VNodeKind.input:
+      if n.kind == VNodeKind.textarea or n.kind == VNodeKind.input or n.kind == VNodeKind.select:
         keyeventBody()
       else: action(ev, n)
 
@@ -370,10 +370,11 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
 
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
-    if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
-      if oldNode.text != newNode.text:
-        oldNode.text = newNode.text
-        oldNode.dom.value = newNode.text
+    when false:
+      if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
+        if oldNode.text != newNode.text:
+          oldNode.text = newNode.text
+          oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
     let oldLength = oldNode.len
