@@ -583,7 +583,7 @@ proc javaEnabled*(h: Navigator): bool
 # ClassList "methods"
 proc add*(c: ClassList, class: cstring)
 proc remove*(c: ClassList, class: cstring)
-proc contains*(c: ClassList, class: cstring):bool
+proc contains*(c: ClassList, class: cstring): bool
 proc toggle*(c: ClassList, class: cstring)
 
 # Style "methods"
@@ -644,9 +644,9 @@ type
 proc getBoundingClientRect*(e: Node): BoundingRect {.
   importcpp: "getBoundingClientRect", nodecl.}
 proc clientHeight*(): int {.
-  importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl}
+  importcpp: "(window.innerHeight || document.documentElement.clientHeight)@", nodecl.}
 proc clientWidth*(): int {.
-  importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl}
+  importcpp: "(window.innerWidth || document.documentElement.clientWidth)@", nodecl.}
 
 proc inViewport*(el: Node): bool =
   let rect = el.getBoundingClientRect()
