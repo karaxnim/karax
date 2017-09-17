@@ -23,7 +23,7 @@ proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
   proc statechange(r: HttpRequest; cb: proc()) {.importcpp: "#.onreadystatechange = #".}
   proc send(r: HttpRequest; data: cstring) {.importcpp: "#.send(#)".}
   proc open(r: HttpRequest; meth, url: cstring; async: bool) {.importcpp: "#.open(@)".}
-  proc newRequest(): HttpRequest {.importcpp: "new XMLHttpRequest(@)",}
+  proc newRequest(): HttpRequest {.importcpp: "new XMLHttpRequest(@)".}
 
   var this {.importc: "this".}: ThisObj
   let ajax = newRequest()
