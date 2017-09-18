@@ -133,6 +133,7 @@ type
     updatedImpl*: proc(self, newInstance: VComponent)
     onAttachImpl*: proc(self: VComponent)
     onDetachImpl*: proc(self: VComponent)
+    realDomImpl*: proc(self: VComponent): kdom.Node
     version*: int         ## Update this to trigger a redraw by karax. Usually you
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
@@ -185,7 +186,7 @@ proc getDebugId(): int =
   gid
 
 template newComponent*[T](t: typeDesc[T];
-                 render: (proc(self: VComponent): VNode) not nil,
+                 render: (proc(self: VComponent): VNode) = nil,
                  onAttach: proc(self: VComponent) = nil,
                  onDetach: proc(self: VComponent) = nil,
                  changed: (proc(self, newInstance: VComponent): bool) = defaultChangedImpl,
@@ -219,10 +220,28 @@ proc getAttr*(n: VNode; key: cstring): cstring =
 proc takeOverAttr*(newNode, oldNode: VNode) =
   shallowCopy oldNode.attrs, newNode.attrs
 
+proc takeOverFields*(newNode, oldNode: VNode) =
+  template take(field) =
+    shallowCopy oldNode.field, newNode.field
+  take kind
+  take index
+  take id
+  take class
+  take text
+  take kids
+  take attrs
+  take events
+  take style
+  take dom
+
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
 proc add*(parent, kid: VNode) = parent.kids.add kid
+proc delete*(parent: VNode; position: int) =
+  parent.kids.delete(position)
+proc insert*(parent, kid: VNode; position: int) =
+   parent.kids.insert(kid, position)
 proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, index: -1)
 
 proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =

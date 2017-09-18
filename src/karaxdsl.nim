@@ -74,7 +74,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
     result = n
-  of nnkCallKinds:
+  of nnkCallKinds - {nnkInfix}:
     let op = getName(n[0])
     let ck = isComponent(op)
     if ck != ComponentKind.None:

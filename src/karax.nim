@@ -37,6 +37,7 @@ type
     patchLenV: int
     runCount: int
     components: seq[ComponentPair]
+    surpressRedraws*: bool
     when defined(stats):
       recursion: int
 
@@ -74,7 +75,7 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
     let action = action
     let n = n
     result = proc (ev: Event) =
-      if n.kind == VNodeKind.textarea or n.kind == VNodeKind.input:
+      if n.kind == VNodeKind.textarea or n.kind == VNodeKind.input or n.kind == VNodeKind.select:
         keyeventBody()
       else: action(ev, n)
 
@@ -117,7 +118,7 @@ proc applyEvents(n: VNode; kxi: KaraxInstance) =
   for i in 0..<len(n.events):
     n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
 
-proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
+proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
@@ -134,6 +135,7 @@ proc vnodeToDom(n: VNode; kxi: KaraxInstance): Node =
     return result
   elif n.kind == VNodeKind.component:
     let x = VComponent(n)
+    if x.realDomImpl != nil: return x.realDomImpl(x)
     if x.onAttachImpl != nil: x.onAttachImpl(x)
     assert x.renderImpl != nil
     if x.expanded == nil:
@@ -175,16 +177,17 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
     result = true
     if n.kind != VNodeKind.text:
       if e.len != n.len:
-        kout e.len, n.len, toTag[n.kind], nesting
+        echo "expected ", e.len, " real ", n.len, toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
-    kout toTag[n.kind], e.nodename
+    echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
   x.parentNode.replaceChild(newTree, x)
+  newTree.id = id
 
 type
   EqResult = enum
@@ -331,7 +334,8 @@ proc applyPatch(kxi: KaraxInstance) =
       if n.kind == VNodeKind.component:
         let x = VComponent(n)
         if x.onDetachImpl != nil: x.onDetachImpl(x)
-      n.dom = nil
+      # XXX for some reason this causes assertion errors otherwise:
+      if not kxi.surpressRedraws: n.dom = nil
   kxi.patchLen = 0
   for i in 0..<kxi.patchLenV:
     let p = kxi.patchesV[i]
@@ -366,10 +370,11 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
 
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
-    if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
-      if oldNode.text != newNode.text:
-        oldNode.text = newNode.text
-        oldNode.dom.value = newNode.text
+    when false:
+      if oldNode.kind == VNodeKind.input or oldNode.kind == VNodeKind.textarea:
+        if oldNode.text != newNode.text:
+          oldNode.text = newNode.text
+          oldNode.dom.value = newNode.text
 
     let newLength = newNode.len
     let oldLength = oldNode.len
@@ -463,24 +468,42 @@ proc applyComponents(kxi: KaraxInstance) =
   while i < kxi.components.len:
     let x = kxi.components[i].oldNode
     let newNode = kxi.components[i].newNode
-    if x.changedImpl != nil and x.changedImpl(x, newNode):
+    when defined(karaxDebug):
+      echo "Processing component ", newNode.text, " changed impl set ", x.changedImpl != nil
+    if x.realDomImpl != nil:
+      let current = kxi.components[i].current
+      let parent = kxi.components[i].parent
+      kxi.addPatch(pkReplace, parent, current, x)
+    elif x.changedImpl != nil and x.changedImpl(x, newNode):
+      when defined(karaxDebug):
+        echo "Component ", newNode.text, " did change"
       let current = kxi.components[i].current
       let parent = kxi.components[i].parent
       x.updatedImpl(x, newNode)
       let oldExpanded = x.expanded
       x.expanded = x.renderImpl(x)
+      when defined(karaxDebug):
+        echo "Component ", newNode.text, " re-rendered"
       x.renderedVersion = x.version
       if oldExpanded == nil:
         detach(x)
         kxi.addPatch(pkReplace, parent, current, x.expanded)
+        when defined(karaxDebug):
+          echo "Component ", newNode.text, ": old expansion didn't exist"
       else:
         let res = diff(x.expanded, oldExpanded, parent, current, kxi)
         if res == usenewNode:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered a DOM change (case A)"
           discard "diff created a patchset for us, so this is fine"
         elif res != different:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered no DOM change whatsoever"
           x.expanded = oldExpanded
           assert oldExpanded.dom != nil, "old expanded.dom is nil"
         else:
+          when defined(karaxDebug):
+            echo "Component ", newNode.text, ": re-render triggered a DOM change (case B)"
           assert x.expanded.dom != nil, "expanded.dom is nil"
     inc i
   setLen(kxi.components, 0)
@@ -492,6 +515,40 @@ when defined(stats):
       m = max(m, depth(n[i], total))
     result = m + 1
     inc total
+
+proc runDel*(kxi: KaraxInstance; parent: VNode; position: int) =
+  detach(parent[position])
+  let current = parent.dom
+  kxi.addPatch(pkRemove, current, current.childNodes[position], nil)
+  parent.delete(position)
+  applyPatch(kxi)
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+
+proc runIns*(kxi: KaraxInstance; parent, kid: VNode; position: int) =
+  let current = parent.dom
+  if position >= parent.len:
+    kxi.addPatch(pkAppend, current, nil, kid)
+    parent.add(kid)
+  else:
+    let before = current.childNodes[position]
+    kxi.addPatch(pkInsertBefore, current, before, kid)
+    parent.insert(kid, position)
+  applyPatch(kxi)
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+
+proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
+  let olddom = oldNode.dom
+  doAssert olddom != nil
+  discard diff(newNode, oldNode, nil, olddom, kxi)
+  # this is a bit nasty: Since we cannot patch the 'parent' of
+  # the current VNode (because we don't store it at all!), we
+  # need to override the fields individually:
+  takeOverFields(newNode, oldNode)
+  applyComponents(kxi)
+  applyPatch(kxi)
+  if kxi.currentTree == oldNode:
+    kxi.currentTree = newNode
+  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
@@ -562,6 +619,18 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
   kxi = result
   window.onload = init
 
+proc setInitializer*(renderer: proc (): VNode, root: cstring = "ROOT",
+                    clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+  ## Setup Karax. Usually the return value can be ignored.
+  result = KaraxInstance(rootId: root, renderer: renderer,
+                        postRenderCallback: clientPostRenderCallback,
+                        patches: newSeq[Patch](60),
+                        patchesV: newSeq[PatchV](30),
+                        components: @[],
+                        surpressRedraws: true)
+  kxi = result
+  window.onload = init
+
 proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
                       kxi: KaraxInstance = kxi) =
   ## Implements the foundation of Karax's event management.
@@ -571,7 +640,19 @@ proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
   ## a ``redraw``.
   proc wrapper(ev: Event; n: VNode) =
     action(ev, n)
-    redraw(kxi)
+    if not kxi.surpressRedraws: redraw(kxi)
+  addEventListener(n, k, wrapper)
+
+proc addEventHandler*(n: VNode; k: EventKind; action: proc();
+                      kxi: KaraxInstance = kxi) =
+  ## Implements the foundation of Karax's event management.
+  ## Karax DSL transforms ``tag(onEvent = handler)`` to
+  ## ``tempNode.addEventHandler(tagNode, EventKind.onEvent, wrapper)``
+  ## where ``wrapper`` calls the passed ``action`` and then triggers
+  ## a ``redraw``.
+  proc wrapper(ev: Event; n: VNode) =
+    action()
+    if not kxi.surpressRedraws: redraw(kxi)
   addEventListener(n, k, wrapper)
 
 proc setOnHashChange*(action: proc (hashPart: cstring)) =
