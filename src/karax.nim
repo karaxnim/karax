@@ -539,3 +539,9 @@ proc loadScript*(jsfilename: cstring; kxi: KaraxInstance = kxi) =
   s.setAttr "src", jsfilename
   body.prepend(s)
   redraw(kxi)
+
+proc runLater*(action: proc(); later = 400): Timeout {.discardable.} =
+  proc wrapper() =
+    action()
+    redraw()
+  result = setTimeout(wrapper, later)
