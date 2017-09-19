@@ -4,7 +4,7 @@ from strutils import startsWith, toLowerAscii
 
 const
   StmtContext = ["kout", "inc", "echo", "dec", "!"]
-  SpecialAttrs = ["id", "class", "value", "key", "style"]
+  SpecialAttrs = ["id", "class", "value", "index", "style"]
 
 proc getName(n: NimNode): string =
   case n.kind
@@ -59,9 +59,22 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     result.add n[0]
     for i in 1 ..< n.len:
       result.add tcall2(n[i], tmpContext)
+  of nnkProcDef:
+    let name = getName n[0]
+    if name.startsWith"on":
+      # turn it into an anon proc:
+      let anon = copyNimTree(n)
+      anon[0] = newEmptyNode()
+      if tmpContext == nil:
+        error "no VNode to attach the event handler to"
+      else:
+        result = newCall(bindSym"addEventHandler", tmpContext,
+                         newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+    else:
+      result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
     result = n
-  of nnkCallKinds:
+  of nnkCallKinds - {nnkInfix}:
     let op = getName(n[0])
     let ck = isComponent(op)
     if ck != ComponentKind.None:
@@ -87,6 +100,8 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newDotAsgn(tmp, key, x[1])
           elif eqIdent(key, "setFocus"):
             result.add newCall(key, tmp, x[1], ident"kxi")
+          elif eqIdent(key, "events"):
+            result.add newCall(bindSym"mergeEvents", tmp, x[1])
           else:
             result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
         elif ck != ComponentKind.Tag:
@@ -100,7 +115,28 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       else:
         result.add newCall(bindSym"add", tmpContext, tmp)
     elif tmpContext != nil and op notin StmtContext:
-      result = newCall(bindSym"add", tmpContext, n)
+      var hasEventHandlers = false
+      for i in 1..<n.len:
+        let it = n[i]
+        if it.kind in {nnkProcDef, nnkStmtList}:
+          hasEventHandlers = true
+          break
+      if not hasEventHandlers:
+        result = newCall(bindSym"add", tmpContext, n)
+      else:
+        let tmp = genSym(nskLet, "tmp")
+        var slicedCall = newCall(n[0])
+        let ex = newTree(nnkStmtListExpr)
+        ex.add newEmptyNode() # will become the let statement
+        for i in 1..<n.len:
+          let it = n[i]
+          if it.kind in {nnkProcDef, nnkStmtList}:
+            ex.add tcall2(it, tmp)
+          else:
+            slicedCall.add it
+        ex[0] = newLetStmt(tmp, slicedCall)
+        ex.add tmp
+        result = newCall(bindSym"add", tmpContext, ex)
     elif op == "!" and n.len == 2:
       result = n[1]
     else:

@@ -52,12 +52,16 @@ proc testInsert() =
   let a = buildHtml(tdiv):
     ul:
       li: text "A"
-      li: text "C"
+      li:
+        button:
+          text "C"
   let b = buildHtml(tdiv):
     ul:
       li: text "A"
       li: text "B"
-      li: text "C"
+      li:
+        button:
+          text "C"
   doDiff(a, b, "pkInsertBefore li B")
 
 proc testInsert2() =
@@ -66,7 +70,9 @@ proc testInsert2() =
       tdiv:
         ul:
           li: text "A"
-          li: text "D"
+          li:
+            button:
+              text "D"
   let b = buildHtml(tdiv):
     tdiv:
       tdiv:
@@ -74,7 +80,9 @@ proc testInsert2() =
           li: text "A"
           li: text "B"
           li: text "C"
-          li: text "D"
+          li:
+            button:
+              text "D"
   doDiff(a, b, "pkInsertBefore li B", "pkInsertBefore li C")
 
 proc testDelete() =
@@ -108,7 +116,8 @@ proc testDeleteMiddle() =
       li:
         tdiv: text "G"
       li:
-        tdiv: text "H"
+        button:
+          tdiv: text "H"
   let b = buildHtml(tdiv):
     ul:
       li:
@@ -124,7 +133,8 @@ proc testDeleteMiddle() =
       li:
         tdiv: text "F"
       li:
-        tdiv: text "H"
+        button:
+          tdiv: text "H"
   doDiff(a, b, "pkDetach li div G", "pkRemove nil")
 
 proc createEntry(id: cstring): VNode =
@@ -146,14 +156,14 @@ proc testWild() =
   let a = createEntries(entries)
   entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
   let b = createEntries(entries)
-  doDiff(a, b, "pkDetach button 7", "pkRemove nil", "pkDetach div 7", "pkRemove nil")
+  doDiff(a, b, "pkDetach button 7", "pkRemove nil", "pkDetach div 5", "pkRemove nil")
 
 proc testWildInsert() =
   var entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
   let a = createEntries(entries)
   entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring"7", cstring("5")]
   let b = createEntries(entries)
-  doDiff(a, b, "pkInsertBefore button 7", "pkInsertBefore div 7")
+  doDiff(a, b, "pkInsertBefore button 7", "pkAppend div 5")
 
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard)
 
