@@ -7,7 +7,11 @@ const
   html = """
 <!DOCTYPE html>
 <html>
-<head><title>$1</title></head>
+<head>
+  <title>$1</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.5.3/css/bulma.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
 <body id="body">
 <div id="ROOT" />
 <script type="text/javascript" src="$1.js"></script>
