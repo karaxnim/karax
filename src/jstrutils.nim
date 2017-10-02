@@ -6,6 +6,10 @@ proc split*(s, sep: cstring; max: int): seq[cstring] {.importcpp, nodecl.}
 
 proc startsWith*(a, b: cstring): bool {.importcpp: "startsWith", nodecl.}
 proc contains*(a, b: cstring): bool {.importcpp: "(#.indexOf(#)>=0)", nodecl.}
+
+proc containsIgnoreCase*(a, b: cstring): bool {.
+  importcpp: """(#.search(new RegExp(#.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$$\|]/g, "\\$$&") , "i"))>=0)""", nodecl.}
+
 proc substr*(s: cstring; start: int): cstring {.importcpp: "substr", nodecl.}
 proc substr*(s: cstring; start, length: int): cstring {.importcpp: "substr", nodecl.}
 

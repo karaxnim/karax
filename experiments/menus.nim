@@ -3,38 +3,6 @@
 include karaxprelude
 import jstrutils, kdom
 
-var
-  candidates: seq[cstring] = @[]
-  selected: cstring
-  showCandidates: bool
-
-proc autocomplete(choices: seq[cstring]): VNode =
-  proc onkeyuplater(ev: Event; n: VNode) =
-    let v = n.value
-    if v.len > 0:
-      candidates.setLen 0
-      for c in choices:
-        if v in c: candidates.add(c)
-
-  let inp = buildHtml:
-    input(onkeyuplater = onkeyuplater,
-      #onblur = proc () = showCandidates = false,
-      onfocus = proc () = showCandidates = true)
-
-  proc select(t: cstring): proc() =
-    result = proc() =
-      selected = t
-      showCandidates = false
-      inp.text = t
-      inp.dom.value = t
-
-  result = buildHtml(tdiv):
-    inp
-    if showCandidates: # or true:
-      for candy in candidates:
-        tdiv(onclick = select(candy)):
-          text candy
-
 proc contentA(): VNode =
   result = buildHtml(tdiv):
     text "content A"
@@ -46,28 +14,6 @@ proc contentB(): VNode =
 proc contentC(): VNode =
   result = buildHtml(tdiv):
     text "content C"
-    autocomplete(@[cstring"ActionScript",
-      "AppleScript",
-      "Asp",
-      "BASIC",
-      "C",
-      "C++",
-      "Clojure",
-      "COBOL",
-      "Erlang",
-      "Fortran",
-      "Groovy",
-      "Haskell",
-      "Java",
-      "JavaScript",
-      "Lisp",
-      "Nim",
-      "Perl",
-      "PHP",
-      "Python",
-      "Ruby",
-      "Scala",
-      "Scheme"])
 
 
 
