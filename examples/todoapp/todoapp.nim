@@ -1,5 +1,5 @@
 
-import vdom, karax, karaxdsl, jstrutils, compact, localstorage
+import karax / [vdom, karax, karaxdsl, jstrutils, compact, localstorage]
 
 type
   Filter = enum
