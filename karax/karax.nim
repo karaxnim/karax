@@ -143,7 +143,6 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
     return result
   elif n.kind == VNodeKind.component:
     let x = VComponent(n)
-    if x.realDomImpl != nil: return x.realDomImpl(x)
     if x.onAttachImpl != nil: x.onAttachImpl(x)
     assert x.renderImpl != nil
     if x.expanded == nil:
@@ -479,11 +478,7 @@ proc applyComponents(kxi: KaraxInstance) =
     let newNode = kxi.components[i].newNode
     when defined(karaxDebug):
       echo "Processing component ", newNode.text, " changed impl set ", x.changedImpl != nil
-    if x.realDomImpl != nil:
-      let current = kxi.components[i].current
-      let parent = kxi.components[i].parent
-      kxi.addPatch(pkReplace, parent, current, x)
-    elif x.changedImpl != nil and x.changedImpl(x, newNode):
+    if x.changedImpl != nil and x.changedImpl(x, newNode):
       when defined(karaxDebug):
         echo "Component ", newNode.text, " did change"
       let current = kxi.components[i].current

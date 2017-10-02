@@ -1,7 +1,7 @@
 ## Example that shows how to accomplish an "infinitely scrolling" app.
 
-include karaxprelude
-import jstrutils, kdom, vstyles
+include karax/prelude
+import karax / [jstrutils, kdom, vstyles]
 
 var entries: seq[cstring] = @[]
 for i in 1..500:

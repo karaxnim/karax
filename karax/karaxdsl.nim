@@ -1,6 +1,9 @@
 
-import macros, karax, vdom, compact
+import macros, vdom, compact
 from strutils import startsWith, toLowerAscii
+
+when defined(js):
+  import karax
 
 const
   StmtContext = ["kout", "inc", "echo", "dec", "!"]
@@ -32,6 +35,11 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   # (except for the last child of the macros we consider here),
   # lets, consts, types can be considered as expressions
   # case is complex, calls are assumed to produce a value.
+  when defined(js):
+    template evHandler(): untyped = bindSym"addEventHandler"
+  else:
+    template evHandler(): untyped = ident"addEventHandler"
+
   case n.kind
   of nnkLiterals, nnkIdent, nnkSym, nnkDotExpr, nnkBracketExpr:
     if tmpContext != nil:
@@ -68,7 +76,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       if tmpContext == nil:
         error "no VNode to attach the event handler to"
       else:
-        result = newCall(bindSym"addEventHandler", tmpContext,
+        result = newCall(evHandler(), tmpContext,
                          newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
     else:
       result = n
@@ -94,7 +102,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         if x.kind == nnkExprEqExpr:
           let key = getName x[0]
           if key.startsWith("on"):
-            result.add newCall(bindSym"addEventHandler",
+            result.add newCall(evHandler(),
               tmp, newDotExpr(bindSym"EventKind", x[0]), x[1], ident("kxi"))
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])

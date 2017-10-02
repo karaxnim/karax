@@ -1,5 +1,5 @@
 
-import karax, karaxdsl, vdom, kdom, compact
+import karax / [karax, karaxdsl, vdom, kdom, compact]
 
 const
   Play = 0

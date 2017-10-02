@@ -1,4 +1,4 @@
-include karaxprelude
+include ../karax/prelude
 
 block:
   type

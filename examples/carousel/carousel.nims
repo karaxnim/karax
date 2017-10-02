@@ -1,1 +1,1 @@
---path: "../../src"
+--path: "../../karax"

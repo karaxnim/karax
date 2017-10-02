@@ -1,5 +1,8 @@
 
-import kdom, macros, jdict
+import macros, kbase
+
+when defined(js):
+  import kdom, jdict
 
 type
   StyleAttr* {.pure.} = enum
@@ -200,10 +203,10 @@ type
 macro buildLookupTables(): untyped =
   var e = newTree(nnkBracket)
   for i in low(StyleAttr)..high(StyleAttr):
-    e.add(newCall("cstring", newLit($i)))
+    e.add(newCall("kstring", newLit($i)))
   template tmpl(e) {.dirty.} =
     const
-      toStyleAttrName: array[StyleAttr, cstring] = e
+      toStyleAttrName: array[StyleAttr, kstring] = e
   result = getAst tmpl(e)
 
 buildLookupTables()
@@ -212,8 +215,14 @@ buildLookupTables()
 # it's relevant.
 # even index: key, odd index: value; done this way for memory efficiency:
 
-type
-  VStyle* = JSeq[cstring]
+when defined(js):
+  type
+    VStyle* = JSeq[cstring]
+else:
+  type
+    VStyle* = ref seq[string]
+  proc len*(a: VStyle): int = len(a[])
+  proc add*(a: VStyle; x: string) = add(a[], x)
 
 proc eq*(a, b: VStyle): bool =
   if a.isNil:
@@ -225,9 +234,7 @@ proc eq*(a, b: VStyle): bool =
     if a[i] != b[i]: return false
   return true
 
-proc kout[T](x: T) {.importc: "console.log", varargs.}
-
-proc setAttr(s: VStyle; a, value: cstring) {.noSideEffect.} =
+proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
   var i = 0
   while i < s.len:
     if s[i] == a:
@@ -247,11 +254,11 @@ proc setAttr(s: VStyle; a, value: cstring) {.noSideEffect.} =
   s.add a
   s.add value
 
-proc setAttr*(s: VStyle; attr: StyleAttr, value: cstring) {.noSideEffect.} =
+proc setAttr*(s: VStyle; attr: StyleAttr, value: kstring) {.noSideEffect.} =
   assert value != nil, "value must not be nil"
   setAttr(s, toStyleAttrName[attr], value)
 
-proc getAttr*(s: VStyle; attr: StyleAttr): cstring {.noSideEffect.} =
+proc getAttr*(s: VStyle; attr: StyleAttr): kstring {.noSideEffect.} =
   ## returns 'nil' if the attribute has not been set.
   var i = 0
   let a = toStyleAttrName[attr]
@@ -262,44 +269,60 @@ proc getAttr*(s: VStyle; attr: StyleAttr): cstring {.noSideEffect.} =
       return nil
     inc i, 2
 
-proc style*(pairs: varargs[(StyleAttr, cstring)]): VStyle {.noSideEffect.} =
+proc style*(pairs: varargs[(StyleAttr, kstring)]): VStyle {.noSideEffect.} =
   ## constructs a VStyle object from a list of (attribute, value)-pairs.
-  result = newJSeq[cstring]()
+  when defined(js):
+    result = newJSeq[cstring]()
+  else:
+    new(result)
+    result[] = @[]
   for x in pairs:
     result.setAttr x[0], x[1]
 
-proc style*(a: StyleAttr; val: cstring): VStyle {.noSideEffect.} =
+proc style*(a: StyleAttr; val: kstring): VStyle {.noSideEffect.} =
   ## constructs a VStyle object from a single (attribute, value)-pair.
-  result = newJSeq[cstring]()
+  when defined(js):
+    result = newJSeq[cstring]()
+  else:
+    new(result)
+    result[] = @[]
   result.setAttr a, val
 
-proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #", noSideEffect.}
+when defined(js):
+  proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #", noSideEffect.}
+
+  proc applyStyle*(n: Node; s: VStyle) {.noSideEffect.} =
+    ## apply the style to the real DOM node ``n``.
+
+    #n.style = Style() # optimized, this is a hotspot:
+    {.emit: "`n`.style = {};".}
+    for i in countup(0, s.len-1, 2):
+      n.style.setStyle(s[i], s[i+1])
 
 proc merge*(a, b: VStyle): VStyle {.noSideEffect.} =
   ## merges two styles. ``b`` takes precedence over ``a``.
-  result = newJSeq[cstring]()
+  when defined(js):
+    result = newJSeq[cstring]()
+  else:
+    new(result)
+    result[] = @[]
   for i in 0..<a.len:
     result.add a[i]
   for i in countup(0, b.len-1, 2):
     setAttr(result, b[i], b[i+1])
 
-proc applyStyle*(n: Node; s: VStyle) {.noSideEffect.} =
-  ## apply the style to the real DOM node ``n``.
-
-  #n.style = Style() # optimized, this is a hotspot:
-  {.emit: "`n`.style = {};".}
-  for i in countup(0, s.len-1, 2):
-    n.style.setStyle(s[i], s[i+1])
-
-iterator pairs*(s: VStyle): (cstring, cstring) {.noSideEffect.} =
+iterator pairs*(s: VStyle): (kstring, kstring) {.noSideEffect.} =
   if s != nil:
     for i in countup(0, s.len-1, 2):
       yield (s[i], s[i+1])
 
-import jstrutils
+when defined(js):
+  import jstrutils
+else:
+  template `&`(x: untyped): untyped = $x
 
-proc rgb*(r, g, b: range[0..255]): cstring =
-  cstring"rgb(" & &r & cstring", " & &g & cstring", " & &b & cstring")"
+proc rgb*(r, g, b: range[0..255]): kstring =
+  kstring"rgb(" & &r & kstring", " & &g & kstring", " & &b & kstring")"
 
-proc rgba*(r, g, b: range[0..255], alpha: float): cstring =
-  cstring"rgba(" & &r & cstring", " & &g & cstring", " & &b & cstring", " & &alpha & cstring")"
+proc rgba*(r, g, b: range[0..255], alpha: float): kstring =
+  kstring"rgba(" & &r & kstring", " & &g & kstring", " & &b & kstring", " & &alpha & kstring")"

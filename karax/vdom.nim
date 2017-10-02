@@ -1,7 +1,13 @@
 ## Virtual DOM implementation for Karax.
 
-from kdom import Event, Node
-import shash, macros, vstyles
+when defined(js):
+  from kdom import Event, Node
+else:
+  type
+    Event* = ref object
+    Node* = ref object
+
+import macros, vstyles, kbase
 from strutils import toUpperAscii
 
 type
@@ -88,15 +94,15 @@ macro buildLookupTables(): untyped =
   for i in low(VNodeKind)..high(VNodeKind):
     let x = $i
     let y = if x[0] == '#': x else: toUpperAscii(x)
-    a.add(newCall("cstring", newLit(y)))
+    a.add(newCall("kstring", newLit(y)))
   var e = newTree(nnkBracket)
   for i in low(EventKind)..high(EventKind):
-    e.add(newCall("cstring", newLit(substr($i, 2))))
+    e.add(newCall("kstring", newLit(substr($i, 2))))
 
   template tmpl(a, e) {.dirty.} =
     const
-      toTag*: array[VNodeKind, cstring] = a
-      toEventName*: array[EventKind, cstring] = e
+      toTag*: array[VNodeKind, kstring] = a
+      toEventName*: array[EventKind, kstring] = e
 
   result = getAst tmpl(a, e)
 
@@ -108,15 +114,15 @@ type
 
   EventHandlers* = seq[(EventKind, EventHandler, NativeEventHandler)]
 
-  VKey* = cstring
+  VKey* = kstring
 
   VNode* = ref object of RootObj
     kind*: VNodeKind
     index*: int ## a generally useful 'index'
-    id*, class*, text*: cstring
+    id*, class*, text*: kstring
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
-    attrs: seq[cstring]
+    attrs: seq[kstring]
     events*: EventHandlers
     when false:
       hash*: Hash
@@ -133,7 +139,6 @@ type
     updatedImpl*: proc(self, newInstance: VComponent)
     onAttachImpl*: proc(self: VComponent)
     onDetachImpl*: proc(self: VComponent)
-    realDomImpl*: proc(self: VComponent): kdom.Node
     version*: int         ## Update this to trigger a redraw by karax. Usually you
                           ## should call 'markDirty' instead which is an alias for
                           ## 'inc version'.
@@ -143,22 +148,22 @@ type
                           ## expanded to.
     debugId*: int
 
-proc value*(n: VNode): cstring = n.text
-proc `value=`*(n: VNode; v: cstring) = n.text = v
+proc value*(n: VNode): kstring = n.text
+proc `value=`*(n: VNode; v: kstring) = n.text = v
 
 proc intValue*(n: VNode): int = n.index
 proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, index: i)
 proc vn*(b: bool): VNode = VNode(kind: VNodeKind.int, index: ord(b))
-proc vn*(x: cstring): VNode = VNode(kind: VNodeKind.text, index: -1, text: x)
+proc vn*(x: kstring): VNode = VNode(kind: VNodeKind.text, index: -1, text: x)
 
 template callThunk*(fn: typed; n: VNode): untyped =
   ## for internal usage only.
   fn(n.kids)
 
-proc vthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
+proc vthunk*(name: kstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.vthunk, text: name, index: -1, kids: @args)
 
-proc dthunk*(name: cstring; args: varargs[VNode, vn]): VNode =
+proc dthunk*(name: kstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.dthunk, text: name, index: -1, kids: @args)
 
 proc setEventIfNoConflict(v: VNode; kind: EventKind; handler: EventHandler) =
@@ -193,7 +198,7 @@ template newComponent*[T](t: typeDesc[T];
                  updated: proc(self, newInstance: VComponent) = defaultUpdatedImpl): T =
   ## Use this template to create new components.
   T(kind: VNodeKind.component, index: -1,
-    text: cstring(astToStr(t)), renderImpl: render,
+    text: kstring(astToStr(t)), renderImpl: render,
     changedImpl: changed, updatedImpl: updated,
     onAttachImpl: onAttach, onDetachImpl: onDetach,
     debugId: getDebugId())
@@ -202,7 +207,7 @@ template markDirty*(c: VComponent) =
   ## mark the component as dirty so that it is re-rendered.
   inc c.version
 
-proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
+proc setAttr*(n: VNode; key: kstring; val: kstring = "") =
   if n.attrs.isNil:
     n.attrs = @[key, val]
   else:
@@ -213,7 +218,7 @@ proc setAttr*(n: VNode; key: cstring; val: cstring = "") =
     n.attrs.add key
     n.attrs.add val
 
-proc getAttr*(n: VNode; key: cstring): cstring =
+proc getAttr*(n: VNode; key: kstring): kstring =
   for i in countup(0, n.attrs.len-2, 2):
     if n.attrs[i] == key: return n.attrs[i+1]
 
@@ -237,7 +242,12 @@ proc takeOverFields*(newNode, oldNode: VNode) =
 proc len*(x: VNode): int = x.kids.len
 proc `[]`*(x: VNode; idx: int): VNode = x.kids[idx]
 proc `[]=`*(x: VNode; idx: int; y: VNode) = x.kids[idx] = y
-proc add*(parent, kid: VNode) = parent.kids.add kid
+
+proc add*(parent, kid: VNode) =
+  when not defined(js) and not defined(nimNoNil):
+    if parent.kids.isNil: parent.kids = @[]
+  parent.kids.add kid
+
 proc delete*(parent: VNode; position: int) =
   parent.kids.delete(position)
 proc insert*(parent, kid: VNode; position: int) =
@@ -248,18 +258,19 @@ proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =
   result = newVNode(kind)
   for k in kids: result.add k
 
-proc tree*(kind: VNodeKind; attrs: openarray[(cstring, cstring)];
+proc tree*(kind: VNodeKind; attrs: openarray[(kstring, kstring)];
            kids: varargs[VNode]): VNode =
   result = tree(kind, kids)
   for a in attrs: result.setAttr(a[0], a[1])
 
-proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: cstring(s), index: -1)
-proc text*(s: cstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
+when defined(js):
+  proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: kstring(s), index: -1)
+proc text*(s: kstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]
 
-iterator attrs*(n: VNode): (cstring, cstring) =
+iterator attrs*(n: VNode): (kstring, kstring) =
   for i in countup(0, n.attrs.len-2, 2):
     yield (n.attrs[i], n.attrs[i+1])
 
@@ -324,7 +335,91 @@ when false:
         h &= child.hash
     n.hash = h
 
-proc `$`*(n: VNode): cstring =
-  var res = ""
-  toString(n, res, 0)
-  result = cstring(res)
+
+proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
+  ## adds the textual representation of `n` to `result`.
+
+  proc addEscapedAttr(result: var string, s: kstring) =
+    # `addEscaped` alternative with less escaped characters.
+    # Only to be used for escaping attribute values enclosed in double quotes!
+    for c in items(s):
+      case c
+      of '<': result.add("&lt;")
+      of '>': result.add("&gt;")
+      of '&': result.add("&amp;")
+      of '"': result.add("&quot;")
+      else: result.add(c)
+
+  proc addEscaped(result: var string, s: kstring) =
+    ## same as ``result.add(escape(s))``, but more efficient.
+    for c in items(s):
+      case c
+      of '<': result.add("&lt;")
+      of '>': result.add("&gt;")
+      of '&': result.add("&amp;")
+      of '"': result.add("&quot;")
+      of '\'': result.add("&#x27;")
+      of '/': result.add("&#x2F;")
+      else: result.add(c)
+
+  proc addIndent(result: var string, indent: int) =
+    result.add("\n")
+    for i in 1..indent: result.add(' ')
+
+  if n.kind == VNodeKind.text:
+    result.addEscaped(n.text)
+  else:
+    let kind = $n.kind
+    result.add('<')
+    result.add(kind)
+    if n.id != nil:
+      result.add " id=\""
+      result.addEscapedAttr(n.id)
+      result.add('"')
+    if n.class != nil:
+      result.add " class=\""
+      result.addEscapedAttr(n.class)
+      result.add('"')
+    for k, v in attrs(n):
+      result.add(' ')
+      result.add(k)
+      result.add("=\"")
+      result.addEscapedAttr(v)
+      result.add('"')
+    # XXX add style to string
+    if n.len > 0:
+      result.add('>')
+      if n.len > 1:
+        var noWhitespace = false
+        for i in 0..<n.len:
+          if n[i].kind == VNodeKind.text:
+            noWhitespace = true
+            break
+
+        if noWhitespace:
+          # for mixed leaves, we cannot output whitespace for readability,
+          # because this would be wrong. For example: ``a<b>b</b>`` is
+          # different from ``a <b>b</b>``.
+          for i in 0..<n.len: result.add(n[i], indent+indWidth, indWidth)
+        else:
+          for i in 0..<n.len:
+            result.addIndent(indent+indWidth)
+            result.add(n[i], indent+indWidth, indWidth)
+          result.addIndent(indent)
+      else:
+        result.add(n[0], indent+indWidth, indWidth)
+      result.add("</")
+      result.add(kind)
+      result.add(">")
+    else:
+      result.add(" />")
+
+
+proc `$`*(n: VNode): kstring =
+  when defined(js):
+    var res = ""
+    toString(n, res, 0)
+    result = kstring(res)
+  else:
+    result = ""
+    add(result, n)
