@@ -165,7 +165,8 @@ proc testWildInsert() =
   let b = createEntries(entries)
   doDiff(a, b, "pkInsertBefore button 7", "pkAppend div 5")
 
-kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard)
+kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (): VNode = discard,
+                    byId: newJDict[cstring, VNode]())
 
 testAppend()
 testInsert()
