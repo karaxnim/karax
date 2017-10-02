@@ -38,6 +38,7 @@ type
     runCount: int
     components: seq[ComponentPair]
     surpressRedraws*: bool
+    byId: JDict[cstring, VNode]
     when defined(stats):
       recursion: int
 
@@ -112,11 +113,18 @@ template detach(n: VNode) =
 
 template attach(n: VNode) =
   n.dom = result
+  if n.id != nil: kxi.byId[n.id] = n
 
 proc applyEvents(n: VNode; kxi: KaraxInstance) =
   let dest = n.dom
   for i in 0..<len(n.events):
     n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
+
+proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
+  ## Get the VNode that was marked with ``id``. Returns ``nil``
+  ## if no node exists.
+  if kxi.byId.contains(id):
+    result = kxi.byId[id]
 
 proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
@@ -331,6 +339,7 @@ proc applyPatch(kxi: KaraxInstance) =
       p.parent.insertBefore(nn, p.current)
     of pkDetach:
       let n = p.n
+      if n.id != nil: kxi.byId.del(n.id)
       if n.kind == VNodeKind.component:
         let x = VComponent(n)
         if x.onDetachImpl != nil: x.onDetachImpl(x)
@@ -615,7 +624,9 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                          postRenderCallback: clientPostRenderCallback,
                          patches: newSeq[Patch](60),
                          patchesV: newSeq[PatchV](30),
-                         components: @[])
+                         components: @[],
+                         surpressRedraws: false,
+                         byId: newJDict[cstring, VNode]())
   kxi = result
   window.onload = init
 
@@ -627,7 +638,8 @@ proc setInitializer*(renderer: proc (): VNode, root: cstring = "ROOT",
                         patches: newSeq[Patch](60),
                         patchesV: newSeq[PatchV](30),
                         components: @[],
-                        surpressRedraws: true)
+                        surpressRedraws: true,
+                        byId: newJDict[cstring, VNode]())
   kxi = result
   window.onload = init
 
@@ -694,3 +706,8 @@ proc runLater*(action: proc(); later = 400): Timeout {.discardable.} =
     action()
     redraw()
   result = setTimeout(wrapper, later)
+
+proc setInputText*(n: VNode; s: cstring) =
+  ## Sets the text of input elements.
+  n.text = s
+  if n.dom != nil: n.dom.value = s
