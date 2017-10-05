@@ -71,9 +71,6 @@ proc clearCompleted(ev: Event, n: VNode) =
 proc toClass(completed: bool): cstring =
   (if completed: cstring"completed" else: cstring(nil))
 
-proc toChecked(checked: bool): cstring =
-  (if checked: cstring"checked" else: cstring(nil))
-
 proc selected(v: Filter): cstring =
   (if filter == v: cstring"selected" else: cstring(nil))
 

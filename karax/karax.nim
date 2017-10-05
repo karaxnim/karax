@@ -706,3 +706,9 @@ proc setInputText*(n: VNode; s: cstring) =
   ## Sets the text of input elements.
   n.text = s
   if n.dom != nil: n.dom.value = s
+
+proc toChecked*(checked: bool): cstring =
+  (if checked: cstring"checked" else: cstring(nil))
+
+proc toDisabled*(disabled: bool): cstring =
+  (if disabled: cstring"disabled" else: cstring(nil))
