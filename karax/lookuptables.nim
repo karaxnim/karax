@@ -13,6 +13,20 @@ macro fieldNamesAsArray*(t: typed; pattern = "$1"): untyped =
     expectKind x, nnkIdentDefs
     result.add(newCall(bindSym"kstring", newLit(pattern.strVal % $x[0])))
 
+proc str(n: NimNode): NimNode =
+  if n.kind in {nnkStrLit, nnkTripleStrLit}:
+    result = newCall(bindSym"kstring", n)
+  else:
+    result = copyNimNode(n)
+    for i in 0..<n.len:
+      result.add str(n[i])
+
+macro kstrLits*(x: untyped): untyped =
+  ## Transforms every string literal "abc" to ``kstring"abc"``. This makes
+  ## things much easier to write. String literals of the form ``r"abc"`` are
+  ## not affected.
+  result = str(x)
+
 when isMainModule:
   type
     MyObject = ref object
