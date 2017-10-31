@@ -245,10 +245,10 @@ proc eq(a, b: VNode): EqResult =
       when defined(profileKarax): inc reasons[deComponent]
       return different
     return componentsIdentical
-  if a.class != b.class:
-    when defined(profileKarax): inc reasons[deClass]
-    return different
-  if not eq(a.style, b.style) or not sameAttrs(a, b):
+  #if:
+  #  when defined(profileKarax): inc reasons[deClass]
+  #  return different
+  if a.class != b.class or not eq(a.style, b.style) or not sameAttrs(a, b):
     when defined(profileKarax): inc reasons[deSimilar]
     return similar
   # Do not test event listeners here!
@@ -260,6 +260,7 @@ proc updateStyles(newNode, oldNode: VNode) =
     if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
     else: oldNode.dom.style = Style()
   oldNode.style = newNode.style
+  oldNode.class = newNode.class
 
 proc updateAttributes(newNode, oldNode: VNode) =
   # we keep the oldNode, but take over the attributes from the new node:

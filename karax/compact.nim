@@ -93,7 +93,7 @@ when defined(js):
     n[0] = ident("inner" & nn)
     var unpackCall = newCall(n[0])
     var counter = 0
-    for i in 1.. <params.len:
+    for i in 1 ..< params.len:
       let param = params[i]
       let L = param.len
       let typ = param[L-2]
