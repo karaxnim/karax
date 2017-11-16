@@ -4,13 +4,16 @@
 import os, strutils, parseopt, browsers
 
 const
+  css = """
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.5.3/css/bulma.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+"""
   html = """
 <!DOCTYPE html>
 <html>
 <head>
   <title>$1</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.5.3/css/bulma.min.css">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  $2
 </head>
 <body id="body">
 <div id="ROOT" />
@@ -28,13 +31,18 @@ proc main =
   var rest = op.cmdLineRest
   var file = ""
   var run = false
+  var selectedCss = ""
   while true:
     op.next()
     case op.kind
     of cmdLongOption:
-      if op.key == "run":
+      case op.key
+      of "run":
         run = true
         rest = rest.replace("--run ")
+      of "css":
+        selectedCss = css
+      else: discard
     of cmdShortOption:
       if op.key == "r":
         run = true
@@ -47,7 +55,7 @@ proc main =
   createDir("nimcache")
   exec("nim js --out:nimcache/" & name & ".js " & rest)
   let dest = "nimcache" / name & ".html"
-  writeFile(dest, html % name)
+  writeFile(dest, html % [name, css])
   if run: openDefaultBrowser(dest)
 
 main()
