@@ -10,7 +10,9 @@ install:
   - cd ../
   - bin/nim c koch
   - ./koch boot -d:release
+  - ./koch tools
   - cd ..
+  - nimble develop
 before_script:
   - set -e
   - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
