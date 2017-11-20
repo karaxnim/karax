@@ -8,24 +8,20 @@ proc loginField(desc, field, class: kstring;
   result = buildHtml(tdiv):
     label(`for` = field):
       text desc
-    input(class = class, id = field, onkeyuplater = validator(field))
-
-const
-  login = kstring"login" # a const to prevent typos
-
-proc validateNotEmpty(field: kstring): proc () =
-  result = proc () =
-    let x = getVNodeById(field)
-    if x.text.isNil or x.text == "":
-      errors.setError(login, field & " must not be empty")
-    else:
-      errors.setError(login, "")
-
+    input(class = class, id = field, onchange = validator(field))
 
 # some consts in order to prevent typos:
 const
   username = kstring"username"
   password = kstring"password"
+
+proc validateNotEmpty(field: kstring): proc () =
+  result = proc () =
+    let x = getVNodeById(field)
+    if x.text.isNil or x.text == "":
+      errors.setError(field, field & " must not be empty")
+    else:
+      errors.setError(field, "")
 
 var loggedIn: bool
 
@@ -37,12 +33,15 @@ proc loginDialog(): VNode =
       button(onclick = () => (loggedIn = true), disabled = errors.disableOnError()):
         text "Login"
       p:
-        text errors.getError(login)
+        text errors.getError(username)
+      p:
+        text errors.getError(password)
     else:
       p:
         text "You are now logged in."
 
-setError login, username & " must not be empty"
+setError username, username & " must not be empty"
+setError password, password & " must not be empty"
 
 when not declared(toychat):
   setRenderer loginDialog
