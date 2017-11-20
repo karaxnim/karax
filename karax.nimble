@@ -10,3 +10,5 @@ license       = "MIT"
 requires "nim >= 0.16.1"
 
 skipDirs = @["examples", "experiments"]
+
+bin = @["tools/karun"]
