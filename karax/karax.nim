@@ -85,7 +85,7 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
     let action = action
     let n = n
     result = proc (ev: Event) =
-      if ev.keyCode == 13: keyeventBody()
+      if ((KeyboardEvent)ev).keyCode == 13: keyeventBody()
 
   proc laterWrapper(): NativeEventHandler =
     let action = action
