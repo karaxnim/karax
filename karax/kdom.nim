@@ -37,6 +37,38 @@ type
     onsubmit*: proc (event: Event) {.nimcall.}
     onunload*: proc (event: Event) {.nimcall.}
 
+  # https://developer.mozilla.org/en-US/docs/Web/Events
+  DomEvent* {.pure.} = enum
+    Abort = "abort",
+    BeforeInput = "beforeinput",
+    Blur = "blur",
+    Click = "click",
+    CompositionEnd = "compositionend",
+    CompositionStart = "compositionstart",
+    CompositionUpdate = "compositionupdate",
+    DblClick = "dblclick",
+    Error = "error",
+    Focus = "focus",
+    FocusIn = "focusin",
+    FocusOut = "focusout",
+    Input = "input",
+    KeyDown = "keydown",
+    KeyPress = "keypress",
+    KeyUp = "keyup",
+    Load = "load",
+    MouseDown = "mousedown",
+    MouseEnter = "mouseenter",
+    MouseLeave = "mouseleave",
+    MouseMove = "mousemove",
+    MouseOut = "mouseout",
+    MouseOver = "mouseover",
+    MouseUp = "mouseup",
+    Resize = "resize",
+    Scroll = "scroll",
+    Select = "select",
+    Unload = "unload",
+    Wheel = "wheel"
+
   Window* = ref WindowObj
   WindowObj {.importc.} = object of EventTargetObj
     document*: Document
@@ -57,6 +89,7 @@ type
     status*: cstring
     toolbar*: ref ToolBar
     frames*: seq[Frame]
+    screen*: Screen
 
   Frame* = ref FrameObj
   FrameObj {.importc.} = object of WindowObj
@@ -131,6 +164,7 @@ type
     name*: cstring
     readOnly*: bool
     options*: seq[OptionElement]
+    clientWidth*, clientHeight*: int
 
   # https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
   HtmlElement* = ref object of Element
@@ -284,52 +318,461 @@ type
     wordSpacing*: cstring
     zIndex*: int
 
-  # TODO: A lot of the fields in Event belong to a more specific type of event.
-  # TODO: Should we clean this up?
+  EventPhase* = enum
+    None = 0,
+    CapturingPhase,
+    AtTarget,
+    BubblingPhase
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/Event
   Event* = ref EventObj
   EventObj {.importc.} = object of RootObj
+    bubbles*: bool
+    cancelBubble*: bool
+    cancelable*: bool
+    composed*: bool
+    currentTarget*: Node
+    defaultPrevented*: bool
+    eventPhase*: int
     target*: Node
-    altKey*, ctrlKey*, shiftKey*: bool
-    button*: int
-    clientX*, clientY*: int
+    `type`*: cstring
+    isTrusted*: bool
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/UIEvent
+  UIEvent* {.importc.} = ref object of Event
+    detail*: int64
+    view*: Window
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent
+  KeyboardEvent* {.importc.} = ref object of UIEvent
+    altKey*, ctrlKey*, metaKey*, shiftKey*: bool
+    code*: cstring
+    isComposing*: bool
+    key*: cstring
     keyCode*: int
-    layerX*, layerY*: int
-    modifiers*: int
-    ALT_MASK*, CONTROL_MASK*, SHIFT_MASK*, META_MASK*: int
+    location*: int
+    
+  # https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
+  KeyboardEventKey* {.pure.} = enum
+    # Modifier keys
+    Alt,
+    AltGraph,
+    CapsLock,
+    Control,
+    Fn,
+    FnLock,
+    Hyper,
+    Meta,
+    NumLock,
+    ScrollLock,
+    Shift,
+    Super,
+    Symbol,
+    SymbolLock,
+
+    # Whitespace keys
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUp,
+    End,
+    Home,
+    PageDown,
+    PageUp,
+
+    # Editing keys
+    Backspace,
+    Clear,
+    Copy,
+    CrSel,
+    Cut,
+    Delete,
+    EraseEof,
+    ExSel,
+    Insert,
+    Paste,
+    Redo,
+    Undo,
+
+    # UI keys
+    Accept,
+    Again,
+    Attn,
+    Cancel,
+    ContextMenu,
+    Escape,
+    Execute,
+    Find,
+    Finish,
+    Help,
+    Pause,
+    Play,
+    Props,
+    Select,
+    ZoomIn,
+    ZoomOut,
+
+    # Device keys
+    BrigtnessDown,
+    BrigtnessUp,
+    Eject,
+    LogOff,
+    Power,
+    PowerOff,
+    PrintScreen,
+    Hibernate,
+    Standby,
+    WakeUp,
+
+    # Common IME keys
+    AllCandidates,
+    Alphanumeric,
+    CodeInput,
+    Compose,
+    Convert,
+    Dead,
+    FinalMode,
+    GroupFirst,
+    GroupLast,
+    GroupNext,
+    GroupPrevious,
+    ModeChange,
+    NextCandidate,
+    NonConvert,
+    PreviousCandidate,
+    Process,
+    SingleCandidate,
+
+    # Korean keyboards only
+    HangulMode,
+    HanjaMode,
+    JunjaMode,
+
+    # Japanese keyboards only
+    Eisu,
+    Hankaku,
+    Hiragana,
+    HiraganaKatakana,
+    KanaMode,
+    KanjiMode,
+    Katakana,
+    Romaji,
+    Zenkaku,
+    ZenkakuHanaku,
+
+    # Function keys
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    F13,
+    F14,
+    F15,
+    F16,
+    F17,
+    F18,
+    F19,
+    F20,
+    Soft1,
+    Soft2,
+    Soft3,
+    Soft4,
+
+    # Phone keys
+    AppSwitch,
+    Call,
+    Camera,
+    CameraFocus,
+    EndCall,
+    GoBack,
+    GoHome,
+    HeadsetHook,
+    LastNumberRedial,
+    Notification,
+    MannerMode,
+    VoiceDial,
+
+    # Multimedia keys
+    ChannelDown,
+    ChannelUp,
+    MediaFastForward,
+    MediaPause,
+    MediaPlay,
+    MediaPlayPause,
+    MediaRecord,
+    MediaRewind,
+    MediaStop,
+    MediaTrackNext,
+    MediaTrackPrevious,
+
+    # Audio control keys
+    AudioBalanceLeft,
+    AudioBalanceRight,
+    AudioBassDown,
+    AudioBassBoostDown,
+    AudioBassBoostToggle,
+    AudioBassBoostUp,
+    AudioBassUp,
+    AudioFaderFront,
+    AudioFaderRear,
+    AudioSurroundModeNext,
+    AudioTrebleDown,
+    AudioTrebleUp,
+    AudioVolumeDown,
+    AUdioVolumeMute,
+    AudioVolumeUp,
+    MicrophoneToggle,
+    MicrophoneVolumeDown,
+    MicrophoneVolumeMute,
+    MicrophoneVolumeUp,
+
+    # TV control keys
+    TV,
+    TV3DMode,
+    TVAntennaCable,
+    TVAudioDescription,
+    TVAudioDescriptionMixDown,
+    TVAudioDescriptionMixUp,
+    TVContentsMenu,
+    TVDataService,
+    TVInput,
+    TVInputComponent1,
+    TVInputComponent2,
+    TVInputComposite1,
+    TVInputComposite2,
+    TVInputHDMI1,
+    TVInputHDMI2,
+    TVInputHDMI3,
+    TVInputHDMI4,
+    TVInputVGA1,
+    TVMediaContext,
+    TVNetwork,
+    TVNumberEntry,
+    TVPower,
+    TVRadioService,
+    TVSatellite,
+    TVSatelliteBS,
+    TVSatelliteCS,
+    TVSatelliteToggle,
+    TVTerrestrialAnalog,
+    TVTerrestrialDigital,
+    TVTimer,
+
+    # Media controller keys
+    AVRInput,
+    AVRPower,
+    ColorF0Red,
+    ColorF1Green,
+    ColorF2Yellow,
+    ColorF3Blue,
+    ColorF4Grey,
+    ColorF5Brown,
+    ClosedCaptionToggle,
+    Dimmer,
+    DisplaySwap,
+    DVR,
+    Exit,
+    FavoriteClear0,
+    FavoriteClear1,
+    FavoriteClear2,
+    FavoriteClear3,
+    FavoriteRecall0,
+    FavoriteRecall1,
+    FavoriteRecall2,
+    FavoriteRecall3,
+    FavoriteStore0,
+    FavoriteStore1,
+    FavoriteStore2,
+    FavoriteStore3,
+    Guide,
+    GuideNextDay,
+    GuidePreviousDay,
+    Info,
+    InstantReplay,
+    Link,
+    ListProgram,
+    LiveContent,
+    Lock,
+    MediaApps,
+    MediaAudioTrack,
+    MediaLast,
+    MediaSkipBackward,
+    MediaSkipForward,
+    MediaStepBackward,
+    MediaStepForward,
+    MediaTopMenu,
+    NavigateIn,
+    NavigateNext,
+    NavigateOut,
+    NavigatePrevious,
+    NextFavoriteChannel,
+    NextUserProfile,
+    OnDemand,
+    Pairing,
+    PinPDown,
+    PinPMove,
+    PinPUp,
+    PlaySpeedDown,
+    PlaySpeedReset,
+    PlaySpeedUp,
+    RandomToggle,
+    RcLowBattery,
+    RecordSpeedNext,
+    RfBypass,
+    ScanChannelsToggle,
+    ScreenModeNext,
+    Settings,
+    SplitScreenToggle,
+    STBInput,
+    STBPower,
+    Subtitle,
+    Teletext,
+    VideoModeNext,
+    Wink,
+    ZoomToggle,
+
+    # Speech recognition keys
+    SpeechCorrectionList,
+    SpeechInputToggle,
+
+    # Document keys
+    Close,
+    New,
+    Open,
+    Print,
+    Save,
+    SpellCheck,
+    MailForward,
+    MailReply,
+    MailSend,
+
+    # Application selector keys
+    LaunchCalculator,
+    LaunchCalendar,
+    LaunchContacts,
+    LaunchMail,
+    LaunchMediaPlayer,
+    LaunchMusicPlayer,
+    LaunchMyComputer,
+    LaunchPhone,
+    LaunchScreenSaver,
+    LaunchSpreadsheet,
+    LaunchWebBrowser,
+    LaunchWebCam,
+    LaunchWordProcessor,
+    LaunchApplication1,
+    LaunchApplication2,
+    LaunchApplication3,
+    LaunchApplication4,
+    LaunchApplication5,
+    LaunchApplication6,
+    LaunchApplication7,
+    LaunchApplication8,
+    LaunchApplication9,
+    LaunchApplication10,
+    LaunchApplication11,
+    LaunchApplication12,
+    LaunchApplication13,
+    LaunchApplication14,
+    LaunchApplication15,
+    LaunchApplication16,
+
+    # Browser control keys
+    BrowserBack,
+    BrowserFavorites,
+    BrowserForward,
+    BrowserHome,
+    BrowserRefresh,
+    BrowserSearch,
+    BrowserStop,
+
+    # Numeric keypad keys
+    Key11,
+    Key12,
+    Separator
+
+  MouseButtons* = enum
+    NoButton = 0,
+    PrimaryButton = 1,
+    SecondaryButton = 2,
+    AuxilaryButton = 4,
+    FourthButton = 8,
+    FifthButton = 16
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent
+  MouseEvent* {.importc.} = ref object of UIEvent
+    altKey*, ctrlKey*, metaKey*, shiftKey*: bool
+    button*: int
+    buttons*: int
+    clientX*, clientY*: int
+    movementX*, movementY*: int
     offsetX*, offsetY*: int
     pageX*, pageY*: int
+    relatedTarget*: EventTarget
+    #region*: cstring
     screenX*, screenY*: int
-    which*: int
-    `type`*: cstring
     x*, y*: int
-    ABORT*: int
-    BLUR*: int
-    CHANGE*: int
-    CLICK*: int
-    DBLCLICK*: int
-    DRAGDROP*: int
-    ERROR*: int
-    FOCUS*: int
-    KEYDOWN*: int
-    KEYPRESS*: int
-    KEYUP*: int
-    LOAD*: int
-    MOUSEDOWN*: int
-    MOUSEMOVE*: int
-    MOUSEOUT*: int
-    MOUSEOVER*: int
-    MOUSEUP*: int
-    MOVE*: int
-    RESET*: int
-    RESIZE*: int
-    SELECT*: int
-    SUBMIT*: int
-    UNLOAD*: int
+  
+  DataTransferItemKind* {.pure.} = enum
+    File = "file",
+    String = "string"
 
+  # https://developer.mozilla.org/en-US/docs/Web/API/DataTransferItem
+  DataTransferItem* {.importc.} = ref object of RootObj
+    kind*: cstring
+    `type`*: cstring
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer
+  DataTransfer* {.importc.} = ref object of RootObj
+    dropEffect*: cstring
+    effectAllowed*: cstring
+    files*: seq[Element]
+    items*: seq[DataTransferItem]
+    types*: seq[cstring]
+
+  DataTransferDropEffect* {.pure.} = enum 
+    None = "none",
+    Copy = "copy",
+    Link = "link",
+    Move = "move"
+
+  DataTransferEffectAllowed* {.pure.} = enum
+    None = "none",
+    Copy = "copy",
+    CopyLink = "copyLink",
+    CopyMove = "copyMove",
+    Link = "link",
+    LinkMove = "linkMove",
+    Move = "move",
+    All = "all",
+    Uninitialized = "uninitialized"
+
+  DragEventTypes* = enum
+    Drag = "drag",
+    DragEnd = "dragend",
+    DragEnter = "dragenter",
+    DragExit = "dragexit",
+    DragLeave = "dragleave",
+    DragOver = "dragover",
+    DragStart = "dragstart",
+    Drop = "drop"
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/DragEvent
+  DragEvent* {.importc.} = ref object of MouseEvent
+    dataTransfer*: DataTransfer
+    
   TouchList* {.importc.} = ref object of RootObj
     length*: int
 
-  TouchEvent* {.importc.} = ref object of Event
+  TouchEvent* {.importc.} = ref object of UIEvent
     changedTouches*, targetTouches*, touches*: TouchList
 
   Touch* {.importc.} = ref object of RootObj
@@ -396,6 +839,17 @@ type
 
   TimeOut* {.importc.} = ref object of RootObj
   Interval* {.importc.} = object of RootObj
+
+  AddEventListenerOptions* = object
+    capture*: bool
+    once*: bool
+    passive*: bool
+
+  JFile* {.importc.} = ref object
+    lastModified*: int
+    name*: cstring
+    size*: int
+    `type`*: cstring
 
 when defined(nodejs):
   # we provide a dummy DOM for nodejs for testing purposes
@@ -483,6 +937,7 @@ proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 
 # EventTarget "methods"
 proc addEventListener*(et: EventTarget, ev: cstring, cb: proc(ev: Event), useCapture: bool = false)
+proc addEventListener*(et: EventTarget, ev: cstring, cb: proc(ev: Event), options: AddEventListenerOptions)
 proc removeEventListener*(et: EventTarget; ev: cstring; cb: proc(ev: Event))
 
 # Window "methods"
@@ -491,7 +946,7 @@ proc back*(w: Window)
 proc blur*(w: Window)
 proc captureEvents*(w: Window, eventMask: int) {.deprecated.}
 proc clearInterval*(w: Window, interval: ref Interval)
-proc clearTimeout*(w: Window, timeout: TimeOut)
+proc clearTimeout*(w: Window, timeout: ref TimeOut)
 proc close*(w: Window)
 proc confirm*(w: Window, msg: cstring): bool
 proc disableExternalCapture*(w: Window)
@@ -500,6 +955,7 @@ proc find*(w: Window, text: cstring, caseSensitive = false,
            backwards = false)
 proc focus*(w: Window)
 proc forward*(w: Window)
+proc getComputedStyle*(w: Window, e: Node, pe:Node = nil): Style
 proc handleEvent*(w: Window, e: Event)
 proc home*(w: Window)
 proc moveBy*(w: Window, x, y: int)
@@ -516,7 +972,7 @@ proc scrollBy*(w: Window, x, y: int)
 proc scrollTo*(w: Window, x, y: int)
 proc setInterval*(w: Window, code: cstring, pause: int): ref Interval
 proc setInterval*(w: Window, function: proc (), pause: int): ref Interval
-proc setTimeout*(w: Window, code: cstring, pause: int): TimeOut
+proc setTimeout*(w: Window, code: cstring, pause: int): ref TimeOut
 proc setTimeout*(w: Window, function: proc (), pause: int): ref Interval
 proc stop*(w: Window)
 proc requestAnimationFrame*(w: Window, function: proc (time: float)): int
@@ -526,6 +982,7 @@ proc cancelAnimationFrame*(w: Window, id: int)
 proc appendData*(n: Node, data: cstring)
 proc cloneNode*(n: Node, copyContent: bool): Node
 proc deleteData*(n: Node, start, len: int)
+proc focus*(e: Node)
 proc getAttribute*(n: Node, attr: cstring): cstring
 proc getAttributeNode*(n: Node, attr: cstring): Node
 proc hasChildNodes*(n: Node): bool
@@ -550,11 +1007,13 @@ proc releaseEvents*(d: Document, eventMask: int) {.deprecated.}
 proc routeEvent*(d: Document, event: Event)
 proc write*(d: Document, text: cstring)
 proc writeln*(d: Document, text: cstring)
+proc querySelector*(d: Document, selectors: cstring): Element
+proc querySelectorAll*(d: Document, selectors: cstring): seq[Element]
 
 # Element "methods"
 proc blur*(e: Element)
 proc click*(e: Element)
-proc focus*(e: Node)
+proc focus*(e: Element)
 proc handleEvent*(e: Element, event: Event)
 proc select*(e: Element)
 proc getElementsByTagName*(e: Element, name: cstring): seq[Element]
@@ -593,11 +1052,27 @@ proc setAttribute*(s: Style, attr, value: cstring, caseSensitive=false)
 
 # Event "methods"
 proc preventDefault*(ev: Event)
+proc stopImmediatePropagation*(ev: Event)
 proc stopPropagation*(ev: Event)
+    
+# KeyboardEvent "methods"
+proc getModifierState*(ev: KeyboardEvent, keyArg: cstring): bool
+
+# MouseEvent "methods"
+proc getModifierState*(ev: MouseEvent, keyArg: cstring): bool
 
 # TouchEvent "methods"
 proc identifiedTouch*(list: TouchList): Touch
 proc item*(list: TouchList, i: int): Touch
+
+# DataTransfer "methods"
+proc clearData*(dt: DataTransfer, format: cstring)
+proc getData*(dt: DataTransfer, format: cstring): cstring
+proc setData*(dt: DataTransfer, format: cstring, data: cstring)
+proc setDragImage*(dt: DataTransfer, img: Element, xOffset: int64, yOffset: int64)
+
+# DataTransferItem "methods"
+proc getAsFile*(dti: DataTransferItem): JFile
 
 {.pop.}
 
@@ -651,8 +1126,8 @@ proc clientWidth*(): int {.
 proc inViewport*(el: Node): bool =
   let rect = el.getBoundingClientRect()
   result = rect.top >= 0 and rect.left >= 0 and
-           rect.bottom <= clientHeight().float and
-           rect.right <= clientWidth().float
+          rect.bottom <= clientHeight().float and
+          rect.right <= clientWidth().float
 
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
