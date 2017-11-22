@@ -1,10 +1,10 @@
 import times, jstrutils, strutils, kdom, karax, karaxdsl, vdom, tables
 
 var
-    results : seq[cstring]
+    results: seq[cstring]
     dragEventsCompleted = initTable[DragEventTypes, bool]()
-    testRunning : array[13, bool]
-    testCompleted : array[13, bool]
+    testRunning: array[13, bool]
+    testCompleted: array[13, bool]
     test2ImageDrop = false
     dblClickCount = 0
     test6ClickCount = 0
@@ -12,7 +12,7 @@ var
     test10inputFocusCount = 0
     test12Failure = false
 
-proc getLogText(text: string) : cstring =
+proc getLogText(text: string): cstring =
     result = "[$#]: $#" % [format(getLocalTime(getTime()), "HH:mm:ss"), $text]
 
 proc log(text: string, clear: bool = false) =
@@ -30,7 +30,7 @@ proc check(cond: bool, msg: string) =
         log "FAIL: " & msg
         doAssert(cond, msg)
 
-proc check(cond: bool, msg: string, warn: bool) : bool =
+proc check(cond: bool, msg: string, warn: bool): bool =
     if not cond:
         if warn:
             log "WARNING: " & msg
