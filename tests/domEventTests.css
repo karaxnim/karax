@@ -11,23 +11,23 @@
 }
 
 #results {
-    font-family: monospace;
-    font-size: 10pt;
-    width: 100%;
-    height: 400px;
-    overflow: auto;
-    background-color: #000000;
-    color: forestgreen;
+  font-family: monospace;
+  font-size: 10pt;
+  width: 100%;
+  height: 400px;
+  overflow: auto;
+  background-color: #000000;
+  color: forestgreen;
 }
 
 #test10input1, #test10input2, #test11h3, #test12input {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 #test11h3 {
-    color: gold;
+  color: gold;
 }
 
 body {
-    background-color: dimgrey;
+  background-color: dimgrey;
 }
