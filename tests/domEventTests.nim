@@ -41,7 +41,7 @@ proc check(cond: bool, msg: string, warn: bool): bool =
 
 proc dragDivDragStart(ev: kdom.Event) =
   dragEventsCompleted[DragStart] = true
-  var dgev = ((DragEvent)ev)
+  var dgev = cast[DragEvent](ev)
   var dragDiv = document.getElementById("dragDiv")
 
   if dragDiv != nil:
@@ -413,7 +413,7 @@ proc test3() =
   
 proc dragDivDrop(ev: kdom.Event) =
   dragEventsCompleted[Drop] = true
-  var dgev = ((DragEvent)ev)
+  var dgev = cast[DragEvent](ev)
   var dragDiv = document.getElementById("dragDiv")
   var data = $dgev.dataTransfer.getData("text/plain")
   var dt = dgev.dataTransfer
@@ -495,7 +495,7 @@ proc dragDivDrop(ev: kdom.Event) =
       log "Test 2 completed successfully."
       test3()
   
-      dgev.preventDefault()
+      ev.preventDefault()
       return
 
     document.getElementById("dragDiv").style.visibility = "hidden"
@@ -504,40 +504,35 @@ proc dragDivDrop(ev: kdom.Event) =
     test2ImageDrop = true
     testRunning[1] = false
 
-  dgev.preventDefault()
+  ev.preventDefault()
 
 proc dragDivDrag(ev: kdom.Event) =
   dragEventsCompleted[Drag] = true
-  var dgev = ((DragEvent)ev)
-  dgev.preventDefault()
+  ev.preventDefault()
 
 proc dragDivDragLeave(ev: kdom.Event) =
   dragEventsCompleted[DragLeave] = true
-  var dgev = ((DragEvent)ev)
   if testRunning[0]:
     log "[dragLeave]"
-  dgev.preventDefault()
+  ev.preventDefault()
 
 proc dragDivDragExit(ev: kdom.Event) =
   dragEventsCompleted[DragExit] = true
-  var dgev = ((DragEvent)ev)
   if testRunning[0]:
     log "[dragExit]"
-  dgev.preventDefault()
+  ev.preventDefault()
   
 proc dragDivDragEnd(ev: kdom.Event) =
   dragEventsCompleted[DragEnd] = true
-  var dgev = ((DragEvent)ev)
   if testRunning[0]:
     log "[dragEnd]"
-  dgev.preventDefault()
+  ev.preventDefault()
       
 proc dragDivDragEnter(ev: kdom.Event) =
   dragEventsCompleted[DragEnter] = true
   if testRunning[0]:
     log "[dragEnter]"
-  var dgev = ((DragEvent)ev)
-  dgev.preventDefault()
+  ev.preventDefault()
 
 proc initDragEvents() =
   log "Drag event initialization started."

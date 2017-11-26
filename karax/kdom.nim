@@ -164,10 +164,8 @@ type
     name*: cstring
     readOnly*: bool
     options*: seq[OptionElement]
+    selectedOptions*: seq[OptionElement]
     clientWidth*, clientHeight*: int
-
-  # https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
-  HtmlElement* = ref object of Element
     contentEditable*: string
     isContentEditable*: bool
     dir*: string
@@ -175,6 +173,87 @@ type
     offsetWidth*: int
     offsetLeft*: int
     offsetTop*: int
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/ValidityState
+  ValidityState* = ref ValidityStateObj
+  ValidityStateObj {.importc.} = object
+    badInput*: bool
+    customError*: bool
+    patternMismatch*: bool
+    rangeOverflow*: bool
+    rangeUnderflow*: bool
+    stepMismatch*: bool
+    tooLong*: bool
+    tooShort*: bool
+    typeMismatch*: bool
+    valid*: bool
+    valueMissing*: bool
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/Blob
+  Blob* = ref BlobObj
+  BlobObj {.importc.} = object of RootObj
+    size*: int
+    `type`*: cstring
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/File
+  File* = ref FileObj
+  FileObj {.importc.} = object of Blob
+    lastModified*: int
+    name*: cstring
+
+  # https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement
+  InputElement* = ref InputElementObj
+  InputElementObj {.importc.} = object of Element
+    # Properties related to the parent form
+    formAction*: cstring
+    formEncType*: cstring
+    formMethod*: cstring
+    formNoValidate*: bool
+    formTarget*: cstring
+
+    # Properties that apply to any type of input element that is not hidden
+    `type`*: cstring
+    autofocus*: bool
+    required*: bool
+    value*: cstring
+    validity*: ValidityState
+    validationMessage*: cstring
+    willValidate*: bool
+
+    # Properties that apply only to elements of type "checkbox" or "radio"
+    indeterminate*: bool
+
+    # Properties that apply only to elements of type "image"
+    alt*: cstring
+    height*: cstring
+    src*: cstring
+    width*: cstring
+
+    # Properties that apply only to elements of type "file"
+    accept*: cstring
+    files*: seq[Blob]
+
+    # Properties that apply only to text/number-containing or elements
+    autocomplete*: cstring
+    maxLength*: int
+    size*: int
+    pattern*: cstring
+    placeholder*: cstring
+    min*: cstring
+    max*: cstring
+    selectionStart*: int
+    selectionEnd*: int
+    selectionDirection*: cstring
+
+    # Properties not yet categorized
+    dirName*: cstring
+    accessKey*: cstring
+    list*: Element
+    multiple*: bool
+    labels*: seq[Element]
+    step*: cstring
+    valueAsDate*: cstring
+    valueAsNumber*: float
 
   LinkElement* = ref LinkObj
   LinkObj {.importc.} = object of ElementObj
@@ -205,13 +284,19 @@ type
     text*: cstring
     value*: cstring
 
+  # https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement
   FormElement* = ref FormObj
   FormObj {.importc.} = object of ElementObj
+    acceptCharset*: cstring
     action*: cstring
-    encoding*: cstring
-    `method`*: cstring
-    target*: cstring
+    autocomplete*: cstring
     elements*: seq[Element]
+    encoding*: cstring
+    enctype*: cstring
+    length*: int
+    `method`*: cstring
+    noValidate*: bool
+    target*: cstring
 
   ImageElement* = ref ImageObj
   ImageObj {.importc.} = object of ElementObj
@@ -339,12 +424,14 @@ type
     isTrusted*: bool
 
   # https://developer.mozilla.org/en-US/docs/Web/API/UIEvent
-  UIEvent* {.importc.} = ref object of Event
+  UIEvent* = ref UIEventObj
+  UIEventObj {.importc.} = object of Event
     detail*: int64
     view*: Window
 
   # https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent
-  KeyboardEvent* {.importc.} = ref object of UIEvent
+  KeyboardEvent* = ref KeyboardEventObj
+  KeyboardEventObj {.importc.} = object of UIEvent
     altKey*, ctrlKey*, metaKey*, shiftKey*: bool
     code*: cstring
     isComposing*: bool
@@ -708,7 +795,8 @@ type
     FifthButton = 16
 
   # https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent
-  MouseEvent* {.importc.} = ref object of UIEvent
+  MouseEvent* = ref MouseEventObj
+  MouseEventObj {.importc.} = object of UIEvent
     altKey*, ctrlKey*, metaKey*, shiftKey*: bool
     button*: int
     buttons*: int
@@ -720,18 +808,20 @@ type
     #region*: cstring
     screenX*, screenY*: int
     x*, y*: int
-  
+
   DataTransferItemKind* {.pure.} = enum
     File = "file",
     String = "string"
 
   # https://developer.mozilla.org/en-US/docs/Web/API/DataTransferItem
-  DataTransferItem* {.importc.} = ref object of RootObj
+  DataTransferItem* = ref DataTransferItemObj
+  DataTransferItemObj {.importc.} = object of RootObj
     kind*: cstring
     `type`*: cstring
 
   # https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer
-  DataTransfer* {.importc.} = ref object of RootObj
+  DataTransfer* = ref DataTransferObj
+  DataTransferObj {.importc.} = object of RootObj
     dropEffect*: cstring
     effectAllowed*: cstring
     files*: seq[Element]
@@ -766,22 +856,24 @@ type
     Drop = "drop"
 
   # https://developer.mozilla.org/en-US/docs/Web/API/DragEvent
-  DragEvent* {.importc.} = ref object of MouseEvent
+  DragEvent* {.importc.} = object of MouseEvent
     dataTransfer*: DataTransfer
-    
+
   TouchList* {.importc.} = ref object of RootObj
-    length*: int
+    length*: int    
 
-  TouchEvent* {.importc.} = ref object of UIEvent
-    changedTouches*, targetTouches*, touches*: TouchList
-
-  Touch* {.importc.} = ref object of RootObj
+  Touch* = ref TouchObj
+  TouchObj {.importc.} = object of RootObj
     identifier*: int
     screenX*, screenY*, clientX*, clientY*, pageX*, pageY*: int
     target*: Element
     radiusX*, radiusY*: int
     rotationAngle*: int
     force*: float
+
+  TouchEvent* = ref TouchEventObj
+  TouchEventObj {.importc.} = object of UIEvent
+    changedTouches*, targetTouches*, touches*: seq[Touch]
 
   Location* = ref LocationObj
   LocationObj {.importc.} = object of RootObj
@@ -844,12 +936,6 @@ type
     capture*: bool
     once*: bool
     passive*: bool
-
-  JFile* {.importc.} = ref object
-    lastModified*: int
-    name*: cstring
-    size*: int
-    `type`*: cstring
 
 when defined(nodejs):
   # we provide a dummy DOM for nodejs for testing purposes
@@ -1022,6 +1108,8 @@ proc getElementsByClassName*(e: Element, name: cstring): seq[Element]
 # FormElement "methods"
 proc reset*(f: FormElement)
 proc submit*(f: FormElement)
+proc checkValidity*(e: FormElement): bool
+proc reportValidity*(e: FormElement): bool
 
 # EmbedElement "methods"
 proc play*(e: EmbedElement)
@@ -1072,7 +1160,16 @@ proc setData*(dt: DataTransfer, format: cstring, data: cstring)
 proc setDragImage*(dt: DataTransfer, img: Element, xOffset: int64, yOffset: int64)
 
 # DataTransferItem "methods"
-proc getAsFile*(dti: DataTransferItem): JFile
+proc getAsFile*(dti: DataTransferItem): File
+
+# InputElement "methods"
+proc setSelectionRange*(e: InputElement, selectionStart: int, selectionEnd: int, selectionDirection: cstring = "none")
+proc setRangeText*(e: InputElement, replacement: cstring, startindex: int = 0, endindex: int = 0, selectionMode: cstring = "preserve")
+proc setCustomValidity*(e: InputElement, error: cstring)
+proc checkValidity*(e: InputElement): bool
+
+# Blob "methods"
+proc slice*(e: Blob, startindex: int = 0, endindex: int = e.size, contentType: cstring = "")
 
 {.pop.}
 
@@ -1132,3 +1229,4 @@ proc inViewport*(el: Node): bool =
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
 proc offsetTop*(e: Node): int {.importcpp: "#.offsetTop", nodecl.}
+proc offsetLeft*(e: Node): int {.importcpp: "#.offsetLeft", nodecl.}
