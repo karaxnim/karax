@@ -1223,8 +1223,8 @@ proc clientWidth*(): int {.
 proc inViewport*(el: Node): bool =
   let rect = el.getBoundingClientRect()
   result = rect.top >= 0 and rect.left >= 0 and
-          rect.bottom <= clientHeight().float and
-          rect.right <= clientWidth().float
+           rect.bottom <= clientHeight().float and
+           rect.right <= clientWidth().float
 
 proc scrollTop*(e: Node): int {.importcpp: "#.scrollTop", nodecl.}
 proc offsetHeight*(e: Node): int {.importcpp: "#.offsetHeight", nodecl.}
