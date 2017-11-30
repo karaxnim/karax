@@ -5,7 +5,7 @@
 
 import karax
 
-proc ajax(meth, url: cstring; headers: openarray[(cstring, cstring)];
+proc ajax*(meth, url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int; response: cstring);
           kxi: KaraxInstance = kxi,
@@ -60,6 +60,18 @@ proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring);
           kxi: KaraxInstance = kxi) =
   ajax("GET", url, headers, nil, cont, kxi)
+
+proc ajaxPut*(url: cstring; headers: openarray[(cstring, cstring)];
+          data: cstring;
+          cont: proc (httpStatus: int, response: cstring);
+          kxi: KaraxInstance = kxi) =
+  ajax("PUT", url, headers, data, cont, kxi)
+
+proc ajaxDelete*(url: cstring; headers: openarray[(cstring, cstring)];
+          cont: proc (httpStatus: int, response: cstring);
+          kxi: KaraxInstance = kxi) =
+  ajax("DELETE", url, headers, nil, cont, kxi)
+
 
 proc toJson*[T](data: T): cstring {.importc: "JSON.stringify".}
 proc fromJson*[T](blob: cstring): T {.importc: "JSON.parse".}
