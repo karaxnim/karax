@@ -260,6 +260,7 @@ proc updateStyles(newNode, oldNode: VNode) =
   if oldNode.dom != nil:
     if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
     else: oldNode.dom.style = Style()
+    oldNode.dom.class = newNode.class
   oldNode.style = newNode.style
   oldNode.class = newNode.class
 
