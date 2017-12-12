@@ -2,7 +2,7 @@
 
 import kdom, vdom, jstrutils, compact, jdict, vstyles
 
-export kdom.Event
+export kdom.Event, kdom.Blob
 
 proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
   ## the preferred way of debugging karax applications. Now deprecated,
@@ -85,7 +85,7 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
     let action = action
     let n = n
     result = proc (ev: Event) =
-      if ev.keyCode == 13: keyeventBody()
+      if cast[KeyboardEvent](ev).keyCode == 13: keyeventBody()
 
   proc laterWrapper(): NativeEventHandler =
     let action = action
