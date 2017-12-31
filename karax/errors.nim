@@ -8,6 +8,8 @@ var
 
 proc hasErrors*(): bool = gerrorCounter != 0
 
+proc hasError*(field: cstring): bool = gerrorMsgs.contains(field)
+
 proc disableOnError*(): cstring = toDisabled(hasErrors())
 
 proc getError*(field: cstring): cstring =
