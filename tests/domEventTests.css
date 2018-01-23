@@ -1,0 +1,33 @@
+#dragDiv {
+  background-color: #0d1224;
+  width: 500px;
+  height: 100px;
+  position: absolute; 
+  top: 500px;
+  left: 200px;
+  text-align: center;
+  cursor: move;
+  color: rgb(60, 201, 163);
+}
+
+#results {
+  font-family: monospace;
+  font-size: 10pt;
+  width: 100%;
+  height: 400px;
+  overflow: auto;
+  background-color: #000000;
+  color: forestgreen;
+}
+
+#test10input1, #test10input2, #test11h3, #test12input {
+  visibility: hidden;
+}
+
+#test11h3 {
+  color: gold;
+}
+
+body {
+  background-color: dimgrey;
+}

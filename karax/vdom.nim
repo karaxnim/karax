@@ -423,3 +423,11 @@ proc `$`*(n: VNode): kstring =
   else:
     result = ""
     add(result, n)
+
+proc getVNodeById*(n: VNode; id: cstring): VNode =
+  ## Get the VNode that was marked with ``id``. Returns ``nil``
+  ## if no node exists.
+  if n.id == id: return n
+  for i in 0..<n.len:
+    result = getVNodeById(n[i], id)
+    if result != nil: return result
