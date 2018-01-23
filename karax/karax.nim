@@ -42,6 +42,7 @@ type
     byId: JDict[cstring, VNode]
     when defined(stats):
       recursion: int
+    orphans: JDict[cstring, bool]
 
 
 var
@@ -176,6 +177,7 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if not n.style.isNil: applyStyle(result, n.style)
 
 proc same(n: VNode, e: Node; nesting = 0): bool =
+  if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e, nesting+1)
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
@@ -623,7 +625,8 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                          patchesV: newSeq[PatchV](30),
                          components: @[],
                          surpressRedraws: false,
-                         byId: newJDict[cstring, VNode]())
+                         byId: newJDict[cstring, VNode](),
+                         orphans: newJDict[cstring, bool]())
   kxi = result
   window.onload = init
 
@@ -636,7 +639,8 @@ proc setInitializer*(renderer: proc (): VNode, root: cstring = "ROOT",
                         patchesV: newSeq[PatchV](30),
                         components: @[],
                         surpressRedraws: true,
-                        byId: newJDict[cstring, VNode]())
+                        byId: newJDict[cstring, VNode](),
+                        orphans: newJDict[cstring, bool]())
   kxi = result
   window.onload = init
 
@@ -672,8 +676,13 @@ proc setOnHashChange*(action: proc (hashPart: cstring)) =
     redraw()
   onhashchange = wrapper
 
-{.push stackTrace:off.}
+proc setForeignNodeId*(id: cstring; kxi: KaraxInstance = kxi) =
+  ## Declares a node ID as "foreign". Foreign nodes are not
+  ## under Karax's control in the sense that Karax does not attempt
+  ## to perform structural checks on them.
+  kxi.orphans[id] = true
 
+{.push stackTrace:off.}
 proc setupErrorHandler*() =
   ## Installs an error handler that transforms native JS unhandled
   ## exceptions into Nim based stack traces. If `useAlert` is false,
