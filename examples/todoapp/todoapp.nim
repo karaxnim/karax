@@ -89,7 +89,7 @@ proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compac
           onblur = focusLost,
           onkeyupenter = editEntry, value = d, setFocus=true)
 
-proc makeFooter(entriesCount, completedCount: int): VNode {.compact.} =
+proc makeFooter(entriesCount, completedCount: int): VNode =
   result = buildHtml(footer(class = "footer")):
     span(class = "todo-count"):
       strong:
@@ -115,7 +115,10 @@ proc makeHeader(): VNode {.compact.} =
     input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
           onkeyupenter = onTodoEnter, setFocus)
 
-proc createDom(): VNode =
+proc createDom(data: RouterData): VNode =
+  if data.hashPart == "#/": filter = all
+  elif data.hashPart == "#/completed": filter = completed
+  elif data.hashPart == "#/active": filter = active
   result = buildHtml(tdiv(class="todomvc-wrapper")):
     section(class = "todoapp"):
       makeHeader()
@@ -140,12 +143,6 @@ proc createDom(): VNode =
               inc completedCount, ord(d1)
               inc entriesCount
       makeFooter(entriesCount, completedCount)
-
-setOnHashChange(proc(hash: cstring) =
-  if hash == "#/": filter = all
-  elif hash == "#/completed": filter = completed
-  elif hash == "#/active": filter = active
-)
 
 if hasItem(lenSuffix):
   entriesLen = parseInt getItem(lenSuffix)

@@ -23,12 +23,15 @@ type
     parent, current: Node
 
 type
+  RouterData* = ref object ## information that is passed to the 'renderer' callback
+    hashPart*: cstring     ## the hash part of the URL for routing.
+
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
                               ## know about this.
     rootId: cstring not nil
-    renderer: proc (): VNode {.closure.}
+    renderer: proc (data: RouterData): VNode {.closure.}
     currentTree: VNode
-    postRenderCallback: proc ()
+    postRenderCallback: proc (data: RouterData)
     toFocus: Node
     toFocusV: VNode
     renderId: int
@@ -287,17 +290,18 @@ proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   shallowCopy(oldNode.events, newNode.events)
   applyEvents(oldNode, kxi)
 
-proc printV(n: VNode; depth: cstring = "") =
-  kout depth, cstring($n.kind), cstring"key ", n.index
-  #for k, v in pairs(n.style):
-  #  kout depth, "style: ", k, v
-  if n.kind == VNodeKind.component:
-    let nn = VComponent(n)
-    if nn.expanded != nil: printV(nn.expanded, ">>" & depth)
-  elif n.kind == VNodeKind.text:
-    kout depth, n.text
-  for i in 0 ..< n.len:
-    printV(n[i], depth & "  ")
+when false:
+  proc printV(n: VNode; depth: cstring = "") =
+    kout depth, cstring($n.kind), cstring"key ", n.index
+    #for k, v in pairs(n.style):
+    #  kout depth, "style: ", k, v
+    if n.kind == VNodeKind.component:
+      let nn = VComponent(n)
+      if nn.expanded != nil: printV(nn.expanded, ">>" & depth)
+    elif n.kind == VNodeKind.text:
+      kout depth, n.text
+    for i in 0 ..< n.len:
+      printV(n[i], depth & "  ")
 
 proc addPatch(kxi: KaraxInstance; ka: PatchKind; parenta, currenta: Node;
               na: VNode) =
@@ -559,9 +563,13 @@ proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
     kxi.currentTree = newNode
   doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
+var onhashChange {.importc: "window.onhashchange".}: proc()
+var hashPart {.importc: "window.location.hash".}: cstring
+
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
-  let newtree = kxi.renderer()
+  let rdata = RouterData(hashPart: hashPart)
+  let newtree = kxi.renderer(rdata)
   inc kxi.runCount
   newtree.id = kxi.rootId
   kxi.toFocus = nil
@@ -586,7 +594,7 @@ proc dodraw(kxi: KaraxInstance) =
   doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
-    kxi.postRenderCallback()
+    kxi.postRenderCallback(rdata)
 
   # now that it's part of the DOM, give it the focus:
   if kxi.toFocus != nil:
@@ -598,7 +606,8 @@ proc dodraw(kxi: KaraxInstance) =
     echo "depth ", depth(kxi.currentTree, total), " total ", total
 
 proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
-proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
+when false:
+  proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
 
 proc redraw*(kxi: KaraxInstance = kxi) =
   # we buffer redraw requests:
@@ -617,8 +626,11 @@ proc redrawSync*(kxi: KaraxInstance = kxi) = dodraw(kxi)
 proc init(ev: Event) =
   kxi.renderId = reqFrame(proc () = kxi.dodraw)
 
-proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
-                  clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+proc setRenderer*(renderer: proc (data: RouterData): VNode,
+                  root: cstring = "ROOT",
+                  clientPostRenderCallback:
+                    proc (data: RouterData) = nil): KaraxInstance {.
+                    discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
   result = KaraxInstance(rootId: root, renderer: renderer,
                          postRenderCallback: clientPostRenderCallback,
@@ -630,9 +642,18 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                          orphans: newJDict[cstring, bool]())
   kxi = result
   window.onload = init
+  onhashChange = proc() = redraw()
 
-proc setInitializer*(renderer: proc (): VNode, root: cstring = "ROOT",
-                    clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
+                  clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
+  ## Setup Karax. Usually the return value can be ignored.
+  proc wrapRenderer(data: RouterData): VNode = result = renderer()
+  proc wrapPostRender(data: RouterData) = clientPostRenderCallback()
+  setRenderer(wrapRenderer, root, wrapPostRender)
+
+proc setInitializer*(renderer: proc (data: RouterData): VNode, root: cstring = "ROOT",
+                    clientPostRenderCallback:
+                      proc (data: RouterData) = nil): KaraxInstance {.discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
   result = KaraxInstance(rootId: root, renderer: renderer,
                         postRenderCallback: clientPostRenderCallback,
@@ -669,9 +690,9 @@ proc addEventHandler*(n: VNode; k: EventKind; action: proc();
     if not kxi.surpressRedraws: redraw(kxi)
   addEventListener(n, k, wrapper)
 
-proc setOnHashChange*(action: proc (hashPart: cstring)) =
-  var onhashChange {.importc: "window.onhashchange".}: proc()
-  var hashPart {.importc: "window.location.hash".}: cstring
+proc setOnHashChange*(action: proc (hashPart: cstring)) {.deprecated.} =
+  ## Now deprecated, instead pass a callback to ``setRenderer`` that receives
+  ## a ``data: RouterData`` parameter.
   proc wrapper() =
     action(hashPart)
     redraw()
@@ -693,7 +714,7 @@ proc setupErrorHandler*() =
   var onerror {.importc: "window.onerror", used.} =
     proc (msg, url: cstring, line, col: int, error: cstring): bool =
       var x = cstring"Error: " & msg & "\n" & stackTraceAsCstring()
-      kout(x)
+      echo(x)
       return true # suppressErrorAlert
 {.pop.}
 
