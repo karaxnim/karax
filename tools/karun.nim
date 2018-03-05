@@ -55,7 +55,7 @@ proc main =
   createDir("nimcache")
   exec("nim js --out:nimcache/" & name & ".js " & rest)
   let dest = "nimcache" / name & ".html"
-  writeFile(dest, html % [name, css])
+  writeFile(dest, html % [name, selectedCss])
   if run: openDefaultBrowser(dest)
 
 main()
