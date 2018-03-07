@@ -233,7 +233,7 @@ proc eq(a, b: VNode): EqResult =
   if a.kind == VNodeKind.text:
     if a.text != b.text:
       when defined(profileKarax): inc reasons[deText]
-      return similar
+      return different # similar
   elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
     if a.text != b.text: return different
     if a.len != b.len: return different
@@ -648,7 +648,8 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
                   clientPostRenderCallback: proc () = nil): KaraxInstance {.discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
   proc wrapRenderer(data: RouterData): VNode = result = renderer()
-  proc wrapPostRender(data: RouterData) = clientPostRenderCallback()
+  proc wrapPostRender(data: RouterData) =
+    if clientPostRenderCallback != nil: clientPostRenderCallback()
   setRenderer(wrapRenderer, root, wrapPostRender)
 
 proc setInitializer*(renderer: proc (data: RouterData): VNode, root: cstring = "ROOT",

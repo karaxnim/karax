@@ -156,14 +156,14 @@ proc testWild() =
   let a = createEntries(entries)
   entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
   let b = createEntries(entries)
-  doDiff(a, b, "pkDetach button 7", "pkRemove nil", "pkDetach div 5", "pkRemove nil")
+  doDiff(a, b, "pkDetach button 7", "pkRemove nil", "pkDetach div 7", "pkRemove nil")
 
 proc testWildInsert() =
   var entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring("5")]
   let a = createEntries(entries)
   entries = @[cstring("0"), cstring("1"), cstring("2"), cstring("3"), cstring("4"), cstring"7", cstring("5")]
   let b = createEntries(entries)
-  doDiff(a, b, "pkInsertBefore button 7", "pkAppend div 5")
+  doDiff(a, b, "pkInsertBefore button 7", "pkInsertBefore div 7")
 
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (data: RouterData): VNode = discard,
                     byId: newJDict[cstring, VNode]())
