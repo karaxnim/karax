@@ -7,6 +7,8 @@ to change.
 
 To try it out, run::
 
+  git clone https://github.com/pragmagic/karax
+  cd karax
   nimble install # For first time
 
   cd examples/todoapp
