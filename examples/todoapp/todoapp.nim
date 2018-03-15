@@ -1,5 +1,5 @@
 
-import karax / [vdom, karax, karaxdsl, jstrutils, compact, localstorage]
+import karax / [vdom, karax, karaxdsl, jstrutils, compact, localstorage], unicode
 
 type
   Filter = enum
@@ -41,8 +41,9 @@ proc updateEntry(pos: int, content: cstring, completed: bool) =
   markAsCompleted(pos, completed)
 
 proc onTodoEnter(ev: Event; n: VNode) =
-  addEntry(n.value, false)
-  n.value = ""
+  if n.value != "" and not ($n.value).isSpace():
+    addEntry(n.value, false)
+    n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
   updateEntry(n.index, cstring(nil), false)
