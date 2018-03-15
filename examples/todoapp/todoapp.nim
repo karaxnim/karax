@@ -64,6 +64,12 @@ proc onAllDone(ev: Event; n: VNode) =
   clear()
   selectedEntry = -1
 
+proc toggleAll(ev: Event; n: VNode) =
+  var notes = document.getElementsByClassName("toggle")
+  var toggle = document.getElementsByClassName("toggle-all")[0]
+  for i in notes:
+    i.checked = toggle.checked
+
 proc clearCompleted(ev: Event, n: VNode) =
   for i in 0..<entriesLen:
     if isCompleted(i): setEntryContent(i, nil)
@@ -123,7 +129,7 @@ proc createDom(data: RouterData): VNode =
     section(class = "todoapp"):
       makeHeader()
       section(class = "main"):
-        input(class = "toggle-all", `type` = "checkbox", name = "toggle")
+        input(class = "toggle-all", `type` = "checkbox", name = "toggle", onclick = toggleAll)
         label(`for` = "toggle-all", onclick = onAllDone):
           text "Mark all as complete"
         var entriesCount = 0
