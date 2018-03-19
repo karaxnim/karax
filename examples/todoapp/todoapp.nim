@@ -15,6 +15,23 @@ const
   completedSuffix = cstring"completed"
   lenSuffix = cstring"entriesLen"
 
+when defined(hotReloading):
+  # When hot reloading is enabled, we won't store the list of
+  # to-do items in persistent storage in order to demonstrate
+  # the state preserving behavior of the hot reloading engine.
+  import jsconsole, tables
+
+  var
+    todoStore = initTable[cstring, cstring]()
+
+  proc getItem(key: cstring): cstring = todoStore[key]
+  proc setItem(k, v: cstring) = todoStore[k] = v
+  proc hasItem(k: cstring): bool = todoStore.hasKey(k)
+  proc clear() = todoStore.clear()
+
+  once:
+    console.log "HOT-RELOADING ENABLED"
+
 proc getEntryContent(pos: int): cstring =
   result = getItem(&pos & contentSuffix)
   if result == cstring"null":
@@ -115,10 +132,10 @@ proc makeHeader(): VNode {.compact.} =
     input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
           onkeyupenter = onTodoEnter, setFocus)
 
-proc createDom(data: RouterData): VNode =
-  if data.hashPart == "#/": filter = all
-  elif data.hashPart == "#/completed": filter = completed
-  elif data.hashPart == "#/active": filter = active
+proc createDom(todoStore: RouterData): VNode =
+  if todoStore.hashPart == "#/": filter = all
+  elif todoStore.hashPart == "#/completed": filter = completed
+  elif todoStore.hashPart == "#/active": filter = active
   result = buildHtml(tdiv(class="todomvc-wrapper")):
     section(class = "todoapp"):
       makeHeader()
@@ -148,4 +165,7 @@ if hasItem(lenSuffix):
   entriesLen = parseInt getItem(lenSuffix)
 else:
   entriesLen = 0
+
 setRenderer createDom
+redraw()
+

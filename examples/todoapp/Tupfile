@@ -1,0 +1,2 @@
+: todoapp.nim |> nim --hotReloading:on js %f |> nimcache/%B.js
+

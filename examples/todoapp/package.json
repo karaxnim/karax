@@ -1,0 +1,26 @@
+{
+  "name": "karax-todo-example",
+  "version": "1.0.0",
+  "description": "The classic To-Do list application for Karax",
+  "main": "electron-main.js",
+  "scripts": {
+    "tup": "tup monitor --autoupdate --foreground",
+    "browser_sync": "nim js -d:nodejs -r browsersyncsrv.nim",
+    "electron_app": "sleep 1 && electron .",
+    "start": "npm-run-all -p -r tup browser_sync electron_app"
+  },
+  "repository": "https://github.com/pragmagic/karax",
+  "keywords": [
+    "karax",
+    "to-do",
+    "example",
+    "electron"
+  ],
+  "author": "Pragmagic",
+  "license": "CC0-1.0",
+  "dependencies": {
+    "browser-sync": "^2.23.6",
+    "electron": "~1.8.2",
+    "npm-run-all": "^4.1.2"
+  }
+}
