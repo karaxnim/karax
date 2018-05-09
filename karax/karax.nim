@@ -634,6 +634,11 @@ proc setRenderer*(renderer: proc (data: RouterData): VNode,
                     proc (data: RouterData) = nil): KaraxInstance {.
                     discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
+  if document.getElementById(root).isNil:
+    let msg = "Could not find a <div> with id=" & root &
+              ". Karax needs it as its rendering target."
+    raise newException(Exception, $msg)
+
   result = KaraxInstance(rootId: root, renderer: renderer,
                          postRenderCallback: clientPostRenderCallback,
                          patches: newSeq[Patch](60),
