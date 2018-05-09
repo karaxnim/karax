@@ -4,6 +4,8 @@ import kdom, vdom, jstrutils, compact, jdict, vstyles
 
 export kdom.Event, kdom.Blob
 
+{.experimental: "notnil".}
+
 proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
   ## the preferred way of debugging karax applications. Now deprecated,
   ## you can now use ``system.echo`` instead.
