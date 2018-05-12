@@ -190,7 +190,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e, nesting+1)
   elif n.kind == VNodeKind.verbatim:
-    result = n.text == e.innerHtml
+    result = true
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these for now:
     result = true
