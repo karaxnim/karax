@@ -137,6 +137,10 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
+  elif n.kind == VNodeKind.verbatim:
+    result = document.createElement("div")
+    result.innerHTML = n.text
+    return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = vnodeToDom(x, kxi)
@@ -185,6 +189,8 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e, nesting+1)
+  elif n.kind == VNodeKind.verbatim:
+    result = n.text == e.innerHtml
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these for now:
     result = true
