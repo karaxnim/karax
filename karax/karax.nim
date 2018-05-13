@@ -1,4 +1,5 @@
 ## Karax -- Single page applications for Nim.
+{.experimental: "notnil".}
 
 import kdom, vdom, jstrutils, compact, jdict, vstyles
 
