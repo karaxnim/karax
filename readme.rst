@@ -9,7 +9,7 @@ To try it out, run::
 
   cd ~/projects # Insert your favourite directory for projects
 
-  nimble develop # This will clone Karax and create a link to it in ~/.nimble
+  nimble develop karax # This will clone Karax and create a link to it in ~/.nimble
 
   cd karax
 
