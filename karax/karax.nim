@@ -247,6 +247,9 @@ proc eq(a, b: VNode): EqResult =
     if a.len != b.len: return different
     for i in 0..<a.len:
       if eq(a[i], b[i]) == different: return different
+  elif a.kind == VNodeKind.verbatim:
+    if a.text != b.text:
+      return different
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text:
