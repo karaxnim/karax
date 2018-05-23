@@ -4,7 +4,8 @@ import kdom, vdom, jstrutils, compact, jdict, vstyles
 
 export kdom.Event, kdom.Blob
 
-{.experimental: "notnil".}
+when defined(nimNoNil):
+  {.experimental: "notnil".}
 
 proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
   ## the preferred way of debugging karax applications. Now deprecated,
@@ -140,6 +141,7 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   elif n.kind == VNodeKind.verbatim:
     result = document.createElement("div")
     result.innerHTML = n.text
+    attach n
     return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
