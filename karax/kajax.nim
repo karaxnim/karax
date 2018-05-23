@@ -38,7 +38,7 @@ proc ajax*(meth, url: cstring; headers: openarray[(cstring, cstring)];
       if this.status == 200:
         contWrapper(this.status, this.responseText)
       else:
-        contWrapper(this.status, this.statusText)
+        contWrapper(this.status, this.responseText)
   if useBinary:
     ajax.send(blob)
   else:

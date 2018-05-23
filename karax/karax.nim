@@ -4,6 +4,8 @@ import kdom, vdom, jstrutils, compact, jdict, vstyles
 
 export kdom.Event, kdom.Blob
 
+{.experimental: "notnil".}
+
 proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
   ## the preferred way of debugging karax applications. Now deprecated,
   ## you can now use ``system.echo`` instead.
@@ -135,6 +137,10 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
+  elif n.kind == VNodeKind.verbatim:
+    result = document.createElement("div")
+    result.innerHTML = n.text
+    return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = vnodeToDom(x, kxi)
@@ -183,6 +189,8 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e, nesting+1)
+  elif n.kind == VNodeKind.verbatim:
+    result = true
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these for now:
     result = true
@@ -239,6 +247,9 @@ proc eq(a, b: VNode): EqResult =
     if a.len != b.len: return different
     for i in 0..<a.len:
       if eq(a[i], b[i]) == different: return different
+  elif a.kind == VNodeKind.verbatim:
+    if a.text != b.text:
+      return different
   elif b.kind == VNodeKind.component:
     # different component names mean different components:
     if a.text != b.text:
@@ -632,6 +643,11 @@ proc setRenderer*(renderer: proc (data: RouterData): VNode,
                     proc (data: RouterData) = nil): KaraxInstance {.
                     discardable.} =
   ## Setup Karax. Usually the return value can be ignored.
+  if document.getElementById(root).isNil:
+    let msg = "Could not find a <div> with id=" & root &
+              ". Karax needs it as its rendering target."
+    raise newException(Exception, $msg)
+
   result = KaraxInstance(rootId: root, renderer: renderer,
                          postRenderCallback: clientPostRenderCallback,
                          patches: newSeq[Patch](60),

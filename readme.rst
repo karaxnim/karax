@@ -7,9 +7,11 @@ to change.
 
 To try it out, run::
 
-  git clone https://github.com/pragmagic/karax
+  cd ~/projects # Insert your favourite directory for projects
+
+  nimble develop karax # This will clone Karax and create a link to it in ~/.nimble
+
   cd karax
-  nimble install # For first time
 
   cd examples/todoapp
   nim js todoapp.nim
