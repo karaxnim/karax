@@ -1,5 +1,5 @@
 nimcache/
 /tests/tester
-/tools/karun
+karax/tools/karun
 *.code-workspace
 *.exe
