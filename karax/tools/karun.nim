@@ -42,6 +42,7 @@ proc main =
         rest = rest.replace("--run ")
       of "css":
         selectedCss = css
+        rest = rest.replace("--css ")
       else: discard
     of cmdShortOption:
       if op.key == "r":
