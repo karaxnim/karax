@@ -199,8 +199,9 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif toTag[n.kind] == e.nodename:
     result = true
     if n.kind != VNodeKind.text:
-      if e.len != n.len:
-        echo "expected ", e.len, " real ", n.len, toTag[n.kind], " nesting ", nesting
+      # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
+      if e.len != n.len and n.kind != VNodeKind.textarea:
+        echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
