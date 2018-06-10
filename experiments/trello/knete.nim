@@ -538,7 +538,7 @@ proc preventDefault*(ev: Event) {.importcpp.}
 
 # ------------------ Init handling -----------------------------------
 
-proc replaceById(id: cstring; newTree: Element) =
+proc replaceById*(newTree: Element; id: cstring = "ROOT") =
   let x = getElementById(id)
   x.parent.replaceChild(newTree, x)
   newTree.id = id

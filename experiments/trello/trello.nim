@@ -129,7 +129,7 @@ proc renderColumn(c: Column): Element =
     ev.target.up("mycolumn").add(getElementById(data))
 
   result = buildHtml():
-    tdiv(class = "mycolumn", style = {cssFloat: "left", width: "33%"},
+    tdiv(class = "mycolumn", style = {cssFloat: "left", width: "20%"},
          ondrop = drop, ondragover = allowDrop):
       tdiv(class = "myheader"):
         bindField c.header
