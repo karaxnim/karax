@@ -14,7 +14,7 @@ type
   VNodeKind* {.pure.} = enum
     text = "#text", int = "#int", bool = "#bool",
     vthunk = "#vthunk", dthunk = "#dthunk",
-    component = "#component",
+    component = "#component", verbatim="#verbatim",
 
     html, head, title, base, link, meta, style,
     script, noscript,
@@ -266,6 +266,13 @@ proc tree*(kind: VNodeKind; attrs: openarray[(kstring, kstring)];
 when defined(js):
   proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: kstring(s), index: -1)
 proc text*(s: kstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
+
+when defined(js):
+  proc verbatim*(s: string): VNode =
+    VNode(kind: VNodeKind.verbatim, text: kstring(s), index: -1)
+proc verbatim*(s: kstring): VNode =
+  VNode(kind: VNodeKind.verbatim, text: s, index: -1)
+
 
 iterator items*(n: VNode): VNode =
   for i in 0..<n.kids.len: yield n.kids[i]

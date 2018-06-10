@@ -9,6 +9,6 @@ license       = "MIT"
 
 requires "nim >= 0.16.1"
 
-skipDirs = @["examples", "experiments"]
+skipDirs = @["examples", "experiments", "tests"]
 
-bin = @["tools/karun"]
+bin = @["karax/tools/karun"]
