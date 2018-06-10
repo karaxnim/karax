@@ -1,5 +1,5 @@
 
-import macros, vdom, compact
+import macros, vdom, compact, kbase
 from strutils import startsWith, toLowerAscii
 
 when defined(js):
@@ -22,6 +22,14 @@ proc getName(n: NimNode): string =
   else:
     #echo repr n
     expectKind(n, nnkIdent)
+
+proc toKstring(n: NimNode): NimNode =
+  if n.kind == nnkStrLit:
+    result = newCall(bindSym"kstring", n)
+  else:
+    result = copyNimNode(n)
+    for child in n:
+      result.add toKstring(child)
 
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
@@ -104,6 +112,8 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           if key.startsWith("on"):
             result.add newCall(evHandler(),
               tmp, newDotExpr(bindSym"EventKind", x[0]), x[1], ident("kxi"))
+          elif eqIdent(key, "style") and x[1].kind == nnkTableConstr:
+            result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           elif eqIdent(key, "setFocus"):
