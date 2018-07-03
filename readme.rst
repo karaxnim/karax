@@ -2,8 +2,8 @@ Karax – Single page applications in Nim |travis|
 ================================================
 
 Karax is a framework for developing single page applications in Nim.
-It's still in heavy development, so keep in mind that the API is subject
-to change.
+The API is reasonably stable and version 1 should arrive anytime soon
+now.
 
 To try it out, run::
 
@@ -182,6 +182,27 @@ As the examples grow larger it becomes more and more visible of what
 a DSL that composes with the builtin Nim control flow constructs buys us.
 Once you have tasted this power there is no going back and languages
 without AST based macro system simply don't cut it anymore.
+
+
+Attaching data to an event handler
+==================================
+
+Since the type of an event handler is ``(ev: Event; n: VNode)`` or ``()`` any
+additional data that should be passed to the event handler needs to be
+done via Nim's closures. In general this means a pattern like this:
+
+.. code-block:: nim
+
+  proc menuAction(menuEntry: kstring): proc() =
+    result = proc() =
+      echo "clicked ", menuEntry
+
+  proc buildMenu(menu: seq[kstring]): VNode =
+    result = buildHtml(tdiv):
+      for m in menu:
+        nav(class="navbar is-primary"):
+          tdiv(class="navbar-brand"):
+            a(class="navbar-item", onclick = menuAction(m)):
 
 
 DOM diffing
