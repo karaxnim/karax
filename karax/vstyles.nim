@@ -241,8 +241,8 @@ proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
       s[i+1] = value
       return
     elif s[i] > a:
-      s.add nil
-      s.add nil
+      s.add ""
+      s.add ""
       # insertion point here:
       for j in countdown(s.len-1, i, 2):
         s[j] = s[j-2]
@@ -255,18 +255,19 @@ proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
   s.add value
 
 proc setAttr*(s: VStyle; attr: StyleAttr, value: kstring) {.noSideEffect.} =
-  assert value != nil, "value must not be nil"
+  when kstring is cstring:
+    assert value != nil, "value must not be nil"
   setAttr(s, toStyleAttrName[attr], value)
 
 proc getAttr*(s: VStyle; attr: StyleAttr): kstring {.noSideEffect.} =
-  ## returns 'nil' if the attribute has not been set.
+  ## returns "" if the attribute has not been set.
   var i = 0
   let a = toStyleAttrName[attr]
   while i < s.len:
     if s[i] == a:
       return s[i+1]
     elif s[i] > a:
-      return nil
+      return ""
     inc i, 2
 
 proc style*(pairs: varargs[(StyleAttr, kstring)]): VStyle {.noSideEffect.} =

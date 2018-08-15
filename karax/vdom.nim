@@ -208,7 +208,7 @@ template markDirty*(c: VComponent) =
   inc c.version
 
 proc setAttr*(n: VNode; key: kstring; val: kstring = "") =
-  if n.attrs.isNil:
+  if n.attrs.len == 0:
     n.attrs = @[key, val]
   else:
     for i in countup(0, n.attrs.len-2, 2):
@@ -291,7 +291,7 @@ proc addEventListener*(n: VNode; event: EventKind; handler: EventHandler) =
   n.events.add((event, handler, nil))
 
 template toStringAttr(field) =
-  if n.field != nil:
+  if n.field.len > 0:
     result.add " " & astToStr(field) & " = " & $n.field
 
 proc toString*(n: VNode; result: var string; indent: int) =
@@ -306,7 +306,7 @@ proc toString*(n: VNode; result: var string; indent: int) =
   if n.kind == VNodeKind.text:
     result.add n.text
   else:
-    if n.text != nil:
+    if n.text.len > 0:
       result.add " value = "
       result.add n.text
     for child in items(n):
@@ -379,11 +379,11 @@ proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
     let kind = $n.kind
     result.add('<')
     result.add(kind)
-    if n.id != nil:
+    if n.id.len > 0:
       result.add " id=\""
       result.addEscapedAttr(n.id)
       result.add('"')
-    if n.class != nil:
+    if n.class.len > 0:
       result.add " class=\""
       result.addEscapedAttr(n.class)
       result.add('"')
