@@ -19,6 +19,12 @@ proc getName(n: NimNode): string =
       result.add getName(n[i])
   of nnkStrLit..nnkTripleStrLit:
     result = n.strVal
+  of nnkInfix:
+    # allow 'foo-bar' syntax:
+    if n.len == 3 and $n[0] == "-":
+      result = getName(n[1]) & "-" & getName(n[2])
+    else:
+      expectKind(n, nnkIdent)
   else:
     #echo repr n
     expectKind(n, nnkIdent)

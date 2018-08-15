@@ -8,12 +8,13 @@ import karax
 proc ajax*(meth, url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int; response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi,
           useBinary: bool = false,
           blob: Blob = nil) =
   proc contWrapper(httpStatus: int; response: cstring) =
     cont(httpStatus, response)
-    redraw(kxi)
+    if doRedraw: redraw(kxi)
 
   type
     HttpRequest {.importc.} = ref object
@@ -47,30 +48,35 @@ proc ajax*(meth, url: cstring; headers: openarray[(cstring, cstring)];
 proc ajaxPost*(url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int, response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi) =
-  ajax("POST", url, headers, data, cont, kxi)
+  ajax("POST", url, headers, data, cont, doRedraw, kxi)
 
 proc ajaxPost*(url: cstring; headers: openarray[(cstring, cstring)];
           data: Blob;
           cont: proc (httpStatus: int, response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi) =
-  ajax("POST", url, headers, "", cont, kxi, true, data)
+  ajax("POST", url, headers, "", cont, doRedraw, kxi, true, data)
 
 proc ajaxGet*(url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi) =
-  ajax("GET", url, headers, nil, cont, kxi)
+  ajax("GET", url, headers, nil, cont, doRedraw, kxi)
 
 proc ajaxPut*(url: cstring; headers: openarray[(cstring, cstring)];
           data: cstring;
           cont: proc (httpStatus: int, response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi) =
-  ajax("PUT", url, headers, data, cont, kxi)
+  ajax("PUT", url, headers, data, cont, doRedraw, kxi)
 
 proc ajaxDelete*(url: cstring; headers: openarray[(cstring, cstring)];
           cont: proc (httpStatus: int, response: cstring);
+          doRedraw: bool = true,
           kxi: KaraxInstance = kxi) =
-  ajax("DELETE", url, headers, nil, cont, kxi)
+  ajax("DELETE", url, headers, nil, cont, doRedraw, kxi)
 
 
 proc toJson*[T](data: T): cstring {.importc: "JSON.stringify".}

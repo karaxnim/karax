@@ -1,6 +1,6 @@
 ## Example program that shows how to create menus with Karax.
 
-include karaxprelude
+include prelude
 import jstrutils, kdom
 
 proc contentA(): VNode =
