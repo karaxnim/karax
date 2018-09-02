@@ -25,6 +25,8 @@ proc getName(n: NimNode): string =
       result = getName(n[1]) & "-" & getName(n[2])
     else:
       expectKind(n, nnkIdent)
+  of nnkDotExpr:
+    result = getName(n[0]) & "." & getName(n[1])
   else:
     #echo repr n
     expectKind(n, nnkIdent)
