@@ -298,6 +298,7 @@ disabled until some input fields are validated! This is easily fixed,
 at initialization we have to do:
 
 .. code-block:: nim
+
   setError username, username & " must not be empty"
   setError password, password & " must not be empty"
 
