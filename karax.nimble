@@ -12,3 +12,4 @@ requires "nim >= 0.16.1"
 skipDirs = @["examples", "experiments", "tests"]
 
 bin = @["karax/tools/karun"]
+installExt = @["nim"]
