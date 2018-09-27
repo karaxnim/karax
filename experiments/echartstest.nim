@@ -1,5 +1,3 @@
-
-
 import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
 
 type
@@ -9,18 +7,13 @@ type
 var
   currentView = Customers
 
-setOnHashChange(proc(hash: cstring) =
-  if hash == cstring"#/Products": currentView = Products
-  else: currentView = Customers
-)
-
 type
   EChart* = ref object
 
 proc echartsInit(n: Element): EChart {.importc: "echarts.init".}
 proc setOption(x: EChart; option: JsonNode) {.importcpp.}
 
-proc postRender() =
+proc postRender(data: RouterData) =
   if currentView == Products:
     let myChart = echartsInit(kdom.getElementById("echartSection"))
     # specify chart configuration item and data
@@ -44,7 +37,11 @@ proc postRender() =
     }
     myChart.setOption(option)
 
-proc createDom(): VNode =
+proc createDom(data: RouterData): VNode =
+  let hash = data.hashPart
+  if hash == cstring"#/Products": currentView = Products
+  else: currentView = Customers
+
   result = buildHtml(tdiv):
     ul(class = "tabs"):
       for v in low(Views)..high(Views):
