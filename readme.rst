@@ -118,6 +118,7 @@ that writes "Hello simulated universe" on a button click:
 .. code-block:: nim
 
   include karax / prelude
+  # alternatively: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
 
   var lines: seq[kstring] = @[]
 
@@ -147,7 +148,7 @@ following syntax is also supported:
 .. code-block:: nim
 
   include karax / prelude
-  from future import `=>`
+  from sugar import `=>`
 
   var lines: seq[kstring] = @[]
 
