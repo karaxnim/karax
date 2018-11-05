@@ -1,7 +1,14 @@
 ## Simple tool to quickly run Karax applications. Generates the HTML
 ## required to run a Karax app and opens it in a browser.
 
-import os, strutils, parseopt, browsers, times, tables
+import os, 
+  strutils, 
+  parseopt, 
+  browsers, 
+  times, 
+  tables
+  
+
 
 const
   css = """
@@ -70,6 +77,7 @@ proc main =
   build(name, rest, selectedCss, run)
   echo("after build")
   if watch:
+    # TODO: launch http server
     while true:
       sleep(300)
       for path in walkDirRec("."):
@@ -84,3 +92,7 @@ proc main =
           files[path] = getLastModificationTime(path)
 
 main()
+
+
+
+
