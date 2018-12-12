@@ -2,8 +2,6 @@ Karax – Single page applications in Nim |travis|
 ================================================
 
 Karax is a framework for developing single page applications in Nim.
-The API is reasonably stable and version 1 should arrive anytime soon
-now.
 
 To try it out, run::
 
