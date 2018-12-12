@@ -4,6 +4,8 @@ proc split*(s, sep: cstring): seq[cstring] {.importcpp, nodecl.}
 
 proc split*(s, sep: cstring; max: int): seq[cstring] {.importcpp, nodecl.}
 
+proc strip*(s: cstring): cstring {.importcpp: "#.trim()", nodecl.}
+
 proc startsWith*(a, b: cstring): bool {.importcpp: "startsWith", nodecl.}
 proc contains*(a, b: cstring): bool {.importcpp: "(#.indexOf(#)>=0)", nodecl.}
 

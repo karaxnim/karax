@@ -41,8 +41,9 @@ proc updateEntry(pos: int, content: cstring, completed: bool) =
   markAsCompleted(pos, completed)
 
 proc onTodoEnter(ev: Event; n: VNode) =
-  addEntry(n.value, false)
-  n.value = ""
+  if n.value.strip() != "":
+    addEntry(n.value, false)
+    n.value = ""
 
 proc removeHandler(ev: Event; n: VNode) =
   updateEntry(n.index, cstring(nil), false)
