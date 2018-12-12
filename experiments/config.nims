@@ -1,1 +1,2 @@
 --path: "../karax"
+--path: ".."

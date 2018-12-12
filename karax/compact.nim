@@ -8,18 +8,15 @@ import macros, vdom, tables, strutils, kbase
 when defined(js):
   var
     vcomponents* = newJDict[cstring, proc(args: seq[VNode]): VNode]()
-    dcomponents* = newJDict[cstring, proc(args: seq[VNode]): Node]()
 else:
   var
     vcomponents* = newTable[kstring, proc(args: seq[VNode]): VNode]()
-    dcomponents* = newTable[kstring, proc(args: seq[VNode]): Node]()
 
 type
   ComponentKind* {.pure.} = enum
     None,
     Tag,
-    VNode,
-    Node
+    VNode
 
 var
   allcomponents {.compileTime.} = initTable[string, ComponentKind]()
@@ -84,10 +81,8 @@ when defined(js):
     var isvirtual = ComponentKind.None
     if rettype == "VNode":
       isvirtual = ComponentKind.VNode
-    elif rettype == "Node":
-      isvirtual = ComponentKind.Node
     else:
-      error "component must return VNode or Node", params[0]
+      error "component must return VNode", params[0]
     let realName = if name.kind == nnkPostfix: name[1] else: name
     let nn = $realName
     n[0] = ident("inner" & nn)
@@ -105,26 +100,15 @@ when defined(js):
       proc pname(args: seq[VNode]): VNode =
         unpackCall
 
-    template dwrapper(pname, unpackCall) {.dirty.} =
-      proc pname(args: seq[VNode]): Node =
-        unpackCall
-
     template vregister(key, val) =
       bind jdict.`[]=`
       `[]=`(vcomponents, kstring(key), val)
-
-    template dregister(key, val) =
-      bind jdict.`[]=`
-      `[]=`(dcomponents, kstring(key), val)
 
     result = newTree(nnkStmtList, n)
 
     if isvirtual == ComponentKind.VNode:
       result.add getAst(vwrapper(newname name, unpackCall))
       result.add getAst(vregister(newLit(nn), realName))
-    else:
-      result.add getAst(dwrapper(newname name, unpackCall))
-      result.add getAst(dregister(newLit(nn), realName))
     allcomponents[nn] = isvirtual
     when defined(debugKaraxDsl):
       echo repr result

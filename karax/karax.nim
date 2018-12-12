@@ -123,7 +123,7 @@ template attach(n: VNode) =
   n.dom = result
   if n.id != nil: kxi.byId[n.id] = n
 
-proc applyEvents(n: VNode; kxi: KaraxInstance) =
+proc applyEvents(n: VNode) =
   let dest = n.dom
   for i in 0..<len(n.events):
     n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
@@ -134,7 +134,7 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   if kxi.byId.contains(id):
     result = kxi.byId[id]
 
-proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
+proc vnodeToDom*(n: VNode; kxi: KaraxInstance = nil): Node =
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
@@ -150,7 +150,8 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
     attach n
     return result
   elif n.kind == VNodeKind.dthunk:
-    result = callThunk(dcomponents[n.text], n)
+    result = n.dom #callThunk(dcomponents[n.text], n)
+    assert result != nil
     #n.key = result.key
     attach n
     return result
@@ -182,8 +183,8 @@ proc vnodeToDom*(n: VNode; kxi: KaraxInstance): Node =
   for k, v in attrs(n):
     if v != nil:
       result.setAttr(k, v)
-  applyEvents(n, kxi)
-  if n == kxi.toFocusV and kxi.toFocus.isNil:
+  applyEvents(n)
+  if kxi != nil and n == kxi.toFocusV and kxi.toFocus.isNil:
     kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
 
@@ -194,7 +195,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.verbatim:
     result = true
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
-    # we don't check these for now:
+    # we don't check these:
     result = true
   elif toTag[n.kind] == e.nodename:
     result = true
@@ -245,11 +246,13 @@ proc eq(a, b: VNode): EqResult =
     if a.text != b.text:
       when defined(profileKarax): inc reasons[deText]
       return different # similar
-  elif a.kind == VNodeKind.vthunk or a.kind == VNodeKind.dthunk:
+  elif a.kind == VNodeKind.vthunk:
     if a.text != b.text: return different
     if a.len != b.len: return different
     for i in 0..<a.len:
       if eq(a[i], b[i]) == different: return different
+  elif a.kind == VNodeKind.dthunk:
+    return identical
   elif a.kind == VNodeKind.verbatim:
     if a.text != b.text:
       return different
@@ -302,7 +305,7 @@ proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
                else: toEventName[k]
     d.removeEventListener(name, oldNode.events[i][2])
   shallowCopy(oldNode.events, newNode.events)
-  applyEvents(oldNode, kxi)
+  applyEvents(oldNode)
 
 when false:
   proc printV(n: VNode; depth: cstring = "") =

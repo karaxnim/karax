@@ -14,13 +14,13 @@ type
   VNodeKind* {.pure.} = enum
     text = "#text", int = "#int", bool = "#bool",
     vthunk = "#vthunk", dthunk = "#dthunk",
-    component = "#component", verbatim="#verbatim",
+    component = "#component", verbatim = "#verbatim",
 
     html, head, title, base, link, meta, style,
     script, noscript,
     body, section, nav, article, aside,
     h1, h2, h3, h4, h5, h6,
-    header, footer, address, main
+    header, footer, address, main,
 
     p, hr, pre, blockquote, ol, ul, li,
     dl, dt, dd,
@@ -167,8 +167,8 @@ template callThunk*(fn: typed; n: VNode): untyped =
 proc vthunk*(name: kstring; args: varargs[VNode, vn]): VNode =
   VNode(kind: VNodeKind.vthunk, text: name, index: -1, kids: @args)
 
-proc dthunk*(name: kstring; args: varargs[VNode, vn]): VNode =
-  VNode(kind: VNodeKind.dthunk, text: name, index: -1, kids: @args)
+proc dthunk*(dom: Node): VNode =
+  VNode(kind: VNodeKind.dthunk, dom: dom)
 
 proc setEventIfNoConflict(v: VNode; kind: EventKind; handler: EventHandler) =
   assert handler != nil
