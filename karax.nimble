@@ -1,7 +1,7 @@
 # Package
 
-version       = "0.2.0"
-author        = "Xored Software, Inc."
+version       = "1.0.0"
+author        = "Andreas Rumpf"
 description   = "Karax is a framework for developing single page applications in Nim."
 license       = "MIT"
 
