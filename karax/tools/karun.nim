@@ -1,7 +1,14 @@
 ## Simple tool to quickly run Karax applications. Generates the HTML
 ## required to run a Karax app and opens it in a browser.
 
-import os, strutils, parseopt, browsers
+import os, 
+  strutils, 
+  parseopt, 
+  browsers, 
+  times, 
+  tables
+  
+
 
 const
   css = """
@@ -26,12 +33,23 @@ proc exec(cmd: string) =
   if os.execShellCmd(cmd) != 0:
     quit "External command failed: " & cmd
 
+proc build(name: string, rest: string, selectedCss: string, run: bool) =
+  echo("Building...")
+  createDir("nimcache")
+  exec("nim js --out:nimcache/" & name & ".js " & rest)
+  let dest = "nimcache" / name & ".html"
+  writeFile(dest, html % [name, selectedCss])
+  if run: openDefaultBrowser(dest)
+
 proc main =
   var op = initOptParser()
   var rest = op.cmdLineRest
   var file = ""
   var run = false
   var selectedCss = ""
+  var watch = false
+  var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
+
   while true:
     op.next()
     case op.kind
@@ -48,15 +66,33 @@ proc main =
       if op.key == "r":
         run = true
         rest = rest.replace("-r ")
+      if op.key == "w":
+        watch = true
+        rest = rest.replace("-w ")
     of cmdArgument: file = op.key
     of cmdEnd: break
 
   if file.len == 0: quit "filename expected"
   let name = file.splitFile.name
-  createDir("nimcache")
-  exec("nim js --out:nimcache/" & name & ".js " & rest)
-  let dest = "nimcache" / name & ".html"
-  writeFile(dest, html % [name, selectedCss])
-  if run: openDefaultBrowser(dest)
+  build(name, rest, selectedCss, run)
+  echo("after build")
+  if watch:
+    # TODO: launch http server
+    while true:
+      sleep(300)
+      for path in walkDirRec("."):
+        if ".git" in path:
+          continue
+        if files.hasKey(path):
+          if files[path] != getLastModificationTime(path):
+            echo("File changed: " & path)
+            build(name, rest, selectedCss, run)
+            files[path] = getLastModificationTime(path)
+        else:
+          files[path] = getLastModificationTime(path)
 
 main()
+
+
+
+
