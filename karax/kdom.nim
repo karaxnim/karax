@@ -1238,9 +1238,6 @@ proc decodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc encodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc isFinite*(x: BiggestFloat): bool {.importc, nodecl.}
 proc isNaN*(x: BiggestFloat): bool {.importc, nodecl.}
-proc parseFloat*(s: cstring): BiggestFloat {.importc, nodecl.}
-proc parseInt*(s: cstring): int {.importc, nodecl.}
-proc parseInt*(s: cstring, radix: int):int {.importc, nodecl.}
 
 proc newEvent*(name: cstring): Event {.importcpp: "new Event(@)", constructor.}
 
