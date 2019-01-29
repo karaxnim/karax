@@ -1,4 +1,4 @@
-import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
+import karax / [kajax,kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
 
 type
   Views = enum
@@ -15,7 +15,9 @@ proc setOption(x: EChart; option: JsonNode) {.importcpp.}
 
 proc postRender(data: RouterData) =
   if currentView == Products:
-    let myChart = echartsInit(kdom.getElementById("echartSection"))
+    var node = getElementById("echartSection")
+    echo node.toJson
+    let myChart = echartsInit(node)
     # specify chart configuration item and data
     let option = %*{
       "title": {
@@ -37,6 +39,18 @@ proc postRender(data: RouterData) =
     }
     myChart.setOption(option)
 
+type
+  clickHandler* = proc():VNode
+
+#全局视图变量
+var view* :clickHandler 
+
+proc click*(x : clickHandler): proc() = 
+  result = proc() = view = x
+
+proc echartSection():VNode = 
+    buildHtml tdiv(id = "echartSection", style = style((width, kstring"600px"), (height, kstring"400px")))
+
 proc createDom(data: RouterData): VNode =
   let hash = data.hashPart
   if hash == cstring"#/Products": currentView = Products
@@ -46,11 +60,12 @@ proc createDom(data: RouterData): VNode =
     ul(class = "tabs"):
       for v in low(Views)..high(Views):
         li:
-          a(href = "#/" & $v):
-            text cstring($v)
-
-    if currentView == Products:
-      tdiv(id = "echartSection", style = style((width, kstring"600px"), (height, kstring"400px")))
+          if v == Products:
+              a(href = "#/" & $v, onclick = click echartSection):
+                text kstring($v)
+          else:
+            a(href = "#/" & $v):
+              text kstring($v)
     tdiv:
       text "other section"
 

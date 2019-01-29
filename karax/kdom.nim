@@ -69,6 +69,44 @@ type
     Unload = "unload",
     Wheel = "wheel"
 
+  TLocationBar* {.importc.} = object of RootObj
+    visible*: bool
+  TMenuBar* = TLocationBar
+  TPersonalBar* = TLocationBar
+  TScrollBars* = TLocationBar
+  TToolBar* = TLocationBar
+  TStatusBar* = TLocationBar
+
+  PerformanceMemory* {.importc.} = ref object 
+    jsHeapSizeLimit*: float
+    totalJSHeapSize*: float
+    usedJSHeapSize*: float
+
+  PerformanceTiming* {.importc.} = ref object 
+    connectStart*: float
+    domComplete*: float
+    domContentLoadedEventEnd*: float
+    domContentLoadedEventStart*: float
+    domInteractive*: float
+    domLoading*: float
+    domainLookupEnd*: float
+    domainLookupStart*: float
+    fetchStart*: float
+    loadEventEnd*: float
+    loadEventStart*: float
+    navigationStart*: float
+    redirectEnd*: float
+    redirectStart*: float
+    requestStart*: float
+    responseEnd*: float
+    responseStart*: float
+    secureConnectionStart*: float
+    unloadEventEnd*: float
+    unloadEventStart*: float
+
+  Performance* {.importc.} = ref object
+    memory*: PerformanceMemory
+    timing*: PerformanceTiming
   Window* = ref WindowObj
   WindowObj {.importc.} = object of EventTargetObj
     document*: Document
@@ -77,19 +115,24 @@ type
     location*: Location
     closed*: bool
     defaultStatus*: cstring
+    devicePixelRatio*: float
     innerHeight*, innerWidth*: int
-    locationbar*: ref LocationBar
-    menubar*: ref MenuBar
+    locationbar*: ref TLocationBar
+    menubar*: ref TMenuBar
     name*: cstring
     outerHeight*, outerWidth*: int
     pageXOffset*, pageYOffset*: int
-    personalbar*: ref PersonalBar
-    scrollbars*: ref ScrollBars
-    statusbar*: ref StatusBar
+    personalbar*: ref TPersonalBar
+    scrollbars*: ref TScrollBars
+    scrollX*: float
+    scrollY*: float
+    statusbar*: ref TStatusBar
     status*: cstring
-    toolbar*: ref ToolBar
-    frames*: seq[Frame]
+    toolbar*: ref TToolBar
+    frames*: seq[TFrame]
     screen*: Screen
+    performance*: Performance
+    onpopstate*: proc (event: Event)
 
   Frame* = ref FrameObj
   FrameObj {.importc.} = object of WindowObj
@@ -166,7 +209,7 @@ type
     options*: seq[OptionElement]
     selectedOptions*: seq[OptionElement]
     clientWidth*, clientHeight*: int
-    contentEditable*: string
+    contentEditable*: cstring
     isContentEditable*: bool
     dir*: string
     offsetHeight*: int
@@ -1025,6 +1068,7 @@ proc clearTimeout*(t: Timeout) {.importc, nodecl.}
 proc addEventListener*(et: EventTarget, ev: cstring, cb: proc(ev: Event), useCapture: bool = false)
 proc addEventListener*(et: EventTarget, ev: cstring, cb: proc(ev: Event), options: AddEventListenerOptions)
 proc removeEventListener*(et: EventTarget; ev: cstring; cb: proc(ev: Event))
+proc dispatchEvent*(et: EventTarget, ev: Event)
 
 # Window "methods"
 proc alert*(w: Window, msg: cstring)
@@ -1123,6 +1167,7 @@ proc replace*(loc: Location, s: cstring)
 proc back*(h: History)
 proc forward*(h: History)
 proc go*(h: History, pagesToJump: int)
+proc pushState*[T](h: History, stateObject: T, title, url: cstring)
 
 # Navigator "methods"
 proc javaEnabled*(h: Navigator): bool
@@ -1193,7 +1238,11 @@ proc decodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc encodeURIComponent*(uri: cstring): cstring {.importc, nodecl.}
 proc isFinite*(x: BiggestFloat): bool {.importc, nodecl.}
 proc isNaN*(x: BiggestFloat): bool {.importc, nodecl.}
+proc parseFloat*(s: cstring): BiggestFloat {.importc, nodecl.}
+proc parseInt*(s: cstring): int {.importc, nodecl.}
+proc parseInt*(s: cstring, radix: int):int {.importc, nodecl.}
 
+proc newEvent*(name: cstring): Event {.importcpp: "new Event(@)", constructor.}
 
 proc id*(n: Node): cstring {.importcpp: "#.id", nodecl.}
 proc `id=`*(n: Node; x: cstring) {.importcpp: "#.id = #", nodecl.}

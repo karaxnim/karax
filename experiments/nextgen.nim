@@ -115,6 +115,6 @@ proc main(gu: RSeq[User]): VNode =
       text errmsg
     vmapIt(gu, tdiv, renderUser(it))
 
-proc init(): VNode = main(gu)
+proc init(data: RouterData): VNode = main(gu)
 
 setInitializer(init)
