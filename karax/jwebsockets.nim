@@ -11,4 +11,7 @@ type
 proc newWebSocket*(url, key: cstring): WebSocket
   {.importcpp: "new WebSocket(@)".}
 
+proc newWebSocket*(url: cstring): WebSocket
+  {.importcpp: "new WebSocket(@)".}
+
 proc send*(w: WebSocket; data: cstring) {.importcpp.}
