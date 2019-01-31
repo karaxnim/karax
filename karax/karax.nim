@@ -713,7 +713,7 @@ proc addEventHandler*(n: VNode; k: EventKind; action: proc();
     if not kxi.surpressRedraws: redraw(kxi)
   addEventListener(n, k, wrapper)
 
-proc setOnHashChange*(action: proc (hashPart: cstring)) {.deprecated.} =
+proc setOnHashChange*(action: proc (hashPart: cstring)) {.deprecated: "use setRenderer instead".} =
   ## Now deprecated, instead pass a callback to ``setRenderer`` that receives
   ## a ``data: RouterData`` parameter.
   proc wrapper() =

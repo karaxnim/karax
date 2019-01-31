@@ -438,7 +438,7 @@ type
     key*: cstring
     keyCode*: int
     location*: int
-    
+
   # https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
   KeyboardEventKey* {.pure.} = enum
     # Modifier keys
@@ -828,7 +828,7 @@ type
     items*: seq[DataTransferItem]
     types*: seq[cstring]
 
-  DataTransferDropEffect* {.pure.} = enum 
+  DataTransferDropEffect* {.pure.} = enum
     None = "none",
     Copy = "copy",
     Link = "link",
@@ -860,7 +860,7 @@ type
     dataTransfer*: DataTransfer
 
   TouchList* {.importc.} = ref object of RootObj
-    length*: int    
+    length*: int
 
   Touch* = ref TouchObj
   TouchObj {.importc.} = object of RootObj
@@ -1142,7 +1142,7 @@ proc setAttribute*(s: Style, attr, value: cstring, caseSensitive=false)
 proc preventDefault*(ev: Event)
 proc stopImmediatePropagation*(ev: Event)
 proc stopPropagation*(ev: Event)
-    
+
 # KeyboardEvent "methods"
 proc getModifierState*(ev: KeyboardEvent, keyArg: cstring): bool
 
