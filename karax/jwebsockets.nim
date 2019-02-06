@@ -8,7 +8,7 @@ type
     onmessage*: proc (e: MessageEvent)
     onopen*: proc (e: MessageEvent)
 
-proc newWebSocket*(url, key: cstring): WebSocket
+proc newWebSocket*(url: cstring, key: cstring): WebSocket
   {.importcpp: "new WebSocket(@)".}
 
 proc newWebSocket*(url: cstring): WebSocket
