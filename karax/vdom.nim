@@ -35,7 +35,7 @@ type
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map,
-    area, svg, math,
+    area, svg, math, path,
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
