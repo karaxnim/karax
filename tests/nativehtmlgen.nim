@@ -5,6 +5,10 @@ import "../karax" / [karaxdsl, vdom]
 when defined(js):
   {.error: "Use 'nim c' to compile this example".}
 
+template kxi(): int = 0
+template addEventHandler(n: VNode; k: EventKind; action: string; kxi: int) =
+  n.setAttr($k, action)
+
 let tab = buildHtml(table):
   tr:
     td:
@@ -16,5 +20,8 @@ let tab = buildHtml(table):
       text "Cell C"
     td:
       text "Cell D"
+    td:
+      a(href = "#/", onclick = "javascript:myFunc()"):
+        text"haha"
 
 echo tab

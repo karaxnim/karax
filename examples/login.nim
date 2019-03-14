@@ -1,6 +1,6 @@
 
 include karax / prelude
-from future import `=>`
+from sugar import `=>`
 import karax / errors
 
 proc loginField(desc, field, class: kstring;
