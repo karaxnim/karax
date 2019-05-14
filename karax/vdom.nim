@@ -35,7 +35,7 @@ type
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map,
-    area, svg, math, path, circle
+    area, svg, math, path, circle,animateTransform="animateTransform",
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
@@ -132,6 +132,7 @@ type
       hash*: Hash
       validHash*: bool
     style*: VStyle ## the style that should be applied to the virtual node.
+    styleLit*: string ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
@@ -379,6 +380,8 @@ proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
 
   if n.kind == VNodeKind.text:
     result.addEscaped(n.text)
+  elif n.kind == VNodeKind.verbatim:
+    result.add(n.text)
   else:
     let kind = $n.kind
     result.add('<')
