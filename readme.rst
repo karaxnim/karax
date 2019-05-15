@@ -350,4 +350,4 @@ modules can be used since there is no JS interpreter.
 
         dt: text "Can I use Karax for server side HTML rendering?"
         dd: text "Yes"
-  result = $vnode
+    result = $vnode
