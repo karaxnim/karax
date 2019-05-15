@@ -380,7 +380,7 @@ proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
   if n.kind == VNodeKind.text:
     result.addEscaped(n.text)
   elif n.kind == VNodeKind.verbatim:
-      result.add(n.text)
+    result.add(n.text)
   else:
     let kind = $n.kind
     result.add('<')
