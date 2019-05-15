@@ -323,3 +323,31 @@ type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" exa
   setRenderer createDom
 
 (Full example `here <https://github.com/pragmagic/karax/blob/master/examples/todoapp/todoapp.nim>`_.)
+
+
+Server Side HTML Rendering
+==========================
+
+Karax can also be used to render HTML on the server.  Only a subset of
+modules can be used since there is no JS interpreter.
+
+.. code-block:: nim
+
+  import karax / [karaxdsl, vdom]
+
+  const places = @["boston", "cleveland", "los angeles", "new orleans"]
+
+  proc render*(): string =
+    let node = buildHtml(tdiv(class = "mt-3")):
+      h1: text "My Web Page"
+      p: text "Hello world"
+      ul:
+        for place in places:
+          li: text place
+      dl:
+        dt: text "Can I use Karax for client side single page apps?"
+        dd: text "Yes"
+
+        dt: text "Can I use Karax for server side HTML rendering?"
+        dd: text "Yes"
+    result = $vnode
