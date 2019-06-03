@@ -8,7 +8,7 @@ import jsffi except `&`
 import jscore
 import dom
 
-type 
+type
   ProgressEvent* {.importc.}= object
     loaded*: float
     total*: float
@@ -33,9 +33,19 @@ proc send*(r: HttpRequest, data: Blob) {.importcpp: "#.send(#)".}
 proc open*(r: HttpRequest; meth, url: cstring; async: bool) {.importcpp: "#.open(@)".}
 proc newRequest*(): HttpRequest {.importcpp: "new XMLHttpRequest(@)".}
 
-proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent), 
+when not declared(dom.File):
+  type
+    DomFile = ref FileObj
+    FileObj {.importc.} = object of Blob
+      lastModified: int
+      name: cstring
+else:
+  type
+    DomFile = dom.File
+
+proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent),
                 cont: proc (httpStatus: int; response: cstring);
-                headers: openarray[(cstring, cstring)] = []) = 
+                headers: openarray[(cstring, cstring)] = []) =
   proc contWrapper(httpStatus: int; response: cstring) =
     cont(httpStatus, response)
 
@@ -44,7 +54,7 @@ proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent)
 
   var formData = newFormData()
   formData.append("upload_file",file)
-  formData.append("filename", dom.File(file).name)
+  formData.append("filename", DomFile(file).name)
   let ajax = newRequest()
   ajax.open("POST", url, true)
   for a, b in items(headers):
