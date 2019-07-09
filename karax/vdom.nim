@@ -8,7 +8,7 @@ else:
     Node* = ref object
 
 import macros, vstyles, kbase
-from strutils import toUpperAscii
+from strutils import toUpperAscii, toLowerAscii, tokenize
 
 type
   VNodeKind* {.pure.} = enum
@@ -399,7 +399,17 @@ proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
       result.add("=\"")
       result.addEscapedAttr(v)
       result.add('"')
-    # XXX add style to string
+    if n.style != nil:
+      result.add " style=\""
+      for k, v in pairs(n.style):
+        if v.len == 0: continue
+        for t in tokenize($k, seps={'A' .. 'Z'}):
+          if t.isSep: result.add '-'
+          result.add toLowerAscii(t.token)
+        result.add ": "
+        result.add v
+        result.add "; "
+      result.add('"')
     if n.len > 0:
       result.add('>')
       if n.len > 1:
