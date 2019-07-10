@@ -1,6 +1,6 @@
 
 import macros, vdom, compact, kbase
-from strutils import startsWith, toLowerAscii
+from strutils import startsWith, toLowerAscii, split
 
 when defined(js):
   import karax
@@ -120,8 +120,12 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           if key.startsWith("on"):
             result.add newCall(evHandler(),
               tmp, newDotExpr(bindSym"EventKind", x[0]), x[1], ident("kxi"))
-          elif eqIdent(key, "style") and x[1].kind == nnkTableConstr:
-            result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
+          elif eqIdent(key, "style"):
+            if x[1].kind == nnkTableConstr:
+              result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
+            elif x[1].kind == nnkStrLit:
+              result.add newDotAsgn(tmp, key, newCall("style", x[1]))
+
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           elif eqIdent(key, "setFocus"):
