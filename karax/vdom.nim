@@ -132,7 +132,6 @@ type
       hash*: Hash
       validHash*: bool
     style*: VStyle ## the style that should be applied to the virtual node.
-    styleLit*: string ## the style that should be applied to the virtual node.
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
