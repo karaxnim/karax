@@ -425,7 +425,10 @@ proc add*(result: var string, n: VNode, indent = 0, indWidth = 2) =
       result.add(kind)
       result.add(">")
     else:
-      result.add(" />")
+      result.add(">")
+      result.add("</")
+      result.add(kind)
+      result.add(">")
 
 
 proc `$`*(n: VNode): kstring =
