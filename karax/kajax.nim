@@ -33,7 +33,6 @@ proc send*(r: HttpRequest, data: Blob) {.importcpp: "#.send(#)".}
 proc open*(r: HttpRequest; meth, url: cstring; async: bool) {.importcpp: "#.open(@)".}
 proc newRequest*(): HttpRequest {.importcpp: "new XMLHttpRequest(@)".}
 
-<<<<<<< HEAD
 when not declared(dom.File):
   type
     DomFile = ref FileObj
@@ -47,11 +46,6 @@ else:
 proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent),
                 cont: proc (httpStatus: int; response: cstring);
                 headers: openarray[(cstring, cstring)] = []) =
-=======
-proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent), 
-                cont: proc (httpStatus: int; response: cstring);
-                headers: openarray[(cstring, cstring)] = []) = 
->>>>>>> update uploadFile and circle tag
   proc contWrapper(httpStatus: int; response: cstring) =
     cont(httpStatus, response)
 

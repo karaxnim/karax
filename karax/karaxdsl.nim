@@ -1,6 +1,6 @@
 
 import macros, vdom, compact, kbase
-from strutils import startsWith, toLowerAscii, split
+from strutils import startsWith, toLowerAscii
 
 when defined(js):
   import karax
