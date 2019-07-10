@@ -1,6 +1,6 @@
 
 import macros, kbase
-
+import strutils
 when defined(js):
   import kdom, jdict
 
@@ -269,6 +269,17 @@ proc getAttr*(s: VStyle; attr: StyleAttr): kstring {.noSideEffect.} =
     elif s[i] > a:
       return ""
     inc i, 2
+
+proc style*(pairs: string):VStyle {.noSideEffect.} =
+    ## constructs a VStyle object from a list of (attribute, value)-pairs.
+    when defined(js):
+      result = newJSeq[cstring]()
+    else:
+      new(result)
+      result[] = @[]
+    for styles in split(pairs, ";"):
+      var x = split(styles, ":")
+      result.setAttr strip(x[0]), strip(x[1])
 
 proc style*(pairs: varargs[(StyleAttr, kstring)]): VStyle {.noSideEffect.} =
   ## constructs a VStyle object from a list of (attribute, value)-pairs.

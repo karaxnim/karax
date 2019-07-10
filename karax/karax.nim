@@ -7,9 +7,7 @@ export kdom.Event, kdom.Blob
 when defined(nimNoNil):
   {.experimental: "notnil".}
 
-proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
-  ## the preferred way of debugging karax applications. Now deprecated,
-  ## you can now use ``system.echo`` instead.
+proc log*[T](x: T) {.importc: "console.log", varargs.}
 
 type
   PatchKind = enum
@@ -453,10 +451,10 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     # compute common suffix:
     var oldPos = oldLength - 1
     var newPos = newLength - 1
-    while oldPos >= commonPrefix and newPos >= commonPrefix:
-      eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
-        dec oldPos
-        dec newPos
+    # while oldPos >= commonPrefix and newPos >= commonPrefix:
+    #   eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
+    #     dec oldPos
+    #     dec newPos
 
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:
