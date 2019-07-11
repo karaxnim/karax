@@ -270,16 +270,16 @@ proc getAttr*(s: VStyle; attr: StyleAttr): kstring {.noSideEffect.} =
       return ""
     inc i, 2
 
-proc style*(pairs: string):VStyle {.noSideEffect.} =
+proc style*(pairs: kstring):VStyle {.noSideEffect.} =
     ## constructs a VStyle object from string literal.
     when defined(js):
       result = newJSeq[cstring]()
     else:
       new(result)
       result[] = @[]
-    for styles in split(pairs, ";"):
-      var x = split(styles, ":")
-      if x.len == 2:
+    for s in split($pairs, ";"):
+      if ":" in s:
+        var x = split(s, ":")
         result.setAttr strip(x[0]), strip(x[1])
 
 proc style*(pairs: varargs[(StyleAttr, kstring)]): VStyle {.noSideEffect.} =
