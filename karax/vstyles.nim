@@ -235,22 +235,22 @@ proc eq*(a, b: VStyle): bool =
   return true
 
 proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
-  var i = 0
-  while i < s.len:
-    if s[i] == a:
-      s[i+1] = value
-      return
-    # elif s[i] > a:
-    #   s.add ""
-    #   s.add ""
-    #   # insertion point here:
-    #   for j in countdown(s.len-1, i, 2):
-    #     s[j] = s[j-2]
-    #     s[j-1] = s[j-3]
-    #   s[i] = a
-    #   s[i+1] = value
-    #   return
-    inc i, 2
+  # var i = 0
+  # while i < s.len:
+  #   if s[i] == a:
+  #     s[i+1] = value
+  #     return
+  #   elif s[i] > a:
+  #     s.add ""
+  #     s.add ""
+  #     # insertion point here:
+  #     for j in countdown(s.len-1, i, 2):
+  #       s[j] = s[j-2]
+  #       s[j-1] = s[j-3]
+  #     s[i] = a
+  #     s[i+1] = value
+  #     return
+  #   inc i, 2
   s.add a
   s.add value
 
