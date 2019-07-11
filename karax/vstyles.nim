@@ -240,16 +240,16 @@ proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
     if s[i] == a:
       s[i+1] = value
       return
-    elif s[i] > a:
-      s.add ""
-      s.add ""
-      # insertion point here:
-      for j in countdown(s.len-1, i, 2):
-        s[j] = s[j-2]
-        s[j-1] = s[j-3]
-      s[i] = a
-      s[i+1] = value
-      return
+    # elif s[i] > a:
+    #   s.add ""
+    #   s.add ""
+    #   # insertion point here:
+    #   for j in countdown(s.len-1, i, 2):
+    #     s[j] = s[j-2]
+    #     s[j-1] = s[j-3]
+    #   s[i] = a
+    #   s[i+1] = value
+    #   return
     inc i, 2
   s.add a
   s.add value
