@@ -121,11 +121,11 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newCall(evHandler(),
               tmp, newDotExpr(bindSym"EventKind", x[0]), x[1], ident("kxi"))
           elif eqIdent(key, "style"):
+            debugEcho x[1].kind
             if x[1].kind == nnkTableConstr:
               result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
-            elif x[1].kind == nnkStrLit:
+            elif x[1].kind in {nnkStrLit,nnkIdent}:
               result.add newDotAsgn(tmp, key, newCall("style", x[1]))
-
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
           elif eqIdent(key, "setFocus"):
