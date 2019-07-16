@@ -89,8 +89,9 @@ type
     onanimationiteration,
 
     onkeyupenter, ## vdom extension: an input field received the ENTER key press
-    onkeyuplater  ## vdom extension: a key was pressed and some time
+    onkeyuplater,  ## vdom extension: a key was pressed and some time
                   ## passed (useful for on-the-fly text completions)
+    onmousewheel 
 
 
 macro buildLookupTables(): untyped =
