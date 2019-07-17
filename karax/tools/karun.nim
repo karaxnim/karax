@@ -75,7 +75,6 @@ proc main =
   if file.len == 0: quit "filename expected"
   let name = file.splitFile.name
   build(name, rest, selectedCss, run)
-  echo("after build")
   if watch:
     # TODO: launch http server
     while true:
