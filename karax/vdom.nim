@@ -124,7 +124,7 @@ type
   VNode* = ref object of RootObj
     kind*: VNodeKind
     index*: int ## a generally useful 'index'
-    id*, class*, text*: kstring
+    id*, class*, text*, value*: kstring
     kids: seq[VNode]
     # even index: key, odd index: value; done this way for memory efficiency:
     attrs: seq[kstring]
@@ -153,8 +153,8 @@ type
                           ## expanded to.
     debugId*: int
 
-proc value*(n: VNode): kstring = n.text
-proc `value=`*(n: VNode; v: kstring) = n.text = v
+proc value*(n: VNode): kstring = n.value
+proc `value=`*(n: VNode; v: kstring) = n.value = v
 
 proc intValue*(n: VNode): int = n.index
 proc vn*(i: int): VNode = VNode(kind: VNodeKind.int, index: i)
