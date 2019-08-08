@@ -8,6 +8,9 @@ proc `[]`*(obj: JsonNode; fieldname: cstring): JsonNode {.importcpp: "#[#]".}
 proc `[]`*(obj: JsonNode; index: int): JsonNode {.importcpp: "#[#]".}
 proc `[]=`*[T](obj: JsonNode; fieldname: cstring; value: T)
   {.importcpp: "#[#] = #".}
+
+proc `[]=`*[T](obj: JsonNode; index: int; value: T)
+  {.importcpp: "#[#] = #".}
 proc length(x: JsonNode): int {.importcpp: "#.length".}
 proc len*(x: JsonNode): int = (if x.isNil: 0 else: x.length)
 
