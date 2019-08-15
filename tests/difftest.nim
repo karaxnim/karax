@@ -22,15 +22,19 @@ proc shortRepr(n: VNode): string =
 var err = 0
 
 proc doDiff(a, b: VNode; expected: varargs[string]) =
-  discard diff(b, a, nil, vnodeToDom(a, kxi), kxi)
+  diff(b, a, nil, vnodeToDom(a, kxi), kxi)
+  var j = 0
   for i in 0..<kxi.patchLen:
-    let p = $kxi.patches[i].k & " " & shortRepr(kxi.patches[i].n)
-    if i >= expected.len:
-      echo "patches differ; expected nothing but got: ", p
-      inc err
-    elif p != expected[i]:
-      echo "patches differ; expected ", expected[i], " but got: ", p
-      inc err
+    if kxi.patches[i].k != pkSame:
+      let n = if kxi.patches[i].k == pkDetach: kxi.patches[i].oldNode else: kxi.patches[i].newNode
+      let p = $kxi.patches[i].k & " " & shortRepr(n)
+      if j >= expected.len:
+        echo "patches differ; expected nothing but got: ", p
+        inc err
+      elif p != expected[j]:
+        echo "patches differ; expected ", expected[i], " but got: ", p
+        inc err
+      inc j
   #hasDom(kxi.currentTree)
   kxi.patchLen = 0
 
