@@ -7,7 +7,9 @@ export kdom.Event, kdom.Blob
 when defined(nimNoNil):
   {.experimental: "notnil".}
 
-proc log*[T](x: T) {.importc: "console.log", varargs.}
+proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
+  ## the preferred way of debugging karax applications. Now deprecated,
+  ## you can now use ``system.echo`` instead.
 
 type
   PatchKind = enum
@@ -44,8 +46,7 @@ type
     components: seq[ComponentPair]
     surpressRedraws*: bool
     byId: JDict[cstring, VNode]
-    when defined(stats):
-      recursion: int
+    recursion: int
     orphans: JDict[cstring, bool]
 
 
@@ -376,6 +377,7 @@ proc applyPatch(kxi: KaraxInstance) =
   kxi.patchLenV = 0
 
 proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): EqResult =
+  const bailoutAfter = 0
   when defined(stats):
     if kxi.recursion > 100:
       echo "newNode ", newNode.kind, " oldNode ", oldNode.kind, " eq ", eq(newNode, oldNode)
@@ -383,7 +385,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
         echo oldNode.text
       #return
       #doAssert false, "overflow!"
-    inc kxi.recursion
+  inc kxi.recursion
   result = eq(newNode, oldNode)
   case result
   of componentsIdentical:
@@ -444,17 +446,19 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
         if result != different: result = r
         break
     # compute common prefix:
-    while commonPrefix < minLength:
-      eqAndUpdate(newNode, commonPrefix, oldNode, commonPrefix, cstring"prefix"):
-        inc commonPrefix
+    if kxi.recursion < bailoutAfter:
+      while commonPrefix < minLength:
+        eqAndUpdate(newNode, commonPrefix, oldNode, commonPrefix, cstring"prefix"):
+          inc commonPrefix
 
     # compute common suffix:
     var oldPos = oldLength - 1
     var newPos = newLength - 1
-    # while oldPos >= commonPrefix and newPos >= commonPrefix:
-    #   eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
-    #     dec oldPos
-    #     dec newPos
+    if kxi.recursion < bailoutAfter:
+      while oldPos >= commonPrefix and newPos >= commonPrefix:
+        eqAndUpdate(newNode, newPos, oldNode, oldPos, cstring"suffix"):
+          dec oldPos
+          dec newPos
 
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:
@@ -487,8 +491,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance): E
     detach(oldNode)
     kxi.addPatch(pkReplace, parent, current, newNode)
   of usenewNode: doAssert(false, "eq returned usenewNode")
-  when defined(stats):
-    dec kxi.recursion
+  dec kxi.recursion
 
 proc applyComponents(kxi: KaraxInstance) =
   # the first 'diff' pass detects components in the VDOM. The
@@ -592,7 +595,9 @@ proc dodraw(kxi: KaraxInstance) =
     let asdom = vnodeToDom(newtree, kxi)
     replaceById(kxi.rootId, asdom)
   else:
-    doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+    if not same(kxi.currentTree, document.getElementById(kxi.rootId)):
+      detach(kxi.currentTree)
+      kxi.currentTree = dthunk(cast[Node](document.getElementById(kxi.rootId)))
     let olddom = document.getElementById(kxi.rootId)
     discard diff(newtree, kxi.currentTree, nil, olddom, kxi)
     #kout cstring"patch len ", patches.len
@@ -606,7 +611,11 @@ proc dodraw(kxi: KaraxInstance) =
     echo ">>>>>>>>>>>>>>"
   applyPatch(kxi)
   kxi.currentTree = newtree
-  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  if not same(kxi.currentTree, document.getElementById(kxi.rootId)):
+    detach(kxi.currentTree)
+    kxi.currentTree = dthunk(cast[Node](document.getElementById(kxi.rootId)))
+
+
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback(rdata)
@@ -615,8 +624,8 @@ proc dodraw(kxi: KaraxInstance) =
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
   kxi.renderId = 0
+  kxi.recursion = 0
   when defined(stats):
-    kxi.recursion = 0
     var total = 0
     echo "depth ", depth(kxi.currentTree, total), " total ", total
 
