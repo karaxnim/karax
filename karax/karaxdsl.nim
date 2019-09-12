@@ -123,7 +123,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
           elif eqIdent(key, "style"):
             if x[1].kind == nnkTableConstr:
               result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
-            elif x[1].kind in {nnkStrLit,nnkTripleStrLit,nnkIdent,nnkInfix}:
+            elif x[1].kind in {nnkStrLit,nnkTripleStrLit,nnkIdent,nnkInfix, nnkIfExpr}:
               result.add newDotAsgn(tmp, key, newCall("style", x[1]))
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])

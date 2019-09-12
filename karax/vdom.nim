@@ -301,23 +301,23 @@ template toStringAttr(field) =
 
 proc toString*(n: VNode; result: var string; indent: int) =
   for i in 1..indent: result.add ' '
-  if result.len > 0: result.add '\L'
-  result.add "<" & $n.kind
+  if n.kind in {VNodeKind.text, VNodeKind.verbatim}:
+    result.add n.text
+    return
+  else:
+    result.add "<" & $n.kind
   toStringAttr(id)
   toStringAttr(class)
   for k, v in attrs(n):
     result.add " " & $k & " = " & $v
-  result.add ">\L"
-  if n.kind == VNodeKind.text:
+  result.add ">"
+  if n.text.len > 0:
+    result.add " value = "
     result.add n.text
-  else:
-    if n.text.len > 0:
-      result.add " value = "
-      result.add n.text
-    for child in items(n):
-      toString(child, result, indent+2)
+  for child in items(n):
+    toString(child, result, indent+2)
   for i in 1..indent: result.add ' '
-  result.add "\L</" & $n.kind & ">"
+  result.add "</" & $n.kind & ">"
 
 when false:
   proc calcHash*(n: VNode) =
