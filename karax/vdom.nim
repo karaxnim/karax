@@ -309,13 +309,13 @@ proc toString*(n: VNode; result: var string; indent: int) =
   toStringAttr(id)
   toStringAttr(class)
   for k, v in attrs(n):
-    result.add " " & $k & " = " & $v
+    result.add $k & "=" & $v
   result.add ">"
   if n.text.len > 0:
-    result.add " value = "
+    result.add " value="
     result.add n.text
   for child in items(n):
-    toString(child, result, indent+2)
+    toString(child, result, 0)
   for i in 1..indent: result.add ' '
   result.add "</" & $n.kind & ">"
 
