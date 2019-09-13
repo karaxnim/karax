@@ -10,17 +10,17 @@ and some extensions that allow for an efficient component system.
 These extensions are:
 
 ``VNodeKind.int``
-     The node havs a single integer field.
+     The node has a single integer field.
 
 ``VNodeKind.bool``
      The node has a single boolean field.
 
-``VNodeKint.vthunk``
+``VNodeKind.vthunk``
      The node is a `virtual thunk`:idx:. This means there is a
      function attached to it that produces the ``VNode`` structure
      on demand.
 
-``VNodeKint.dthunk``
+``VNodeKind.dthunk``
      The node is a `DOM thunk`:idx:. This means there is a
      function attached to it that produces the ``Node`` DOM structure
      on demand.
@@ -53,6 +53,6 @@ Event system
 
 Karax does not abstract over the event system the DOM offers much: The same
 ``Event`` structure is used. Every callback has the
-signature ``proc (ev: Event; n: VNode)``.
+signature ``proc (ev: Event; n: VNode)`` or empty ``proc ()``.
 
 
