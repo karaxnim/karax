@@ -1004,6 +1004,12 @@ when defined(nodejs):
     result.nodeValue = identifier
     result.nodeType = NodeType.TextNode
 
+  # proc createDocumentFragment*(d: Document): Node =
+  #   new(result)
+  #   # CHECKME
+  #   result.nodeName = "#fragment"
+  #   result.nodeType = NodeType.ElementNode # CHECKME
+
 else:
   proc len*(x: Node): int {.importcpp: "#.childNodes.length".}
   proc `[]`*(x: Node; idx: int): Element {.importcpp: "#.childNodes[#]".}
@@ -1015,6 +1021,7 @@ else:
   proc getElementById*(d: Document, id: cstring): Element {.importcpp.}
   proc createElement*(d: Document, identifier: cstring): Element {.importcpp.}
   proc createTextNode*(d: Document, identifier: cstring): Node {.importcpp.}
+  # proc createDocumentFragment*(d: Document): Node {.importcpp.}
 
 proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
 proc clearTimeout*(t: Timeout) {.importc, nodecl.}

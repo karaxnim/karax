@@ -261,6 +261,10 @@ proc setAttr*(s: VStyle; a, value: kstring) {.noSideEffect.} =
   s.add a
   s.add value
 
+# PRTEMP
+proc setAttr2*(s: VStyle; a, value: kstring) {.noSideEffect.} =
+  setAttr(s, a, value)
+
 proc setAttr*(s: VStyle; attr: StyleAttr, value: kstring) {.noSideEffect.} =
   when kstring is cstring:
     assert value != nil, "value must not be nil"

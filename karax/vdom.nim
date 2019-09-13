@@ -14,7 +14,7 @@ type
   VNodeKind* {.pure.} = enum
     text = "#text", int = "#int", bool = "#bool",
     vthunk = "#vthunk", dthunk = "#dthunk",
-    component = "#component", verbatim = "#verbatim",
+    component = "#component", verbatim = "#verbatim", verbatimRaw = "#verbatimRaw",
 
     html, head, title, base, link, meta, style,
     script, noscript,
@@ -280,11 +280,14 @@ when defined(js):
   proc text*(s: string): VNode = VNode(kind: VNodeKind.text, text: kstring(s), index: -1)
 proc text*(s: kstring): VNode = VNode(kind: VNodeKind.text, text: s, index: -1)
 
-when defined(js):
-  proc verbatim*(s: string): VNode =
-    VNode(kind: VNodeKind.verbatim, text: kstring(s), index: -1)
 proc verbatim*(s: kstring): VNode =
   VNode(kind: VNodeKind.verbatim, text: s, index: -1)
+proc verbatimRaw*(s: kstring): VNode =
+  ## verbatimRaw avoids adding a div, unlike `verbatim`
+  VNode(kind: VNodeKind.verbatimRaw, text: s, index: -1)
+when defined(js):
+  proc verbatim*(s: string): VNode = verbatim(kstring(s))
+  proc verbatimRaw*(s: string): VNode = verbatimRaw(kstring(s))
 
 
 iterator items*(n: VNode): VNode =

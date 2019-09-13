@@ -165,6 +165,22 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     result.innerHTML = n.text
     attach n
     return result
+  elif n.kind == VNodeKind.verbatimRaw:
+    let e = document.createElement("div")
+    e.innerHTML = n.text
+    if e.len != 1:
+      doAssert e.len == 2, $(e.len)
+      # TODO: check that 2nd node is garbage
+      # CHECKME: not sure why 2 instead of 1
+      #[
+      "Learn more &raquo;".verbatimRaw # creates len=1
+      "<div> ... </div>" creates len=2
+      ]#
+
+    result = e.firstChild
+    # TODO: see D20190510T113724; use createDocumentFragment ?
+    attach n
+    return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
     result = toDom(x, useAttachedNode, kxi)
@@ -214,7 +230,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
     result = same(VComponent(n).expanded, e, nesting+1)
-  elif n.kind == VNodeKind.verbatim:
+  elif n.kind == VNodeKind.verbatim or n.kind == VNodeKind.verbatimRaw:
     result = true
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
@@ -278,7 +294,7 @@ proc eq(a, b: VNode; recursive: bool): EqResult =
       return identical
     else: # fix #119
       return different
-  elif a.kind == VNodeKind.verbatim:
+  elif a.kind == VNodeKind.verbatim or a.kind == VNodeKind.verbatimRaw:
     if a.text != b.text:
       return different
   elif b.kind == VNodeKind.component:
