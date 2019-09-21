@@ -254,7 +254,10 @@ proc eq(a, b: VNode; recursive: bool): EqResult =
     for i in 0..<a.len:
       if eq(a[i], b[i], recursive) == different: return different
   elif a.kind == VNodeKind.dthunk:
-    return identical
+    if a.dom == b.dom:
+      return identical
+    else: # fix #119
+      return different
   elif a.kind == VNodeKind.verbatim:
     if a.text != b.text:
       return different
