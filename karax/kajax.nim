@@ -61,10 +61,7 @@ proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent)
     ajax.setRequestHeader(a, b)
   ajax.statechange proc() =
     if this.readyState == 4:
-      if this.status == 200:
-        contWrapper(this.status, this.responseText)
-      else:
-        contWrapper(this.status, this.responseText)
+      contWrapper(this.status, this.responseText)
   ajax.upload.onprogress = onprogress
   ajax.send(formData.to(cstring))
 
