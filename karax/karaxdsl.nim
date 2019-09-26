@@ -11,8 +11,8 @@ const
 
 proc getName(n: NimNode): string =
   case n.kind
-  of nnkIdent:
-    result = $n.ident
+  of nnkIdent, nnkSym:
+    result = $n
   of nnkAccQuoted:
     result = ""
     for i in 0..<n.len:
@@ -27,6 +27,8 @@ proc getName(n: NimNode): string =
       expectKind(n, nnkIdent)
   of nnkDotExpr:
     result = getName(n[0]) & "." & getName(n[1])
+  of nnkOpenSymChoice, nnkClosedSymChoice:
+    result = getName(n[0])
   else:
     #echo repr n
     expectKind(n, nnkIdent)
