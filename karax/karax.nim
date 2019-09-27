@@ -449,8 +449,8 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance) =
         oldNode.text = newNode.text
         oldNode.dom.nodeValue = newNode.text
 
-    #if newNode.events.len != 0 or oldNode.events.len != 0:
-    #  mergeEvents(newNode, oldNode, kxi)
+    if newNode.events.len != 0 or oldNode.events.len != 0:
+      mergeEvents(newNode, oldNode, kxi)
 
     let newLength = newNode.len
     let oldLength = oldNode.len
