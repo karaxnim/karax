@@ -205,10 +205,10 @@ DOM差分算法
 
 现代的大多数应用有登录机制，由 ``username`` 和 ``password`` 以及 ``login`` 按钮构成。
 登录按钮应当只在 ``username`` 和 ``password`` 非空的时候可以点击。
-输入字段为空是应当显示错误消息。
+输入字段为空时应当显示错误消息。
 
 
-我们写一个返回 ``VNode`` 的 ``loginField`` 过程来创建新UI元素：
+我们写一个返回 ``VNode`` 的 ``loginField`` 过程来创建新的UI元素：
 
 .. code-block:: nim
 
@@ -219,7 +219,7 @@ DOM差分算法
         text desc
       input(class = class, id = field, onchange = validator(field))
 
-我们使用 ``karax / errors`` 模块处理错误逻辑。 
+使用 ``karax / errors`` 模块处理错误逻辑。 
 ``errors`` 模块主要是从字符串到字符串的映射，但事实证明该逻辑非常棘手，需要库解决方案。
 ``validateNotEmpty`` 返回一个捕获 ``field`` 参数的闭包：
 
@@ -235,7 +235,7 @@ DOM差分算法
 
 这种间接处理方式是必须的，因为Karax中的事件处理需要具有 ``proc ()`` 或 ``proc (ev: Event; n: VNode)`` 类型。
 errors模块也提供一个方便的 ``disableOnError`` 过程。如果有错误将返回 ``"disabled"`` 。
-现在把这些片段组装起来写我们的登录对话：
+现在把这些片段合起来写我们的登录对话：
 
 
 .. code-block:: nim
