@@ -595,6 +595,14 @@ proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
 var onhashChange {.importc: "window.onhashchange".}: proc()
 var hashPart {.importc: "window.location.hash".}: cstring
 
+proc avoidDomDiffing*(kxi: KaraxInstance = kxi) =
+  ## enforce a full redraw for the next redraw operation.
+  ## This can be used as a temporary way to workaround DOM diffing
+  ## problems or to avoid the DOM diffing when you already know
+  ## it should use a completely new DOM.
+  ## This is an experimental API.
+  kxi.currentTree = nil
+
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
   let rdata = RouterData(hashPart: hashPart)
