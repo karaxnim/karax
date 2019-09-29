@@ -376,7 +376,10 @@ proc applyPatch(kxi: KaraxInstance) =
       if p.parent == nil:
         replaceById(kxi.rootId, nn)
       else:
-        p.parent.replaceChild(nn, p.current)
+        if p.current.parentNode == p.parent:
+          p.parent.replaceChild(nn, p.current)
+        else: # fix #121
+          p.parent.appendChild(nn)
     of pkSame:
       moveDom(p.newNode, p.oldNode)
     of pkRemove:
