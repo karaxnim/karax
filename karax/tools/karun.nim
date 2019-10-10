@@ -19,6 +19,7 @@ const
 <!DOCTYPE html>
 <html>
 <head>
+  <meta content="width=device-width, initial-scale=1" name="viewport" />
   <title>$1</title>
   $2
 </head>
