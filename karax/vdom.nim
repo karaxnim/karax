@@ -36,7 +36,7 @@ type
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map,
     area, svg, math, path, circle,animateTransform="animateTransform",
-
+    tt,
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
 
