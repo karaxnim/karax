@@ -1,13 +1,13 @@
-Karax – Single page applications in Nim |travis|
+Karax – Nim单页应用 |travis|
 ================================================
 
-Karax is a framework for developing single page applications in Nim.
+Karax是用Nim开发单面应用的框架。
 
-To try it out, run::
+尝试运行::
 
-  cd ~/projects # Insert your favourite directory for projects
+  cd ~/projects # 使用你的项目目录
 
-  nimble develop karax # This will clone Karax and create a link to it in ~/.nimble
+  nimble develop karax # 克隆Karax并在~/.nimble创建链接
 
   cd karax
 
@@ -20,18 +20,15 @@ To try it out, run::
   nim js playerapp.nim
   open playerapp.html
 
-It uses a virtual DOM like React, but is much smaller than the existing
-frameworks plus of course it's written in Nim for Nim. No external
-dependencies! And thanks to Nim's whole program optimization only what
-is used ends up in the generated JavaScript code.
+它使用像React的虚拟DOM, 但它比已有的框架轻量许多加之它是用Nim为Nim而写。 
+没有外部依赖，得益于Nim的整体程序优化，只有使用的模块会出现在生成的JavaScript代码中。
 
 
-Goals
+目标
 =====
 
-- Leverage Nim's macro system to produce a framework that allows
-  for the development of applications that are boilerplate free.
-- Keep it small, keep it fast, keep it flexible.
+- 利用Nim的宏系统生成允许无样板的应用开发框架。
+- 保持小巧、快速、灵活。
 
 .. |travis| image:: https://travis-ci.org/pragmagic/karax.svg?branch=master
     :target: https://travis-ci.org/pragmagic/karax
@@ -40,7 +37,7 @@ Goals
 Hello World
 ===========
 
-The simplest Karax program looks like this:
+最简单的Karax程序看起来是这样的：
 
 .. code-block:: nim
 
@@ -53,19 +50,15 @@ The simplest Karax program looks like this:
   setRenderer createDom
 
 
-Since ``div`` is a keyword in Nim, karax choose to use ``tdiv`` instead
-here. ``tdiv`` produces a ``<div>`` virtual DOM node.
+因为 ``div`` 是Nim中的关键字，karax选择用 ``tdiv`` 替换。 ``tdiv`` 生成 ``<div>`` 虚拟DOM节点。
 
-As you can see, karax comes with its own ``buildHtml`` DSL for convenient
-construction of (virtual) DOM trees (of type ``VNode``). Karax provides
-a tiny build tool called ``karun`` that generates the HTML boilerplate code that
-embeds and invokes the generated JavaScript code::
+如你所见，karax用自己的 ``buildHtml`` DSL构造(虚拟)DOM树(``VNode`` 节点类型)非常方便。
+Karax提供小型构建工具 ``karun`` 生成HTML样板代码嵌入并调用生成的JavaScript代码::
 
   nim c karax/tools/karun
   karax/tools/karun -r helloworld.nim
 
-Via ``-d:debugKaraxDsl`` we can have a look at the produced Nim code by
-``buildHtml``:
+通过 ``-d:debugKaraxDsl`` 可以看到 ``buildHtml`` 生成的Nim代码:
 
 .. code-block:: nim
 
@@ -73,10 +66,9 @@ Via ``-d:debugKaraxDsl`` we can have a look at the produced Nim code by
   add(tmp1, text "Hello World!")
   tmp1
 
-(I shortened the IDs for better readability.)
+(为了更好的可读性，缩减了IDs。)
 
-Ok, so ``buildHtml`` introduces temporaries and calls ``add`` for the tree
-construction so that it composes with all of Nim's control flow constructs:
+可以看到 ``buildHtml`` 引入临时变量调用 ``add`` 构造树以便于它和Nim控制流并存:
 
 
 .. code-block:: nim
@@ -95,7 +87,7 @@ construction so that it composes with all of Nim's control flow constructs:
   setRenderer createDom
 
 
-Produces:
+生成:
 
 .. code-block:: nim
 
@@ -107,16 +99,15 @@ Produces:
   tmp1
 
 
-Event model
+事件模型
 ===========
 
-Karax does not change the DOM's event model much, here is a program
-that writes "Hello simulated universe" on a button click:
+Karax没有太多改变DOM事件模型，这里有一个程序在点击按钮时输出"Hello simulated universe":
 
 .. code-block:: nim
 
   include karax / prelude
-  # alternatively: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
+  # 可选: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
 
   var lines: seq[kstring] = @[]
 
@@ -133,15 +124,11 @@ that writes "Hello simulated universe" on a button click:
   setRenderer createDom
 
 
-``kstring`` is Karax's alias for ``cstring`` (which stands for "compatible
-string"; for the JS target that is an immutable JavaScript string) which
-is preferred for efficiency on the JS target. However, on the native targets
-``kstring`` is mapped  to ``string`` for efficiency. The DSL for HTML
-construction is also avaible for the native targets (!) and the ``kstring``
-abstraction helps to deal with these conflicting requirements.
+``kstring`` 是Karax中 ``cstring`` 的别名(代表可兼容字符串；对JS来说是不可改变的JavaScript字符串)，是JS目标效率的首选。
+原生目标上为效率将 ``kstring`` 映射成 ``string`` 。 
+HTML构造的DSL也可用于原生目标，``kstring`` 抽象帮助解决了这些冲突。
 
-Karax's DSL is quite flexible when it comes to event handlers, so the
-following syntax is also supported:
+Karax的DSL在事件处理也非常灵活，下面的语法也是支持的：
 
 .. code-block:: nim
 
@@ -161,7 +148,7 @@ following syntax is also supported:
   setRenderer createDom
 
 
-The ``buildHtml`` macro produces this code for us:
+``buildHtml`` 宏生成的代码：
 
 .. code-block:: nim
 
@@ -177,18 +164,16 @@ The ``buildHtml`` macro produces this code for us:
     add(tmp2, tmp4)
   tmp2
 
-As the examples grow larger it becomes more and more visible of what
-a DSL that composes with the builtin Nim control flow constructs buys us.
-Once you have tasted this power there is no going back and languages
-without AST based macro system simply don't cut it anymore.
+随着示例变得越来越大，由内置Nim控制流构成的DSL所提供的东西越来越多。
+
+一旦您体会到了这种力量，就没有回头路了，没有基于AST的宏系统的语言就再也不会对它构成任何威胁。
 
 
-Attaching data to an event handler
+
+向事件处理附加数据
 ==================================
 
-Since the type of an event handler is ``(ev: Event; n: VNode)`` or ``()`` any
-additional data that should be passed to the event handler needs to be
-done via Nim's closures. In general this means a pattern like this:
+因为事件处理是 ``(ev: Event; n: VNode)`` 或 ``()`` ，任意应当传递给事件处理的附加数据需要通过Nim的闭包完成。一般是这种形式：
 
 .. code-block:: nim
 
@@ -204,32 +189,26 @@ done via Nim's closures. In general this means a pattern like this:
             a(class="navbar-item", onclick = menuAction(m)):
 
 
-DOM diffing
+DOM差分算法
 ===========
 
-Ok, so now we have seen DOM creation and event handlers. But how does
-Karax actually keep the DOM up to date? The trick is that every event
-handler is wrapped in a helper proc that triggers a *redraw* operation
-that calls the *renderer* that you initially passed to ``setRenderer``.
-So a new virtual DOM is created and compared against the previous
-virtual DOM. This comparison produces a patch set that is then applied
-to the real DOM the browser uses internally. This process is called
-"virtual DOM diffing" and other frameworks, most notably Facebook's
-*React*, do quite similar things. The virtual DOM is faster to create
-and manipulate than the real DOM so this approach is quite efficient.
+我们已经看到DOM创建和事件处理，Karax如何保持DOM是最新的？
+秘诀在于每个事件处理封装在一个中间过程，它会触发 *redraw* 操作来调用一开始传递给 ``setRenderer`` 的 *renderer* 。
+
+新虚拟DOM创建并与之前虚拟DOM对比。
+这种对比产生一个补丁集，随后应用在浏览器内部使用的真实DOM上。这个过程叫做“虚拟DOM差分”，与其它框架中比较著名的Facebook的 *React* 类似。
+虚拟DOM比DOM创建和操作更快，这种方法非常高效。
 
 
-Form validation
+表单验证
 ===============
 
-Most applications these days have some "login"
-mechanism consisting of ``username`` and ``password`` and
-a ``login`` button. The login button should only be clickable
-if ``username`` and ``password`` are not empty. An error
-message should be shown as long as one input field is empty.
+现代的大多数应用有登录机制，由 ``username`` 和 ``password`` 以及 ``login`` 按钮构成。
+登录按钮应当只在 ``username`` 和 ``password`` 非空的时候可以点击。
+输入字段为空时应当显示错误消息。
 
-To create new UI elements we write a ``loginField`` proc that
-returns a ``VNode``:
+
+我们写一个返回 ``VNode`` 的 ``loginField`` 过程来创建新的UI元素：
 
 .. code-block:: nim
 
@@ -240,11 +219,9 @@ returns a ``VNode``:
         text desc
       input(class = class, id = field, onchange = validator(field))
 
-We use the ``karax / errors`` module to help with this error
-logic. The ``errors`` module is mostly a mapping from strings to
-strings but it turned out that the logic is tricky enough to warrant
-a library solution. ``validateNotEmpty`` returns a closure that
-captures the ``field`` parameter:
+使用 ``karax / errors`` 模块处理错误逻辑。 
+``errors`` 模块主要是从字符串到字符串的映射，但事实证明该逻辑非常棘手，需要库解决方案。
+``validateNotEmpty`` 返回一个捕获 ``field`` 参数的闭包：
 
 .. code-block:: nim
 
@@ -256,17 +233,14 @@ captures the ``field`` parameter:
       else:
         errors.setError(field, "")
 
-This indirection is required because
-event handlers in Karax need to have the type ``proc ()``
-or ``proc (ev: Event; n: VNode)``. The errors module also
-gives us a handy ``disableOnError`` helper. It returns
-``"disabled"`` if there are errors. Now we have all the
-pieces together to write our login dialog:
+这种间接处理方式是必须的，因为Karax中的事件处理需要具有 ``proc ()`` 或 ``proc (ev: Event; n: VNode)`` 类型。
+errors模块也提供一个方便的 ``disableOnError`` 过程。如果有错误将返回 ``"disabled"`` 。
+现在把这些片段合起来写我们的登录对话：
 
 
 .. code-block:: nim
 
-  # some consts in order to prevent typos:
+  # 防止输错的常量：
   const
     username = kstring"username"
     password = kstring"password"
@@ -290,25 +264,24 @@ pieces together to write our login dialog:
 
   setRenderer loginDialog
 
-(Full example `here <https://github.com/pragmagic/karax/blob/master/examples/login.nim>`_.)
+(完整示例 `here <https://github.com/pragmagic/karax/blob/master/examples/login.nim>`_.)
 
-This code still has a bug though, when you run it, the ``login`` button is not
-disabled until some input fields are validated! This is easily fixed,
-at initialization we have to do:
+这段代码有bug，运行时 ``login`` 按钮没有disable，直到输入字段验证完成。这很容易修复，初始化时我们需要
 
 .. code-block:: nim
 
   setError username, username & " must not be empty"
   setError password, password & " must not be empty"
 
-There are likely more elegant solutions to this problem.
+
+对于这个问题可能有更优雅的解决方案。
 
 
-Routing
+路由
 =======
 
-For routing ``setRenderer`` can be called with a callback that takes a parameter of
-type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" example:
+对于路由 ``setRenderer`` ，可以使用带有参数 ``RouterData`` 的回调来调用。
+以下是有名的“Todo App”示例的相关代码：
 
 .. code-block:: nim
 
@@ -322,14 +295,13 @@ type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" exa
 
   setRenderer createDom
 
-(Full example `here <https://github.com/pragmagic/karax/blob/master/examples/todoapp/todoapp.nim>`_.)
+(完整示例 `here <https://github.com/pragmagic/karax/blob/master/examples/todoapp/todoapp.nim>`_.)
 
 
-Server Side HTML Rendering
+服务端HTML渲染
 ==========================
 
-Karax can also be used to render HTML on the server.  Only a subset of
-modules can be used since there is no JS interpreter.
+Karax也可用于在服务器上渲染HTML。只有其中的几个模块可以用，因为没有JS解释器。
 
 .. code-block:: nim
 
