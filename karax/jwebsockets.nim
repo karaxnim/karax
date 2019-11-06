@@ -6,7 +6,7 @@ type
 
   WebSocket* {.importc.} = ref object
     onmessage*: proc (e: MessageEvent)
-    onopen*: proc (e: MessageEvent)
+    onopen*: proc ()
 
 proc newWebSocket*(url, key: cstring): WebSocket
   {.importcpp: "new WebSocket(@)".}
