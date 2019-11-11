@@ -126,6 +126,8 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
             result.add newDotAsgn(tmp, key, newCall("style", toKstring x[1]))
           elif key in SpecialAttrs:
             result.add newDotAsgn(tmp, key, x[1])
+            if key == "value":
+              result.add newCall(bindSym"setAttr", tmp, newLit(key), x[1])
           elif eqIdent(key, "setFocus"):
             result.add newCall(key, tmp, x[1], ident"kxi")
           elif eqIdent(key, "events"):
