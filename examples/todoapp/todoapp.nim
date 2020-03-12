@@ -9,7 +9,7 @@ var
   selectedEntry = -1
   filter: Filter
   entriesLen: int
-
+  doneswitch = true
 const
   contentSuffix = cstring"content"
   completedSuffix = cstring"completed"
@@ -62,9 +62,9 @@ proc toggleEntry(ev: Event; n: VNode) =
   markAsCompleted(id, not isCompleted(id))
 
 proc onAllDone(ev: Event; n: VNode) =
-  clear()
-  selectedEntry = -1
-
+  for i in 0..<entriesLen:
+    markAsCompleted(i, doneswitch)
+  doneswitch = not doneswitch
 proc clearCompleted(ev: Event, n: VNode) =
   for i in 0..<entriesLen:
     if isCompleted(i): setEntryContent(i, nil)
@@ -124,8 +124,8 @@ proc createDom(data: RouterData): VNode =
     section(class = "todoapp"):
       makeHeader()
       section(class = "main"):
-        input(class = "toggle-all", `type` = "checkbox", name = "toggle")
-        label(`for` = "toggle-all", onclick = onAllDone):
+        input(class = "toggle-all", `type` = "checkbox", id = "toggle", onclick = onAllDone)
+        label(`for` = "toggle"):
           text "Mark all as complete"
         var entriesCount = 0
         var completedCount = 0
