@@ -31,7 +31,7 @@ type
 
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
                               ## know about this.
-    rootId: cstring not nil
+    rootId: cstring
     renderer: proc (data: RouterData): VNode {.closure.}
     currentTree: VNode
     postRenderCallback: proc (data: RouterData)
