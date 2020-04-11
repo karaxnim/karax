@@ -78,6 +78,24 @@ template keyeventBody() =
   # Do not call redraw() here! That is already done
   # by ``karax.addEventHandler``.
 
+proc karaxEvents(d: Node): JSeq[(cstring, NativeEventHandler)] {.importcpp: "#.karaxEvents".}
+proc `karaxEvents=`(d: Node; value: JSeq[(cstring, NativeEventHandler)]) {.importcpp: "#.karaxEvents = #".}
+
+proc addEventShell(d: Node; name: cstring; h: NativeEventHandler) =
+  # The DOM is such a pathetic piece of junk that it doesn't
+  # offer 'removeAllEventHandlers()'. Hence we store the event
+  # handler twice in 'd' so that we can emulate this properly.
+  # This is required to fix bug #139.
+  d.addEventListener(name, h)
+  if d.karaxEvents == nil:
+    d.karaxEvents = newJSeq[(cstring, NativeEventHandler)]()
+  d.karaxEvents.add((name, h))
+
+proc removeAllEventHandlers(d: Node) =
+  if d.karaxEvents != nil:
+    for i in 0..<d.karaxEvents.len:
+      d.removeEventListener(d.karaxEvents[i][0], d.karaxEvents[i][1])
+
 proc wrapEvent(d: Node; n: VNode; k: EventKind;
                action: EventHandler): NativeEventHandler =
   proc stdWrapper(): NativeEventHandler =
@@ -106,13 +124,13 @@ proc wrapEvent(d: Node; n: VNode; k: EventKind;
   case k
   of EventKind.onkeyuplater:
     result = laterWrapper()
-    d.addEventListener("keyup", result)
+    d.addEventShell("keyup", result)
   of EventKind.onkeyupenter:
     result = enterWrapper()
-    d.addEventListener("keyup", result)
+    d.addEventShell("keyup", result)
   else:
     result = stdWrapper()
-    d.addEventListener(toEventName[k], result)
+    d.addEventShell(toEventName[k], result)
 
 # --------------------- DOM diff -----------------------------------------
 
@@ -312,12 +330,14 @@ proc updateAttributes(newNode, oldNode: VNode) =
 proc mergeEvents(newNode, oldNode: VNode; kxi: KaraxInstance) =
   let d = oldNode.dom
   if d != nil:
-    for i in 0..<oldNode.events.len:
-      let k = oldNode.events[i][0]
-      let name = case k
-                of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
-                else: toEventName[k]
-      d.removeEventListener(name, oldNode.events[i][2])
+    removeAllEventHandlers(d)
+    when false:
+      for i in 0..<oldNode.events.len:
+        let k = oldNode.events[i][0]
+        let name = case k
+                  of EventKind.onkeyuplater, EventKind.onkeyupenter: cstring"keyup"
+                  else: toEventName[k]
+        d.removeEventListener(name, oldNode.events[i][2])
   shallowCopy(oldNode.events, newNode.events)
   applyEvents(oldNode)
 
