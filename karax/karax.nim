@@ -154,7 +154,9 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
 
 proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if useAttachedNode:
-    if n.dom != nil: return n.dom
+    if n.dom != nil:
+      if n.id != nil: kxi.byId[n.id] = n
+      return n.dom
   if n.kind == VNodeKind.text:
     result = document.createTextNode(n.text)
     attach n
@@ -383,6 +385,8 @@ proc addPatchV(kxi: KaraxInstance; parent: VNode; pos: int; newChild: VNode) =
 proc moveDom(dest, src: VNode) =
   dest.dom = src.dom
   src.dom = nil
+  if dest.id != nil:
+    kxi.byId[dest.id] = dest
   assert dest.len == src.len
   for i in 0..<dest.len:
     moveDom(dest[i], src[i])
