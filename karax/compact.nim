@@ -61,7 +61,7 @@ proc newname*(n: NimNode): NimNode =
     n[1] = newname(n[1])
     result = n
   elif n.kind == nnkSym:
-    result = ident($n.symbol)
+    result = ident(n.strVal)
   else:
     result = n
 
