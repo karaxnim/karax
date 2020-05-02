@@ -815,5 +815,8 @@ proc toChecked*(checked: bool): cstring =
 proc toDisabled*(disabled: bool): cstring =
   (if disabled: cstring"disabled" else: cstring(nil))
 
+proc toSelected*(selected: bool): cstring =
+  (if selected: cstring"selected" else: cstring(nil))
+
 proc vnodeToDom*(n: VNode; kxi: KaraxInstance = nil): Node =
   result = toDom(n, useAttachedNode = false, kxi)
