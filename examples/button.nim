@@ -1,4 +1,3 @@
-
 include karax / prelude
 
 var lines: seq[kstring] = @[]
