@@ -3,8 +3,6 @@ import os, strutils, browsers,times, tables
 import parseopt
 import threadpool
 import static_server
-import ws
-{.experimental.}
 
 const
   css = """
@@ -21,9 +19,14 @@ const html = """
   $2
 </head>
 <body id="body" class="site">
-<div id="ROOT" />
+<div id="ROOT"></div>
 <script type="text/javascript" src="/app.js"></script>
-<script>
+$3
+</body>
+</html>
+"""
+const websocket = """
+<script type="text/javascript">
 var ws = new WebSocket("ws://localhost:8080/ws");
 
 ws.onopen = function(evt) { 
@@ -42,19 +45,18 @@ ws.onclose = function(evt) {
   console.log("Connection closed.");
 };      
 </script>
-</body>
-</html>
 """
 
 proc exec(cmd: string) =
   if os.execShellCmd(cmd) != 0:
     quit "External command failed: " & cmd
 
-proc build(rest: string, selectedCss: string, run: bool) =
+proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
   echo("Building...")
   exec "nim js --out:" & "app" & ".js " & rest
   let dest = "app" & ".html"
-  writeFile(dest, html % ["app", selectedCss])
+  let script = if watch: websocket else: ""
+  writeFile(dest, html % ["app", selectedCss, script])
   if run: openDefaultBrowser("http://localhost:8080")
 
 proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} = 
@@ -68,7 +70,7 @@ proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} 
       if files.hasKey(path):
         if files[path] != getLastModificationTime(path):
           echo("File changed: " & path)
-          build(rest,selectedCss, false)
+          build(rest,selectedCss, false, true)
           files[path] = getLastModificationTime(path)
       else:
         if absolutePath(path) in [absolutePath("app" & ".js"),absolutePath("app" & ".html")]:
@@ -111,10 +113,10 @@ proc main =
     of cmdEnd: break
 
   if file.len == 0: quit "filename expected"
-
-  parallel:
-    spawn serve()
-    spawn watchBuild(file,selectedCss, rest)
-    build(rest,selectedCss, true)
+  spawn serve()
+  if watch:
+    spawn watchBuild(file, selectedCss, rest)
+  build(rest,selectedCss, true, watch)
+  sync()
 
 main()
