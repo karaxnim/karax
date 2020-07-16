@@ -53,7 +53,11 @@ proc exec(cmd: string) =
 
 proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
   echo("Building...")
-  exec "nim js --out:" & "app" & ".js " & rest
+  let cmd = "nim js --out:" & "app" & ".js " & rest
+  if watch:
+    discard os.execShellCmd(cmd)
+  else:
+    exec cmd
   let dest = "app" & ".html"
   let script = if watch: websocket else: ""
   writeFile(dest, html % ["app", selectedCss, script])
