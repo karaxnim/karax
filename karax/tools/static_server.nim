@@ -1,9 +1,9 @@
 import net, os, strutils, uri, mimetypes, asyncnet, asyncdispatch, md5,
        logging, httpcore, asyncfile, options
 import asynchttpserver
-from cgi import decodeData, decodeUrl, CgiError
+from cgi import decodeUrl
 import ws,tables,times
-import dotenv,macros
+import dotenv
 
 type 
   RawHeaders* = seq[tuple[key, val: string]]
