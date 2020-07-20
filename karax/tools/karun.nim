@@ -59,7 +59,7 @@ proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
   else:
     exec cmd
   let dest = "app" & ".html"
-  let script = if watch: websocket else: ""
+  let script = if run and watch: websocket else: ""
   writeFile(dest, html % ["app", selectedCss, script])
   if run: openDefaultBrowser("http://localhost:8080")
 
@@ -117,10 +117,11 @@ proc main =
     of cmdEnd: break
 
   if file.len == 0: quit "filename expected"
-  spawn serve()
+  if run:
+    spawn serve()
   if watch:
     spawn watchBuild(file, selectedCss, rest)
-  build(rest,selectedCss, true, watch)
+  build(rest,selectedCss, run, watch)
   sync()
 
 main()
