@@ -3,3 +3,5 @@ nimcache/
 karax/tools/karun
 *.code-workspace
 *.exe
+app.js
+app.html
