@@ -65,13 +65,12 @@ proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
 
 proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} = 
   var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
-  var dir, name, ext:string
   while true:
     sleep(300)
     for path in walkDirRec("."):
       if ".git" in path:
         continue
-      (dir, name, ext) = splitFile(path)
+      var (_, _, ext) = splitFile(path)
       if ext in [".scss",".sass",".less",".styl",".pcss",".postcss"]:
         continue
       if files.hasKey(path):
