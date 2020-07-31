@@ -70,7 +70,9 @@ proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} 
     for path in walkDirRec("."):
       if ".git" in path:
         continue
-
+      var (_, _, ext) = splitFile(path)
+      if ext in [".scss",".sass",".less",".styl",".pcss",".postcss"]:
+        continue
       if files.hasKey(path):
         if files[path] != getLastModificationTime(path):
           echo("File changed: " & path)
