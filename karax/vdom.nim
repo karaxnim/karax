@@ -97,9 +97,9 @@ type
                   ## passed (useful for on-the-fly text completions)
     onload, # img
 
-    ontransitioncancel
-    ontransitionend
-    ontransitionrun
+    ontransitioncancel,
+    ontransitionend,
+    ontransitionrun,
     ontransitionstart
 
 macro buildLookupTables(): untyped =
