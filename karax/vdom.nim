@@ -97,6 +97,11 @@ type
                   ## passed (useful for on-the-fly text completions)
     onload, # img
 
+    ontransitioncancel,
+    ontransitionend,
+    ontransitionrun,
+    ontransitionstart
+
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
