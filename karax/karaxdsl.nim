@@ -104,8 +104,12 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     let op = getName(n[0])
     let ck = isComponent(op)
     if eqIdent(op, "closureScope") or eqIdent(op, "capture"):
+<<<<<<< HEAD
       n[^1] = tcall2(n[^1], tmpContext)
       result = n
+=======
+      n[^1] = tcall2(n[^1], tmpContext) 
+>>>>>>> f0a5e4c... Add a special case for `closureScope` and `capture`
     elif ck != ComponentKind.None:
       let tmp = genSym(nskLet, "tmp")
       let call = if ck == ComponentKind.Tag:
