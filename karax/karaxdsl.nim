@@ -103,7 +103,10 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   of nnkCallKinds - {nnkInfix}:
     let op = getName(n[0])
     let ck = isComponent(op)
-    if ck != ComponentKind.None:
+    if eqIdent(op, "closureScope") or eqIdent(op, "capture"):
+      n[^1] = tcall2(n[^1], tmpContext)
+      result = n
+    elif ck != ComponentKind.None:
       let tmp = genSym(nskLet, "tmp")
       let call = if ck == ComponentKind.Tag:
                    newCall(bindSym"tree", newDotExpr(bindSym"VNodeKind", n[0]))
