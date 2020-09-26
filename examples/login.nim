@@ -11,8 +11,8 @@ proc loginField(desc, field, class: kstring;
 
 # some consts in order to prevent typos:
 const
-  username: kstring = "username"
-  password: kstring = "password"
+  username = kstring"username"
+  password = kstring"password"
 
 proc validateNotEmpty(field: kstring): proc () =
   result = proc () =
