@@ -17,7 +17,7 @@ const
 proc validateNotEmpty(field: kstring): proc () =
   result = proc () =
     let x = getVNodeById(field)
-    if x.text.isNil or x.text == "":
+    if x.text == "":
       errors.setError(field, field & " must not be empty")
     else:
       errors.setError(field, "")
@@ -27,7 +27,7 @@ var loggedIn: bool
 proc loginDialog(): VNode =
   result = buildHtml(tdiv):
     if not loggedIn:
-      loginField("Name :", username, "input", validateNotEmpty)
+      loginField("Name: ", username, "input", validateNotEmpty)
       loginField("Password: ", password, "password", validateNotEmpty)
       button(onclick = () => (loggedIn = true), disabled = errors.disableOnError()):
         text "Login"
