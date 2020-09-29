@@ -234,7 +234,7 @@ proc eq*(a, b: VStyle): bool =
     if a[i] != b[i]: return false
   return true
 
-proc setAttr(s: VStyle; a, value: kstring) {.noSideEffect.} =
+proc setAttr*(s: VStyle; a, value: kstring) {.noSideEffect.} =
   var i = 0
   while i < s.len:
     if s[i] == a:
