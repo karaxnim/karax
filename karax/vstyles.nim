@@ -303,7 +303,11 @@ proc toCss*(a: string): VStyle =
   tdiv(style = style((fontStyle, "italic".kstring), (color, "orange".kstring))): discard
   tdiv(style = "font-style: oblique; color: pink".toCss): discard
   ]##
-  result = newJSeq[cstring]()
+  when defined(js):
+    result = newJSeq[cstring]()
+  else:
+    new(result)
+    result[] = @[]
   for ai in a.split(";"):
     var ai = ai.strip
     if ai.len == 0: continue
