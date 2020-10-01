@@ -1,5 +1,9 @@
+##[
+see examples/hellostyle.nim
+]##
 
-import macros, kbase
+import std/[macros, strutils]
+import kbase
 
 when defined(js):
   import kdom, jdict
@@ -291,6 +295,20 @@ proc style*(a: StyleAttr; val: kstring): VStyle {.noSideEffect.} =
     new(result)
     result[] = @[]
   result.setAttr a, val
+
+proc toCss*(a: string): VStyle =
+  ##[
+  See example in hellostyle.nim
+  Allows passing a css string directly, eg:
+  tdiv(style = style((fontStyle, "italic".kstring), (color, "orange".kstring))): discard
+  tdiv(style = "font-style: oblique; color: pink".toCss): discard
+  ]##
+  result = newJSeq[cstring]()
+  for ai in a.split(";"):
+    var ai = ai.strip
+    if ai.len == 0: continue
+    let aj = ai.strip.split(":", maxsplit=1)
+    result.setAttr(aj[0], aj[1])
 
 when defined(js):
   proc setStyle(d: Style; key, val: cstring) {.importcpp: "#[#] = #", noSideEffect.}
