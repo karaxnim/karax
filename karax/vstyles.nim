@@ -235,6 +235,9 @@ proc eq*(a, b: VStyle): bool =
   return true
 
 proc setAttr*(s: VStyle; a, value: kstring) {.noSideEffect.} =
+  ## inserts (a, value) in sorted order of key `a`
+  # worst case quadratic complexity (if given styles in reverse order), hopefully
+  # not a concern assuming small cardinal
   var i = 0
   while i < s.len:
     if s[i] == a:
@@ -243,8 +246,8 @@ proc setAttr*(s: VStyle; a, value: kstring) {.noSideEffect.} =
     elif s[i] > a:
       s.add ""
       s.add ""
-      # insertion point here:
-      for j in countdown(s.len-1, i, 2):
+      # insertion point here, shift all remaining pairs by 2 indexes
+      for j in countdown(s.len-1, i+3, 2):
         s[j] = s[j-2]
         s[j-1] = s[j-3]
       s[i] = a

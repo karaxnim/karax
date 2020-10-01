@@ -303,6 +303,12 @@ proc sameAttrs*(a, b: VNode): bool =
 proc addEventListener*(n: VNode; event: EventKind; handler: EventHandler) =
   n.events.add((event, handler, nil))
 
+when kstring is cstring:
+  proc len(a: kstring): int =
+    # xxx: maybe move where kstring is defined
+    # without this, `n.field.len` fails on js (non web) platform
+    if a == nil: 0 else: a.len
+
 template toStringAttr(field) =
   if n.field.len > 0:
     result.add " " & astToStr(field) & " = " & $n.field
