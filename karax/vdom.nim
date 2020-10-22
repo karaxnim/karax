@@ -100,8 +100,10 @@ type
     ontransitioncancel,
     ontransitionend,
     ontransitionrun,
-    ontransitionstart
-
+    ontransitionstart,
+    
+    onwheel # fires when the user rotates a wheel button on a pointing device.
+    
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
