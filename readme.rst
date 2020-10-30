@@ -353,3 +353,30 @@ modules can be used since there is no JS interpreter.
     result = $vnode
 
   echo render()
+
+Generate HTML with event handlers
+=================================
+
+If you are writing a static site generator or do server-side HTML rendering
+via ``nim c``, you may want to override ``addEventHandler`` when using event
+handlers to avoid compiler complaints.
+
+Here's an example of auto submit a dropdown when a value is selected:
+
+.. code-block:: nim
+
+  template kxi(): int = 0
+  template addEventHandler(n: VNode; k: EventKind; action: string; kxi: int) =
+    n.setAttr($k, action)
+
+  let
+    names = @["nim", "c", "python"]
+    selected_name = request.params.getOrDefaul("name")
+    hello = buildHtml(html):
+      form(`method` = "get"):
+        select(name="name", onchange="this.form.submit()"):
+          for name in names:
+            if name == selected_name:
+              option(selected = ""): text name
+            else:
+              option: text name
