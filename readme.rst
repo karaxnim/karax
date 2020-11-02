@@ -371,7 +371,7 @@ Here's an example of auto submit a dropdown when a value is selected:
 
   let
     names = @["nim", "c", "python"]
-    selected_name = request.params.getOrDefaul("name")
+    selected_name = request.params.getOrDefault("name")
     hello = buildHtml(html):
       form(`method` = "get"):
         select(name="name", onchange="this.form.submit()"):
