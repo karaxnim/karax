@@ -33,7 +33,7 @@ proc sendStaticIfExists(
   result = Http200
   let mimes = newMimetypes()
   for p in paths:
-    if existsFile(p):
+    if fileExists(p):
 
       var fp = getFilePermissions(p)
       if not fp.contains(fpOthersRead):
@@ -107,7 +107,7 @@ proc handleFileRequest(
   let pathDir = path.splitFile.dir / ""
 
   if pathDir.startsWith(publicUrl):
-    if existsDir(path):
+    if dirExists(path):
       status = await sendStaticIfExists(
         req,
         @[path / "index.html", path / "index.htm"]
