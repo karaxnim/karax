@@ -11,7 +11,7 @@ var allMessages: seq[TextMessage] = @[]
 
 proc doSendMessage() =
   let inputField = getVNodeById(message)
-  allMessages.add(TextMessage(name: "you", content: inputField.text))
+  allMessages.add(TextMessage(name: "you", content: inputField.getInputText))
   inputField.setInputText ""
 
 proc main(): VNode =

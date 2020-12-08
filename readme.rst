@@ -250,8 +250,8 @@ captures the ``field`` parameter:
 
   proc validateNotEmpty(field: kstring): proc () =
     result = proc () =
-      let x = getVNodeById(field)
-      if x.text.isNil or x.text == "":
+      let x = getVNodeById(field).getInputText
+      if x.isNil or x == "":
         errors.setError(field, field & " must not be empty")
       else:
         errors.setError(field, "")

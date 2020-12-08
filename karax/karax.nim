@@ -809,6 +809,10 @@ proc setInputText*(n: VNode; s: cstring) =
   n.text = s
   if n.dom != nil: n.dom.value = s
 
+proc getInputText*(n: VNode): cstring =
+  if n.dom != nil:
+    result = n.dom.value
+
 proc toChecked*(checked: bool): cstring =
   (if checked: cstring"checked" else: cstring(nil))
 
