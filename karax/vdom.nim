@@ -35,7 +35,7 @@ type
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map,
-    area, svg, math, path, circle
+    area, svg, math, path, circle, svgtext = "text"
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
@@ -101,9 +101,9 @@ type
     ontransitionend,
     ontransitionrun,
     ontransitionstart,
-    
+
     onwheel # fires when the user rotates a wheel button on a pointing device.
-    
+
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
