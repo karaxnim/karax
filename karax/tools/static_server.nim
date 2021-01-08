@@ -1,71 +1,63 @@
-import net, os, strutils, uri, mimetypes, asyncnet, asyncdispatch, md5,
-       logging, httpcore, asyncfile, options
-import asynchttpserver
+import
+  std/[net, os, strutils, uri, mimetypes, asyncnet, asyncdispatch, md5,
+  logging, httpcore, asyncfile, asynchttpserver, tables, times]
 from cgi import decodeUrl
-import ws,tables,times
-import dotenv
+import ws, dotenv
 
-type 
+var logger = newConsoleLogger()
+addHandler(logger)
+
+when defined(release):
+  setLogFilter(lvlError)
+
+type
   RawHeaders* = seq[tuple[key, val: string]]
 
-proc toStr(headers: Option[RawHeaders]): string =
-  return $newHttpHeaders(headers.get(@({:})))
+proc toStr(headers: RawHeaders): string =
+  $newHttpHeaders(headers)
 
-proc send(
-  request: Request, code: HttpCode, headers: Option[RawHeaders], body: string
-): Future[void] =
-  return request.respond(
-    code, body, newHttpHeaders(headers.get(@({:})))
-  )
+proc send(request: Request, code: HttpCode, headers: RawHeaders,
+    body: string): Future[void] =
+  return request.respond(code, body, newHttpHeaders(headers))
 
 proc statusContent(request: Request, status: HttpCode, content: string,
-                   headers: Option[RawHeaders]): Future[void] =
+    headers: RawHeaders): Future[void] =
   try:
     result = send(request, status, headers, content)
-    when not defined(release):
-      logging.debug("  $1 $2" % [$status, toStr(headers)])
+    debug("  ", status, " ", toStr(headers))
   except:
-    logging.error("Could not send response: $1" % osErrorMsg(osLastError()))
+    error("Could not send response: ", osErrorMsg(osLastError()))
 
-proc sendStaticIfExists(
-  req: Request, paths: seq[string]
-): Future[HttpCode] {.async.} =
+proc sendStaticIfExists(req: Request, paths: seq[string]): Future[HttpCode] {.async.} =
   result = Http200
   let mimes = newMimetypes()
   for p in paths:
     if fileExists(p):
-
-      var fp = getFilePermissions(p)
-      if not fp.contains(fpOthersRead):
+      if fpOthersRead notin getFilePermissions(p):
         return Http403
-
       let fileSize = getFileSize(p)
-      let ext = p.splitFile.ext
+      let extPos = searchExtPos(p)
       let mimetype = mimes.getMimetype(
-        if ext.len > 0: ext[1 .. ^1]
-        else: ""
-      )
+        if extPos >= 0: p.substr(extPos + 1)
+        else: "")
       if fileSize < 10_000_000: # 10 mb
         var file = readFile(p)
-
         var hashed = getMD5(file)
-
         # If the user has a cached version of this file and it matches our
         # version, let them use it
-        if req.headers.hasKey("If-None-Match") and req.headers["If-None-Match"] == hashed:
-          await req.statusContent(Http304, "", none[RawHeaders]())
+        if req.headers.getOrDefault("If-None-Match") == hashed:
+          await req.statusContent(Http304, "", default(RawHeaders))
         else:
-          await req.statusContent(Http200, file, some(@({
+          await req.statusContent(Http200, file, @{
             "Content-Type": mimetype,
             "ETag": hashed
-          })))
+          })
       else:
-        let headers = @({
+        let headers = @{
           "Content-Type": mimetype,
           "Content-Length": $fileSize
-        })
-        await req.statusContent(Http200, "", some(headers))
-
+        }
+        await req.statusContent(Http200, "", headers)
         var fileStream = newFutureStream[string]("sendStaticIfExists")
         var file = openAsync(p, fmRead)
         # Let `readToStream` write file data into fileStream in the
@@ -80,38 +72,19 @@ proc sendStaticIfExists(
           else:
             break
         file.close()
-
-      return 
-
+      return
   # If we get to here then no match could be found.
   return Http404
 
-
-proc handleFileRequest(
-  req: Request
-): Future[HttpCode] {.async.} =
+proc handleFileRequest(req: Request): Future[HttpCode] {.async.} =
   # Find static file.
   var reqPath = cgi.decodeUrl(req.url.path)
-  var publicUrl = getEnv("publicUrl")
-  var staticDir = getEnv("staticDir")
-  if not publicUrl.endsWith("/"):
-    publicUrl = publicUrl & "/"
-  reqPath = reqPath.substr(publicUrl.len)
-  
-  let path = normalizedPath(
-    staticDir / reqPath
-  )
-
-  # Verify that this isn't outside our static dir.
+  var staticDir = getEnv("staticDir") # it's assumed a relative dir
   var status = Http400
-  let pathDir = path.splitFile.dir / ""
-
-  if pathDir.startsWith(publicUrl):
-    if dirExists(path):
-      status = await sendStaticIfExists(
-        req,
-        @[path / "index.html", path / "index.htm"]
-      )
+  var path = staticDir / reqPath
+  normalizePathEnd(path, false)
+  if dirExists(path):
+    status = await sendStaticIfExists(req, @[path / "index.html", path / "index.htm"])
   else:
     status = await sendStaticIfExists(req, @[path])
   return status
@@ -119,10 +92,12 @@ proc handleFileRequest(
 proc handleWs(req: Request) {.async.} =
   var ws = await newWebSocket(req)
   await ws.send("Welcome to simple echo server")
+
   var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
-  let watchedFiles = [absolutePath "app.js",absolutePath "app.html"]
+  let watchedFiles = [absolutePath "app.js", absolutePath "app.html"]
   for path in watchedFiles:
     files[path] = getLastModificationTime(path)
+
   while ws.readyState == Open:
     await sleepAsync(500)
     var changed = false
@@ -134,35 +109,31 @@ proc handleWs(req: Request) {.async.} =
       await ws.send("refresh")
       changed = false
 
-
-proc serveStatic*() = 
-  if fileExists( "static.env" ):
-    var env:DotEnv
+proc serveStatic*() =
+  if fileExists("static.env"):
+    var env: DotEnv
     env = initDotEnv(getCurrentDir(), "static.env")
     env.overload()
   else:
-    loadEnvFromString("""
-    staticDir="./src/assets/"
-    publicUrl="public"
-    """)
-  
+    putEnv("staticDir", "assets/")
+
   var server = newAsyncHttpServer()
   proc cb(req: Request) {.gcsafe, async.} =
     if req.url.path == "/ws":
       await handleWs(req)
     if req.url.path == "/":
-      await req.respond(Http200, readFile "app.html" )
+      await req.respond(Http200, readFile "app.html")
     elif req.url.path == "/app.js":
       let file = absolutePath("app" & ".js")
       if not file.fileExists:
-        logging.error("$1 not exists!" % file )
+        error(file, " does not exist!")
       if fpUserRead notin os.getFilePermissions(file):
-        logging.error("Could not read $1!" % file )
-      await req.respond(Http200, readFile( file ))
+        error("Could not read ", file, "!")
+      await req.respond(Http200, readFile(file))
     else:
       let status = await handleFileRequest(req)
       if status != Http200:
-        await req.respond(status,"")
+        await req.respond(status, "")
 
   waitFor server.serve(Port(8080), cb)
 
