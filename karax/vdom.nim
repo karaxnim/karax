@@ -34,7 +34,7 @@ type
     kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
-    param, video, audio, source, track, canvas, map,
+    param, video, audio, picture, source, track, canvas, map,
     area, svg, math, path, circle
 
     table, caption, colgroup, col, tbody, thead,
