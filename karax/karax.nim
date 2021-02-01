@@ -224,12 +224,14 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
       if e.len != n.len and n.kind != VNodeKind.textarea:
-        echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
+        when defined(karaxDebug):
+          echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
-    echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
+    when defined(karaxDebug):
+      echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -783,7 +785,7 @@ proc setupErrorHandler*() =
   var onerror {.importc: "window.onerror", used.} =
     proc (msg, url: cstring, line, col: int, error: cstring): bool =
       var x = cstring"Error: " & msg & "\n" & stackTraceAsCstring()
-      echo(x)
+      kout(x)
       return true # suppressErrorAlert
 {.pop.}
 
