@@ -152,7 +152,7 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   if kxi.byId.contains(id):
     result = kxi.byId[id]
 
-proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
+proc toDom*(n: VNode; useAttachedNode: bool; inSvg = false; kxi: KaraxInstance = nil): Node =
   if useAttachedNode:
     if n.dom != nil:
       if n.id != nil: kxi.byId[n.id] = n
@@ -167,7 +167,7 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
-    result = toDom(x, useAttachedNode, kxi)
+    result = toDom(x, useAttachedNode, inSvg, kxi)
     #n.key = result.key
     attach n
     return result
@@ -185,14 +185,17 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
       x.expanded = x.renderImpl(x)
       #  x.updatedImpl(x, nil)
     assert x.expanded != nil
-    result = toDom(x.expanded, useAttachedNode, kxi)
+    result = toDom(x.expanded, useAttachedNode, inSvg, kxi)
     attach n
     return result
   else:
-    result = document.createElement(toTag[n.kind])
+    if n.kind == VNodeKind.svg or inSvg:
+      result = document.createElementNS(cstring"http://www.w3.org/2000/svg", toTag[n.kind])
+    else:
+      result = document.createElement(toTag[n.kind])
     attach n
     for k in n:
-      appendChild(result, toDom(k, useAttachedNode, kxi))
+      appendChild(result, toDom(k, useAttachedNode, n.kind == VNodeKind.svg or inSvg, kxi))
     # text is mapped to 'value':
     if n.text != nil:
       result.value = n.text
@@ -396,7 +399,7 @@ proc applyPatch(kxi: KaraxInstance) =
     let p = kxi.patches[i]
     case p.k
     of pkReplace:
-      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, inSvg = false, kxi)
       if p.parent == nil:
         replaceById(kxi.rootId, nn)
       else:
@@ -409,10 +412,10 @@ proc applyPatch(kxi: KaraxInstance) =
     of pkRemove:
       p.parent.removeChild(p.current)
     of pkAppend:
-      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, inSvg = false, kxi)
       p.parent.appendChild(nn)
     of pkInsertBefore:
-      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, inSvg = false, kxi)
       p.parent.insertBefore(nn, p.current)
     of pkDetach:
       let n = p.oldNode
@@ -638,7 +641,7 @@ proc dodraw(kxi: KaraxInstance) =
   newtree.id = kxi.rootId
   kxi.toFocus = nil
   if kxi.currentTree == nil:
-    let asdom = toDom(newtree, useAttachedNode = true, kxi)
+    let asdom = toDom(newtree, useAttachedNode = true, inSvg = false, kxi)
     replaceById(kxi.rootId, asdom)
   else:
     doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
@@ -823,4 +826,4 @@ proc toSelected*(selected: bool): cstring =
   (if selected: cstring"selected" else: cstring(nil))
 
 proc vnodeToDom*(n: VNode; kxi: KaraxInstance = nil): Node =
-  result = toDom(n, useAttachedNode = false, kxi)
+  result = toDom(n, useAttachedNode = false, inSvg = false, kxi)
