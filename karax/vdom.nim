@@ -35,7 +35,19 @@ type
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map,
-    area, svg, math, path, circle
+    area, math,
+
+    # SVG elements, see: https://www.w3.org/TR/SVG2/eltindex.html
+    animate, animateMotion, animateTransform, circle, clipPath, defs, desc,
+    `discard` = "discard", ellipse, feBlend, feColorMatrix, feComponentTransfer,
+    feComposite, feConvolveMatrix, feDiffuseLighting, feDisplacementMap,
+    feDistantLight, feDropShadow, feFlood, feFuncA, feFuncB, feFuncG, feFuncR,
+    feGaussianBlur, feImage, feMerge, feMergeNode, feMorphology, feOffset,
+    fePointLight, feSpecularLighting, feSpotLight, feTile, feTurbulence,
+    filter, foreignObject, g, image, line, linearGradient, marker, mask,
+    metadata, mpath, path, pattern, polygon, polyline, radialGradient, rect,
+    `set` = "set", stop, svg, switch, symbol, txt = "text", textPath, tspan,
+    unknown, use, view,
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
@@ -101,9 +113,9 @@ type
     ontransitionend,
     ontransitionrun,
     ontransitionstart,
-    
+
     onwheel # fires when the user rotates a wheel button on a pointing device.
-    
+
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
