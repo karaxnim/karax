@@ -11,6 +11,9 @@ proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
   ## the preferred way of debugging karax applications. Now deprecated,
   ## you can now use ``system.echo`` instead.
 
+const
+  svgNS = cstring"http://www.w3.org/2000/svg"
+
 type
   PatchKind = enum
     pkReplace, pkRemove, pkAppend, pkInsertBefore, pkDetach, pkSame
@@ -190,7 +193,7 @@ proc toDom*(n: VNode; useAttachedNode: bool; inSvg = false; kxi: KaraxInstance =
     return result
   else:
     if n.kind == VNodeKind.svg or inSvg:
-      result = document.createElementNS(cstring"http://www.w3.org/2000/svg", toTag[n.kind])
+      result = document.createElementNS(svgNS, toTag[n.kind])
     else:
       result = document.createElement(toTag[n.kind])
     attach n
@@ -227,12 +230,14 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
       if e.len != n.len and n.kind != VNodeKind.textarea:
-        echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
+        when defined(karaxDebug):
+          echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
-    echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
+    when defined(karaxDebug):
+      echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
