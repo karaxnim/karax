@@ -62,9 +62,9 @@ type
     keygen, output, progress, meter,
     details, summary, command, menu
 
-const selfClosing = {area, base, br, col, embed, hr, img, input,
-  link, meta, param, source, track, wbr}
-
+const
+  selfClosing = {area, base, br, col, embed, hr, img, input,
+    link, meta, param, source, track, wbr}
 
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
@@ -125,7 +125,7 @@ macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
     let x = $i
-    let y = if x[0] == '#': x else: toLowerAscii(x)
+    let y = if x[0] == '#': x else: toUpperAscii(x)
     a.add(newCall("kstring", newLit(y)))
   var e = newTree(nnkBracket)
   for i in low(EventKind)..high(EventKind):
@@ -148,8 +148,12 @@ type
 
   VKey* = kstring
 
+  Namespace* {.pure.} = enum
+    none, html, mathml, svg
+
   VNode* = ref object of RootObj
     kind*: VNodeKind
+    parentNamespace*: Namespace
     index*: int ## a generally useful 'index'
     id*, class*, text*: kstring
     kids: seq[VNode]
@@ -179,6 +183,29 @@ type
     expanded*: VNode      ## Do not touch. Used by karax. The VDOM the component
                           ## expanded to.
     debugId*: int
+
+const
+  toNS*: array[Namespace.none.succ..high(Namespace), cstring] = [
+    Namespace.html: cstring"http://www.w3.org/1999/xhtml",
+    Namespace.mathml: cstring"http://www.w3.org/1998/Math/MathML",
+    Namespace.svg: cstring"http://www.w3.org/2000/svg"
+  ]
+
+proc getNamespace*(kind: VNodeKind): Namespace =
+  case kind
+  of VNodeKind.svg:
+    result = Namespace.svg
+  of VNodeKind.math:
+    result = Namespace.mathml
+  else:
+    result = Namespace.none
+
+proc getChildNamespace*(parentNamespace: Namespace; kind: VNodeKind): Namespace =
+  if parentNamespace in {Namespace.none, Namespace.html}:
+    result = getNamespace(kind)
+  elif parentNamespace == Namespace.svg and kind == VNodeKind.foreignObject:
+    result = Namespace.html
+  else: result = parentNamespace
 
 proc value*(n: VNode): kstring = n.text
 proc `value=`*(n: VNode; v: kstring) = n.text = v
@@ -284,11 +311,13 @@ proc delete*(parent: VNode; position: int) =
   parent.kids.delete(position)
 proc insert*(parent, kid: VNode; position: int) =
    parent.kids.insert(kid, position)
-proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, index: -1)
+proc newVNode*(kind: VNodeKind): VNode = VNode(kind: kind, parentNamespace: getNamespace(kind), index: -1)
 
 proc tree*(kind: VNodeKind; kids: varargs[VNode]): VNode =
   result = newVNode(kind)
-  for k in kids: result.add k
+  for k in kids:
+    k.parentNamespace = getChildNamespace(result.parentNamespace, k.kind)
+    result.add k
 
 proc tree*(kind: VNodeKind; attrs: openarray[(kstring, kstring)];
            kids: varargs[VNode]): VNode =

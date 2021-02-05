@@ -152,34 +152,7 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   if kxi.byId.contains(id):
     result = kxi.byId[id]
 
-type
-  Namespace {.pure.} = enum
-    none, html, mathml, svg
-
-const
-  toNS: array[Namespace.none.succ..high(Namespace), cstring] = [
-    Namespace.html: cstring"http://www.w3.org/1999/xhtml",
-    Namespace.mathml: cstring"http://www.w3.org/1998/Math/MathML",
-    Namespace.svg: cstring"http://www.w3.org/2000/svg"
-  ]
-
-proc getNamespace(kind: VNodeKind): Namespace =
-  case kind
-  of VNodeKind.svg:
-    result = Namespace.svg
-  of VNodeKind.math:
-    result = Namespace.mathml
-  else:
-    result = Namespace.none
-
-proc getChildNamespace(parentNamespace: Namespace; kind: VNodeKind): Namespace =
-  if parentNamespace in {Namespace.none, Namespace.html}:
-    result = getNamespace(kind)
-  elif parentNamespace == Namespace.svg and kind == VNodeKind.foreignObject:
-    result = Namespace.html
-  else: result = parentNamespace
-
-proc toDom*(n: VNode; useAttachedNode: bool; parentNamespace: Namespace; kxi: KaraxInstance = nil): Node =
+proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if useAttachedNode:
     if n.dom != nil:
       if n.id != nil: kxi.byId[n.id] = n
@@ -194,7 +167,7 @@ proc toDom*(n: VNode; useAttachedNode: bool; parentNamespace: Namespace; kxi: Ka
     return result
   elif n.kind == VNodeKind.vthunk:
     let x = callThunk(vcomponents[n.text], n)
-    result = toDom(x, useAttachedNode, parentNamespace, kxi)
+    result = toDom(x, useAttachedNode, kxi)
     #n.key = result.key
     attach n
     return result
@@ -212,18 +185,18 @@ proc toDom*(n: VNode; useAttachedNode: bool; parentNamespace: Namespace; kxi: Ka
       x.expanded = x.renderImpl(x)
       #  x.updatedImpl(x, nil)
     assert x.expanded != nil
-    result = toDom(x.expanded, useAttachedNode, parentNamespace, kxi)
+    result = toDom(x.expanded, useAttachedNode, kxi)
     attach n
     return result
   else:
-    let namespace = getChildNamespace(parentNamespace, n.kind)
-    if namespace in {Namespace.html, Namespace.none}:
+    if n.parentNamespace in {Namespace.html, Namespace.none}:
       result = document.createElement(toTag[n.kind])
     else:
-      result = document.createElementNS(toNS[namespace], toTag[n.kind])
+      # XML is case-sensitive
+      result = document.createElementNS(toNS[n.parentNamespace], toLowerCase(toTag[n.kind]))
     attach n
     for k in n:
-      appendChild(result, toDom(k, useAttachedNode, namespace, kxi))
+      appendChild(result, toDom(k, useAttachedNode, kxi))
     # text is mapped to 'value':
     if n.text != nil:
       result.value = n.text
@@ -241,6 +214,9 @@ proc toDom*(n: VNode; useAttachedNode: bool; parentNamespace: Namespace; kxi: Ka
     kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
 
+template toNodeName(n: VNode): untyped =
+  if n.parentNamespace in {Namespace.html, Namespace.none}: toTag[n.kind] else: toLowerCase(toTag[n.kind])
+
 proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
@@ -250,19 +226,19 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif toTag[n.kind] == e.nodename:
+  elif toNodeName(n) == e.nodename:
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
       if e.len != n.len and n.kind != VNodeKind.textarea:
         when defined(karaxDebug):
-          echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
+          echo "expected ", n.len, " real ", e.len, " ", toNodeName(n), " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
     when defined(karaxDebug):
-      echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
+      echo "VDOM: ", toNodeName(n), " DOM: ", e.nodename
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -429,7 +405,7 @@ proc applyPatch(kxi: KaraxInstance) =
     let p = kxi.patches[i]
     case p.k
     of pkReplace:
-      let nn = toDom(p.newNode, useAttachedNode = true, parentNamespace = Namespace.none, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
       if p.parent == nil:
         replaceById(kxi.rootId, nn)
       else:
@@ -442,10 +418,10 @@ proc applyPatch(kxi: KaraxInstance) =
     of pkRemove:
       p.parent.removeChild(p.current)
     of pkAppend:
-      let nn = toDom(p.newNode, useAttachedNode = true, parentNamespace = Namespace.none, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
       p.parent.appendChild(nn)
     of pkInsertBefore:
-      let nn = toDom(p.newNode, useAttachedNode = true, parentNamespace = Namespace.none, kxi)
+      let nn = toDom(p.newNode, useAttachedNode = true, kxi)
       p.parent.insertBefore(nn, p.current)
     of pkDetach:
       let n = p.oldNode
@@ -671,7 +647,7 @@ proc dodraw(kxi: KaraxInstance) =
   newtree.id = kxi.rootId
   kxi.toFocus = nil
   if kxi.currentTree == nil:
-    let asdom = toDom(newtree, useAttachedNode = true, parentNamespace = Namespace.none, kxi)
+    let asdom = toDom(newtree, useAttachedNode = true, kxi)
     replaceById(kxi.rootId, asdom)
   else:
     doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
@@ -856,4 +832,4 @@ proc toSelected*(selected: bool): cstring =
   (if selected: cstring"selected" else: cstring(nil))
 
 proc vnodeToDom*(n: VNode; kxi: KaraxInstance = nil): Node =
-  result = toDom(n, useAttachedNode = false, parentNamespace = Namespace.none, kxi)
+  result = toDom(n, useAttachedNode = false, kxi)

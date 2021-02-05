@@ -1,5 +1,5 @@
 
-import os, strutils, browsers,times, tables 
+import os, strutils, browsers,times, tables
 import parseopt
 import threadpool
 import static_server
@@ -14,8 +14,10 @@ const html = """
 <!DOCTYPE html>
 <html>
 <head>
-  <meta content="width=device-width, initial-scale=1" name="viewport" />
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
   <title>$1</title>
+  <link href='styles.css' rel='stylesheet' type='text/css'>
   $2
 </head>
 <body id="body" class="site">
@@ -29,8 +31,8 @@ const websocket = """
 <script type="text/javascript">
 var ws = new WebSocket("ws://localhost:8080/ws");
 
-ws.onopen = function(evt) { 
-  console.log("Connection open ..."); 
+ws.onopen = function(evt) {
+  console.log("Connection open ...");
   ws.send("Hello WebSockets!");
 };
 
@@ -43,7 +45,7 @@ ws.onmessage = function(evt) {
 
 ws.onclose = function(evt) {
   console.log("Connection closed.");
-};      
+};
 </script>
 """
 
@@ -63,7 +65,7 @@ proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
   writeFile(dest, html % ["app", selectedCss, script])
   if run: openDefaultBrowser("http://localhost:8080")
 
-proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} = 
+proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} =
   var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
   while true:
     sleep(300)
