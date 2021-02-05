@@ -202,7 +202,11 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if n.id != nil:
     result.id = n.id
   if n.class != nil:
-    result.class = n.class
+    if n.parentNamespace == Namespace.svg:
+      result.setAttr(cstring"class", cstring"")
+      for x in n.class.split(cstring" "):
+        Element(result).classList.add(x)
+    else: result.class = n.class
   #if n.key >= 0:
   #  result.key = n.key
   for k, v in attrs(n):
