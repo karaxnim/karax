@@ -192,8 +192,7 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     if n.parentNamespace in {Namespace.html, Namespace.none}:
       result = document.createElement(toTag[n.kind])
     else:
-      # XML is case-sensitive
-      result = document.createElementNS(toNS[n.parentNamespace], toLowerCase(toTag[n.kind]))
+      result = document.createElementNS(toNS[n.parentNamespace], toTag[n.kind])
     attach n
     for k in n:
       appendChild(result, toDom(k, useAttachedNode, kxi))
@@ -214,9 +213,6 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     kxi.toFocus = result
   if not n.style.isNil: applyStyle(result, n.style)
 
-template toNodeName(n: VNode): untyped =
-  if n.parentNamespace in {Namespace.html, Namespace.none}: toTag[n.kind] else: toLowerCase(toTag[n.kind])
-
 proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
   if n.kind == VNodeKind.component:
@@ -226,19 +222,19 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif toNodeName(n) == e.nodename:
+  elif toTag[n.kind] == toLowerCase(e.nodename):
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
       if e.len != n.len and n.kind != VNodeKind.textarea:
         when defined(karaxDebug):
-          echo "expected ", n.len, " real ", e.len, " ", toNodeName(n), " nesting ", nesting
+          echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
     when defined(karaxDebug):
-      echo "VDOM: ", toNodeName(n), " DOM: ", e.nodename
+      echo "VDOM: ", toTag[n.kind], " DOM: ", toLowerCase(e.nodename)
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)
@@ -435,6 +431,7 @@ proc applyPatch(kxi: KaraxInstance) =
   for i in 0..<kxi.patchLenV:
     let p = kxi.patchesV[i]
     p.parent[p.pos] = p.newChild
+    p.newChild.parentNamespace = getChildNamespace(p.parent.parentNamespace, p.newChild.kind)
     assert p.newChild.dom != nil
   kxi.patchLenV = 0
 

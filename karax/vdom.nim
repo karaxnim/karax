@@ -125,7 +125,7 @@ macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(VNodeKind)..high(VNodeKind):
     let x = $i
-    let y = if x[0] == '#': x else: toUpperAscii(x)
+    let y = if x[0] == '#': x else: toLowerAscii(x)
     a.add(newCall("kstring", newLit(y)))
   var e = newTree(nnkBracket)
   for i in low(EventKind)..high(EventKind):
