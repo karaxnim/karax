@@ -16,7 +16,7 @@ type
     script, noscript,
     body, section, nav, article, aside,
     h1, h2, h3, h4, h5, h6,
-    header, footer, address, main
+    header, footer, address, main,
 
     p, hr, pre, blockquote, ol, ul, li,
     dl, dt, dd,
@@ -30,8 +30,25 @@ type
     kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
-    param, video, audio, source, track, canvas, map,
-    area, svg, math,
+    param, video, audio, source, track, canvas, map, area,
+
+    # SVG elements
+    animate, animateMotion, animateTransform, circle, clipPath, defs, desc,
+    `discard` = "discard", ellipse, feBlend, feColorMatrix, feComponentTransfer,
+    feComposite, feConvolveMatrix, feDiffuseLighting, feDisplacementMap,
+    feDistantLight, feDropShadow, feFlood, feFuncA, feFuncB, feFuncG, feFuncR,
+    feGaussianBlur, feImage, feMerge, feMergeNode, feMorphology, feOffset,
+    fePointLight, feSpecularLighting, feSpotLight, feTile, feTurbulence,
+    filter, foreignObject, g, image, line, linearGradient, marker, mask,
+    metadata, mpath, path, pattern, polygon, polyline, radialGradient, rect,
+    `set` = "set", stop, svg, switch, symbol, stext = "text", textPath, tspan,
+    unknown, use, view,
+
+    # MathML elements
+    maction, math, menclose, merror, mfenced, mfrac, mglyph, mi, mlabeledtr,
+    mmultiscripts, mn, mo, mover, mpadded, mphantom, mroot, mrow, ms, mspace,
+    msqrt, mstyle, msub, msubsup, msup, mtable, mtd, mtext, mtr, munder,
+    munderover, semantics,
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
@@ -42,7 +59,7 @@ type
     details, summary, command, menu
 
 type
-  EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
+  EventKind* {.pure.} = enum ## The events supported by the DOM.
     onclick, ## An element is clicked.
     oncontextmenu, ## An element is right-clicked.
     ondblclick, ## An element is double clicked.
@@ -80,10 +97,21 @@ type
     onsubmit, ## A form is submitted
     oninput, ## An input value changes
 
-    onkeyupenter, ## vdom extension: an input field received the ENTER key press
-    onkeyuplater  ## vdom extension: a key was pressed and some time
-                  ## passed (useful for on-the-fly text completions)
+    onanimationstart,
+    onanimationend,
+    onanimationiteration,
 
+    onkeyupenter, ## vdom extension: an input field received the ENTER key press
+    onkeyuplater,  ## vdom extension: a key was pressed and some time
+                  ## passed (useful for on-the-fly text completions)
+    onload, # img
+
+    ontransitioncancel,
+    ontransitionend,
+    ontransitionrun,
+    ontransitionstart,
+
+    onwheel # fires when the user rotates a wheel button on a pointing device.
 
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
@@ -582,17 +610,26 @@ proc addTags() {.compileTime.} =
 static:
   addTags()
 
-
 proc getName(n: NimNode): string =
   case n.kind
-  of nnkIdent:
-    result = $n.ident
+  of nnkIdent, nnkSym:
+    result = $n
   of nnkAccQuoted:
     result = ""
     for i in 0..<n.len:
       result.add getName(n[i])
   of nnkStrLit..nnkTripleStrLit:
     result = n.strVal
+  of nnkInfix:
+    # allow 'foo-bar' syntax:
+    if n.len == 3 and $n[0] == "-":
+      result = getName(n[1]) & "-" & getName(n[2])
+    else:
+      expectKind(n, nnkIdent)
+  of nnkDotExpr:
+    result = getName(n[0]) & "." & getName(n[1])
+  of nnkOpenSymChoice, nnkClosedSymChoice:
+    result = getName(n[0])
   else:
     #echo repr n
     expectKind(n, nnkIdent)
@@ -659,7 +696,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         error "no Element to attach the event handler to"
       else:
         result = newCall(evHandler(), tmpContext,
-                         newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+                         newDotExpr(bindSym"EventKind", n[0]), anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:

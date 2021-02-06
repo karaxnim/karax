@@ -3,7 +3,7 @@
 import knete
 
 const
-  cross* = "x"
+  cross* = kstring"x"
   plus* = kstring"+"
 
 const
