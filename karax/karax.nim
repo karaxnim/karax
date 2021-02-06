@@ -202,16 +202,18 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if n.id != nil:
     result.id = n.id
   if n.class != nil:
-    if n.parentNamespace == Namespace.svg:
-      result.setAttr(cstring"class", cstring"")
-      for x in n.class.split(cstring" "):
-        Element(result).classList.add(x)
-    else: result.class = n.class
+    if n.parentNamespace in {Namespace.html, Namespace.none}:
+      result.class = n.class
+    else:
+      result.setAttributeNS(cstring(nil), "class", n.class)
   #if n.key >= 0:
   #  result.key = n.key
   for k, v in attrs(n):
     if v != nil:
-      result.setAttr(k, v)
+      if n.parentNamespace in {Namespace.html, Namespace.none}:
+        result.setAttribute(k, v)
+      else:
+        result.setAttributeNS(cstring(nil), k, v)
   applyEvents(n)
   if kxi != nil and n == kxi.toFocusV and kxi.toFocus.isNil:
     kxi.toFocus = result
@@ -226,7 +228,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif toTag[n.kind] == toLowerCase(e.nodename):
+  elif toTag[n.kind] == toLowerCase(e.nodeName):
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
@@ -238,7 +240,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
         if not same(n[i], e[i], nesting+1): return false
   else:
     when defined(karaxDebug):
-      echo "VDOM: ", toTag[n.kind], " DOM: ", toLowerCase(e.nodename)
+      echo "VDOM: ", toTag[n.kind], " DOM: ", toLowerCase(e.nodeName)
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)

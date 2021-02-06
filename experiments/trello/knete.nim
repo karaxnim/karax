@@ -550,9 +550,9 @@ proc setInitializer*(initializer: proc (hashPart: kstring): Element;
   var hashPart {.importc: "window.location.hash".}: cstring
 
   setWindowOnload proc (ev: Event) =
-    replaceById root, initializer(hashPart)
+    replaceById initializer(hashPart), root
   onhashchange = proc () =
-    replaceById root, initializer(hashPart)
+    replaceById initializer(hashPart), root
 
 # ------------------ DSL section -------------------------------------
 
