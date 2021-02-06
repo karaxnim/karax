@@ -1,6 +1,7 @@
 
 import knete, widgets
 import karax / jstrutils
+import std / dom
 
 type
   Attachable* = ref object of RootObj ## an element that is attachable to
@@ -126,7 +127,7 @@ proc renderColumn(c: Column): Element =
     ev.preventDefault()
     let data = ev.recvDragData("taskid")
     moveTask(parseInt data, c)
-    ev.target.up("mycolumn").add(getElementById(data))
+    Element(ev.target).up("mycolumn").add(getElementById(data))
 
   result = buildHtml():
     tdiv(class = "mycolumn", style = {cssFloat: "left", width: "20%"},
