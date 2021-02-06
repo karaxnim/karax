@@ -31,6 +31,7 @@ proc getNum*(x: JsonNode): int {.importcpp: "#".}
 proc getInt*(x: JsonNode): int {.importcpp: "#".}
 proc getStr*(x: JsonNode): cstring {.importcpp: "#".}
 proc getFNum*(x: JsonNode): cstring {.importcpp: "#".}
+proc getBool*(x: JsonNode): bool {.importcpp: "#".}
 
 iterator items*(x: JsonNode): JsonNode =
   for i in 0..<len(x): yield x[i]

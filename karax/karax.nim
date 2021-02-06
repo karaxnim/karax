@@ -189,10 +189,7 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     attach n
     return result
   else:
-    if n.parentNamespace in {Namespace.html, Namespace.none}:
-      result = document.createElement(toTag[n.kind])
-    else:
-      result = document.createElementNS(toNS[n.parentNamespace], toTag[n.kind])
+    result = document.createElement(toTag[n.kind])
     attach n
     for k in n:
       appendChild(result, toDom(k, useAttachedNode, kxi))
@@ -202,18 +199,12 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if n.id != nil:
     result.id = n.id
   if n.class != nil:
-    if n.parentNamespace in {Namespace.html, Namespace.none}:
-      result.class = n.class
-    else:
-      result.setAttributeNS(cstring(nil), "class", n.class)
+    result.class = n.class
   #if n.key >= 0:
   #  result.key = n.key
   for k, v in attrs(n):
     if v != nil:
-      if n.parentNamespace in {Namespace.html, Namespace.none}:
-        result.setAttribute(k, v)
-      else:
-        result.setAttributeNS(cstring(nil), k, v)
+      result.setAttribute(k, v)
   applyEvents(n)
   if kxi != nil and n == kxi.toFocusV and kxi.toFocus.isNil:
     kxi.toFocus = result
@@ -437,7 +428,6 @@ proc applyPatch(kxi: KaraxInstance) =
   for i in 0..<kxi.patchLenV:
     let p = kxi.patchesV[i]
     p.parent[p.pos] = p.newChild
-    p.newChild.parentNamespace = getChildNamespace(p.parent.parentNamespace, p.newChild.kind)
     assert p.newChild.dom != nil
   kxi.patchLenV = 0
 

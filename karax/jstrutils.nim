@@ -6,8 +6,6 @@ proc split*(s, sep: cstring; max: int): seq[cstring] {.importcpp, nodecl.}
 
 proc strip*(s: cstring): cstring {.importcpp: "#.trim()", nodecl.}
 
-proc toLowerCase*(s: cstring): cstring {.importcpp: "#.toLowerCase()", nodecl.}
-
 proc startsWith*(a, b: cstring): bool {.importcpp: "startsWith", nodecl.}
 proc contains*(a, b: cstring): bool {.importcpp: "(#.indexOf(#)>=0)", nodecl.}
 
