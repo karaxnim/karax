@@ -1,7 +1,7 @@
 ## Raw DOM manipulation. No DOM diff'ing, no cry.
 
 import std / [macros, tables, dom]
-from strutils import startsWith, toLowerAscii, toUpperAscii
+from std / strutils import startsWith, toLowerAscii
 
 when defined(js):
   type kstring* = cstring
@@ -117,7 +117,7 @@ macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
   for i in low(Tag)..high(Tag):
     let x = $i
-    let y = if x[0] == '#': x else: toUpperAscii(x)
+    let y = if x[0] == '#': x else: toLowerAscii(x)
     a.add(newCall("kstring", newLit(y)))
   var e = newTree(nnkBracket)
   for i in low(EventKind)..high(EventKind):
@@ -347,6 +347,42 @@ proc applyStyles*(e: Element; pairs: openArray[(StyleAttr, kstring)]) =
   for x in pairs:
     e.style.setStyle(toStyleAttrName[x[0]], x[1])
 
+# ------------------ Namespaces --------------------------------------
+
+type
+  Namespace* {.pure.} = enum
+    none, html, mathml, svg
+
+const
+  toNS*: array[Namespace, kstring] = [
+    Namespace.none: kstring"",
+    Namespace.html: kstring"http://www.w3.org/1999/xhtml",
+    Namespace.mathml: kstring"http://www.w3.org/1998/Math/MathML",
+    Namespace.svg: kstring"http://www.w3.org/2000/svg"
+  ]
+
+proc getNamespace*(s: kstring): Namespace =
+  # Use with element.namespaceURI
+  let i = find(toNS, s)
+  if i >= 0: result = Namespace(i)
+  else: result = Namespace.none
+
+proc getNamespace*(kind: Tag): Namespace =
+  case kind
+  of Tag.svg:
+    result = Namespace.svg
+  of Tag.math:
+    result = Namespace.mathml
+  else:
+    result = Namespace.none
+
+proc getChildNamespace*(parentNamespace: Namespace; kind: Tag): Namespace =
+  if parentNamespace in {Namespace.none, Namespace.html}:
+    result = getNamespace(kind)
+  elif parentNamespace == Namespace.svg and kind == Tag.foreignObject:
+    result = Namespace.html
+  else: result = parentNamespace
+
 # ------- Tree manipulation ---------------------------
 
 proc parent*(x: Element): Element {.importcpp: "#.parentNode".}
@@ -354,22 +390,24 @@ proc up*(x: Element; className: cstring): Element =
   result = x
   while result != nil and result.class != className:
     result = result.parent
-proc add*(n, child: Element) {.importcpp: "appendChild".}
+proc add*(n, child: Node) {.importcpp: "appendChild".}
 proc replace*(self, by: Element) = replaceChild(self.parent, by, self)
 proc delete*(self: Element) = removeChild(self.parent, self)
 proc insert*(before, newNode: Element) = insertBefore(before.parent, newNode, before)
-proc text*(s: kstring): Element = Element(createTextNode(document, s))
+proc text*(s: kstring): Node = createTextNode(document, s)
 
 iterator items*(n: Element): Element =
   for i in 0..<n.len: yield n[i]
 
-proc tree*(kind: Tag; kids: varargs[Element]): Element =
-  result = createElement(document, toTagName[kind])
-  for k in kids: result.add k
+proc newNode*(ns: Namespace; kind: Tag): Element =
+  if ns in {Namespace.html, Namespace.none}:
+    result = createElement(document, toTagName[kind])
+  else:
+    result = createElementNS(document, toNS[ns], toTagName[kind])
 
-proc tree*(kind: Tag; attrs: openarray[(kstring, kstring)];
-           kids: varargs[Element]): Element =
-  result = tree(kind, kids)
+proc newNode*(ns: Namespace; kind: Tag;
+              attrs: openarray[(kstring, kstring)]): Element =
+  result = newNode(ns, kind)
   for a in attrs: result.setAttr(a[0], a[1])
 
 # other arbitrary stuff belonging to Element
@@ -400,7 +438,7 @@ proc addEventHandler*(e: Element; k: EventKind; action: EventHandler) =
     proc enterWrapper(): EventHandler =
       let action = action
       result = proc (ev: Event) =
-        if KeyboardEvent(ev).keyCode == 13: action(ev)
+        if KeyboardEvent(ev).code == cstring"Enter": action(ev)
 
     e.addEventListener("keyup", enterWrapper())
   else:
@@ -437,7 +475,7 @@ proc setInitializer*(initializer: proc (hashPart: kstring): Element;
 
 const
   StmtContext = ["inc", "echo", "dec", "!"]
-  SpecialAttrs = ["id", "class", "value"]
+  SpecialAttrs = ["id", "value"]
 
 type
   ComponentKind {.pure.} = enum
@@ -496,7 +534,7 @@ proc toKstring(n: NimNode): NimNode =
     for child in n:
       result.add toKstring(child)
 
-proc tcall2(n, tmpContext: NimNode): NimNode =
+proc tcall2(n, tmpContext, nsContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
   # every call statement 's' needs to be transformed to 'dest.add s'.
   # If expressions need to be distinguished from if statements. Since
@@ -524,19 +562,19 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     let L = n.len
     assert n.len == result.len
     if L > 0:
-      result[L-1] = tcall2(result[L-1], tmpContext)
+      result[L-1] = tcall2(result[L-1], tmpContext, nsContext)
   of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkTryStmt,
      nnkFinally:
     # recurse for every child:
     result = copyNimNode(n)
     for x in n:
-      result.add tcall2(x, tmpContext)
+      result.add tcall2(x, tmpContext, nsContext)
   of nnkCaseStmt:
     # recurse for children, but don't add call for case ident
     result = copyNimNode(n)
     result.add n[0]
     for i in 1 ..< n.len:
-      result.add tcall2(n[i], tmpContext)
+      result.add tcall2(n[i], tmpContext, nsContext)
   of nnkProcDef:
     let name = getName n[0]
     if name.startsWith"on":
@@ -556,10 +594,18 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     let op = getName(n[0])
     if isComponent(op) == ComponentKind.Tag:
       let tmp = genSym(nskLet, "tmp")
-      let call = newCall(bindSym"tree", newDotExpr(bindSym"Tag", n[0]))
+      let ns = genSym(nskLet, "ns")
+      let parentNamespace =
+        if nsContext == nil: newDotExpr(bindSym"Namespace", ident"none")
+        else: nsContext
+      let call1 = newCall(bindSym"getChildNamespace", parentNamespace,
+                          newDotExpr(bindSym"Tag", n[0]))
+      let call2 = newCall(bindSym"newNode", ns,
+                          newDotExpr(bindSym"Tag", n[0]))
       result = newTree(
         if tmpContext == nil: nnkStmtListExpr else: nnkStmtList,
-        newLetStmt(tmp, call))
+        newLetStmt(ns, call1),
+        newLetStmt(tmp, call2))
       for i in 1 ..< n.len:
         # named parameters are transformed into attributes or events:
         let x = n[i]
@@ -579,7 +625,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         elif eqIdent(x, "setFocus"):
           result.add newCall(bindSym"focus", tmp)
         else:
-          result.add tcall2(x, tmp)
+          result.add tcall2(x, tmp, ns)
       if tmpContext == nil:
         result.add tmp
       else:
@@ -595,13 +641,13 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
         result = newCall(bindSym"add", tmpContext, n)
       else:
         let tmp = genSym(nskLet, "tmp")
-        var slicedCall = newCall(n[0])
+        var slicedCall = newCall(n[0]) #todo support namespaces
         let ex = newTree(nnkStmtListExpr)
         ex.add newEmptyNode() # will become the let statement
         for i in 1..<n.len:
           let it = n[i]
           if it.kind in {nnkProcDef, nnkStmtList}:
-            ex.add tcall2(it, tmp)
+            ex.add tcall2(it, tmp, nil)
           else:
             slicedCall.add it
         ex[0] = newLetStmt(tmp, slicedCall)
@@ -623,18 +669,18 @@ macro buildHtml*(tag, children: untyped): Element =
   else:
     call = newCall(tag)
   call.add body(kids)
-  result = tcall2(call, nil)
+  result = tcall2(call, nil, nil)
   when defined(debugKaraxDsl):
     echo repr result
 
 macro buildHtml*(children: untyped): Element =
   let kids = newProc(procType=nnkDo, body=children)
   expectKind kids, nnkDo
-  result = tcall2(body(kids), nil)
+  result = tcall2(body(kids), nil, nil)
   when defined(debugKaraxDsl):
     echo repr result
 
 macro flatHtml*(tag: untyped): Element =
-  result = tcall2(tag, nil)
+  result = tcall2(tag, nil, nil)
   when defined(debugKaraxDsl):
     echo repr result
