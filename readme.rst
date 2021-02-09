@@ -86,7 +86,7 @@ construction so that it composes with all of Nim's control flow constructs:
 
   proc createDom(): VNode =
     result = buildHtml(tdiv):
-      if random(100) <= 50:
+      if rand(100) <= 50:
         text "Hello World!"
       else:
         text "Hello Universe"
@@ -100,7 +100,7 @@ Produces:
 .. code-block:: nim
 
   let tmp1 = tree(VNodeKind.tdiv)
-  if random(100) <= 50:
+  if rand(100) <= 50:
     add(tmp1, text "Hello World!")
   else:
     add(tmp1, text "Hello Universe")
