@@ -7,9 +7,8 @@ export kdom.Event, kdom.Blob
 when defined(nimNoNil):
   {.experimental: "notnil".}
 
-proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
-  ## the preferred way of debugging karax applications. Now deprecated,
-  ## you can now use ``system.echo`` instead.
+proc kout*[T](x: T) {.importc: "console.log", varargs.}
+  ## The preferred way of debugging karax applications.
 
 type
   PatchKind = enum
