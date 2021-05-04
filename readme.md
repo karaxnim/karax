@@ -1,24 +1,39 @@
-Karax – Single page applications in Nim |travis|
-================================================
+![banner](https://user-images.githubusercontent.com/22755228/117007466-5f8be980-acf2-11eb-804a-e056e65088df.png)
 
+
+
+![Travis (.com) branch](https://img.shields.io/travis/com/karaxnim/karax/master?style=for-the-badge) ![GitHub issues](https://img.shields.io/github/issues-raw/karaxnim/karax?style=for-the-badge) ![GitHub](https://img.shields.io/github/license/karaxnim/karax?style=for-the-badge) ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/karaxnim/karax?sort=semver&style=for-the-badge) ![https://nim-lang.org](https://img.shields.io/badge/nim-powered-ffc200?style=for-the-badge)
+ 
+
+
+
+# Karax
 Karax is a framework for developing single page applications in Nim.
 
-To try it out, run::
+## Install
 
-  cd ~/projects # Insert your favourite directory for projects
+To use Karax you must have nim installed. You can follow the instructions [here](https://nim-lang.org/install.html).
 
-  nimble develop karax # This will clone Karax and create a link to it in ~/.nimble
+Then you can install karax through nimble:
+``nimble install karax``
 
-  cd karax
+## Try Karax
+To try it out, run:
 
-  cd examples/todoapp
-  nim js todoapp.nim
-  open todoapp.html
-  cd ../..
+  `cd ~/projects # Insert your favourite directory for projects`
 
-  cd examples/mediaplayer
-  nim js playerapp.nim
-  open playerapp.html
+  `nimble develop karax # This will clone Karax and create a link to it in ~/.nimble`
+
+  `cd karax`
+
+  `cd examples/todoapp`
+  `nim js todoapp.nim`
+  `open todoapp.html`
+  `cd ../..`
+
+  `cd examples/mediaplayer`
+  `nim js playerapp.nim`
+  `open playerapp.html`
 
 It uses a virtual DOM like React, but is much smaller than the existing
 frameworks plus of course it's written in Nim for Nim. No external
@@ -26,23 +41,21 @@ dependencies! And thanks to Nim's whole program optimization only what
 is used ends up in the generated JavaScript code.
 
 
-Goals
-=====
+## Goals
+
 
 - Leverage Nim's macro system to produce a framework that allows
   for the development of applications that are boilerplate free.
 - Keep it small, keep it fast, keep it flexible.
 
-.. |travis| image:: https://travis-ci.org/pragmagic/karax.svg?branch=master
-    :target: https://travis-ci.org/pragmagic/karax
 
 
-Hello World
-===========
+## Hello World
+
 
 The simplest Karax program looks like this:
 
-.. code-block:: nim
+```nim
 
   include karax / prelude
 
@@ -51,7 +64,7 @@ The simplest Karax program looks like this:
       text "Hello World!"
 
   setRenderer createDom
-
+```
 
 Since ``div`` is a keyword in Nim, karax choose to use ``tdiv`` instead
 here. ``tdiv`` produces a ``<div>`` virtual DOM node.
@@ -61,25 +74,25 @@ construction of (virtual) DOM trees (of type ``VNode``). Karax provides
 a tiny build tool called ``karun`` that generates the HTML boilerplate code that
 embeds and invokes the generated JavaScript code::
 
-  nim c karax/tools/karun
-  karax/tools/karun -r helloworld.nim
+  ``nim c karax/tools/karun``
+  ``karax/tools/karun -r helloworld.nim``
 
 Via ``-d:debugKaraxDsl`` we can have a look at the produced Nim code by
 ``buildHtml``:
 
-.. code-block:: nim
+```nim
 
   let tmp1 = tree(VNodeKind.tdiv)
   add(tmp1, text "Hello World!")
   tmp1
-
+```
 (I shortened the IDs for better readability.)
 
 Ok, so ``buildHtml`` introduces temporaries and calls ``add`` for the tree
 construction so that it composes with all of Nim's control flow constructs:
 
 
-.. code-block:: nim
+```nim
 
   include karax / prelude
   import random
@@ -94,10 +107,10 @@ construction so that it composes with all of Nim's control flow constructs:
   randomize()
   setRenderer createDom
 
-
+```
 Produces:
 
-.. code-block:: nim
+```nim
 
   let tmp1 = tree(VNodeKind.tdiv)
   if rand(100) <= 50:
@@ -105,15 +118,14 @@ Produces:
   else:
     add(tmp1, text "Hello Universe")
   tmp1
+```
 
-
-Event model
-===========
+## Event model
 
 Karax does not change the DOM's event model much, here is a program
 that writes "Hello simulated universe" on a button click:
 
-.. code-block:: nim
+```nim
 
   include karax / prelude
   # alternatively: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
@@ -131,7 +143,7 @@ that writes "Hello simulated universe" on a button click:
           text x
 
   setRenderer createDom
-
+```
 
 ``kstring`` is Karax's alias for ``cstring`` (which stands for "compatible
 string"; for the JS target that is an immutable JavaScript string) which
@@ -143,7 +155,7 @@ abstraction helps to deal with these conflicting requirements.
 Karax's DSL is quite flexible when it comes to event handlers, so the
 following syntax is also supported:
 
-.. code-block:: nim
+```nim
 
   include karax / prelude
   from sugar import `=>`
@@ -159,11 +171,11 @@ following syntax is also supported:
           text x
 
   setRenderer createDom
-
+```
 
 The ``buildHtml`` macro produces this code for us:
 
-.. code-block:: nim
+```nim
 
   let tmp2 = tree(VNodeKind.tdiv)
   let tmp3 = tree(VNodeKind.button)
@@ -176,21 +188,21 @@ The ``buildHtml`` macro produces this code for us:
     add(tmp4, text x)
     add(tmp2, tmp4)
   tmp2
-
+```
 As the examples grow larger it becomes more and more visible of what
 a DSL that composes with the builtin Nim control flow constructs buys us.
 Once you have tasted this power there is no going back and languages
 without AST based macro system simply don't cut it anymore.
 
 
-Attaching data to an event handler
-==================================
+## Attaching data to an event handler
+
 
 Since the type of an event handler is ``(ev: Event; n: VNode)`` or ``()`` any
 additional data that should be passed to the event handler needs to be
 done via Nim's closures. In general this means a pattern like this:
 
-.. code-block:: nim
+```nim
 
   proc menuAction(menuEntry: kstring): proc() =
     result = proc() =
@@ -202,10 +214,9 @@ done via Nim's closures. In general this means a pattern like this:
         nav(class="navbar is-primary"):
           tdiv(class="navbar-brand"):
             a(class="navbar-item", onclick = menuAction(m)):
+```
 
-
-DOM diffing
-===========
+## DOM diffing
 
 Ok, so now we have seen DOM creation and event handlers. But how does
 Karax actually keep the DOM up to date? The trick is that every event
@@ -219,9 +230,7 @@ to the real DOM the browser uses internally. This process is called
 and manipulate than the real DOM so this approach is quite efficient.
 
 
-Form validation
-===============
-
+## Form validation
 Most applications these days have some "login"
 mechanism consisting of ``username`` and ``password`` and
 a ``login`` button. The login button should only be clickable
@@ -231,7 +240,7 @@ message should be shown as long as one input field is empty.
 To create new UI elements we write a ``loginField`` proc that
 returns a ``VNode``:
 
-.. code-block:: nim
+```nim
 
   proc loginField(desc, field, class: kstring;
                   validator: proc (field: kstring): proc ()): VNode =
@@ -239,6 +248,7 @@ returns a ``VNode``:
       label(`for` = field):
         text desc
       input(class = class, id = field, onchange = validator(field))
+```
 
 We use the ``karax / errors`` module to help with this error
 logic. The ``errors`` module is mostly a mapping from strings to
@@ -246,7 +256,7 @@ strings but it turned out that the logic is tricky enough to warrant
 a library solution. ``validateNotEmpty`` returns a closure that
 captures the ``field`` parameter:
 
-.. code-block:: nim
+```nim
 
   proc validateNotEmpty(field: kstring): proc () =
     result = proc () =
@@ -255,6 +265,7 @@ captures the ``field`` parameter:
         errors.setError(field, field & " must not be empty")
       else:
         errors.setError(field, "")
+```
 
 This indirection is required because
 event handlers in Karax need to have the type ``proc ()``
@@ -264,7 +275,7 @@ gives us a handy ``disableOnError`` helper. It returns
 pieces together to write our login dialog:
 
 
-.. code-block:: nim
+```nim
 
   # some consts in order to prevent typos:
   const
@@ -289,28 +300,28 @@ pieces together to write our login dialog:
           text "You are now logged in."
 
   setRenderer loginDialog
+```
 
-(Full example `here <https://github.com/pragmagic/karax/blob/master/examples/login.nim>`_.)
+(Full example [here](https://github.com/karaxnim/karax/blob/master/examples/login.nim).)
 
 This code still has a bug though, when you run it, the ``login`` button is not
 disabled until some input fields are validated! This is easily fixed,
 at initialization we have to do:
 
-.. code-block:: nim
+```nim
 
   setError username, username & " must not be empty"
   setError password, password & " must not be empty"
-
+```
 There are likely more elegant solutions to this problem.
 
+## Routing
 
-Routing
-=======
 
 For routing ``setRenderer`` can be called with a callback that takes a parameter of
 type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" example:
 
-.. code-block:: nim
+```nim
 
   proc createDom(data: RouterData): VNode =
     if data.hashPart == "#/": filter = all
@@ -321,17 +332,15 @@ type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" exa
         ...
 
   setRenderer createDom
+```
+(Full example [here](https://github.com/karaxnim/karax/blob/master/examples/todoapp/todoapp.nim).)
 
-(Full example `here <https://github.com/pragmagic/karax/blob/master/examples/todoapp/todoapp.nim>`_.)
-
-
-Server Side HTML Rendering
-==========================
+## Server Side HTML Rendering
 
 Karax can also be used to render HTML on the server.  Only a subset of
 modules can be used since there is no JS interpreter.
 
-.. code-block:: nim
+```nim
 
   import karax / [karaxdsl, vdom]
 
@@ -353,9 +362,8 @@ modules can be used since there is no JS interpreter.
     result = $vnode
 
   echo render()
-
-Generate HTML with event handlers
-=================================
+```
+## Generate HTML with event handlers
 
 If you are writing a static site generator or do server-side HTML rendering
 via ``nim c``, you may want to override ``addEventHandler`` when using event
@@ -363,7 +371,7 @@ handlers to avoid compiler complaints.
 
 Here's an example of auto submit a dropdown when a value is selected:
 
-.. code-block:: nim
+```nim
 
   template kxi(): int = 0
   template addEventHandler(n: VNode; k: EventKind; action: string; kxi: int) =
@@ -380,3 +388,7 @@ Here's an example of auto submit a dropdown when a value is selected:
               option(selected = ""): text name
             else:
               option: text name
+```
+
+## Licence
+MIT Licence. See [here](https://github.com/karaxnim/karax/blob/master/LICENSE.txt).
