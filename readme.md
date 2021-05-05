@@ -391,4 +391,4 @@ let
 ```
 
 ## Licence
-MIT Licence. See [here](https://github.com/karaxnim/karax/blob/mas
+MIT Licence. See [here](https://github.com/karaxnim/karax/blob/master/LICENSE.txt).
