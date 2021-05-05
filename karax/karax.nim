@@ -37,6 +37,7 @@ type
     toFocus: Node
     toFocusV: VNode
     renderId: int
+    rendering: bool
     patches: seq[Patch] # we reuse this to save allocations
     patchLen: int
     patchesV: seq[PatchV]
@@ -629,8 +630,21 @@ proc avoidDomDiffing*(kxi: KaraxInstance = kxi) =
   ## This is an experimental API.
   kxi.currentTree = nil
 
+proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
+when false:
+  proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
+
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
+  kxi.renderId = 0
+
+  if kxi.rendering:
+    # there is a render already running, delay 1 frame
+    kxi.renderId = reqFrame(proc () = kxi.dodraw)
+    return
+
+  kxi.rendering = true
+
   let rdata = RouterData(hashPart: hashPart)
   let newtree = kxi.renderer(rdata)
   inc kxi.runCount
@@ -661,15 +675,11 @@ proc dodraw(kxi: KaraxInstance) =
   # now that it's part of the DOM, give it the focus:
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
-  kxi.renderId = 0
+  kxi.rendering = false
   when defined(stats):
     kxi.recursion = 0
     var total = 0
     echo "depth ", depth(kxi.currentTree, total), " total ", total
-
-proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
-when false:
-  proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
 
 proc redraw*(kxi: KaraxInstance = kxi) =
   # we buffer redraw requests:
