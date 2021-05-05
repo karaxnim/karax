@@ -1,7 +1,12 @@
-![karax](https://user-images.githubusercontent.com/22755228/117183486-482b2a00-ade0-11eb-88e6-d8eeb28951ca.png)
+![banner](https://user-images.githubusercontent.com/22755228/117007466-5f8be980-acf2-11eb-804a-e056e65088df.png)
+
+
 
 ![Travis (.com) branch](https://img.shields.io/travis/com/karaxnim/karax/master?style=for-the-badge) ![GitHub issues](https://img.shields.io/github/issues-raw/karaxnim/karax?style=for-the-badge) ![GitHub](https://img.shields.io/github/license/karaxnim/karax?style=for-the-badge) ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/karaxnim/karax?sort=semver&style=for-the-badge) ![https://nim-lang.org](https://img.shields.io/badge/nim-powered-ffc200?style=for-the-badge)
  
+
+
+
 # Karax
 Karax is a framework for developing single page applications in Nim.
 
@@ -15,25 +20,20 @@ Then you can install karax through nimble:
 ## Try Karax
 To try it out, run:
 
-``cd ~/projects # Insert your favourite directory for projects``
+  `cd ~/projects # Insert your favourite directory for projects`
 
-``nimble develop karax # This will clone Karax and create a link to it in ~/.nimble``
+  `nimble develop karax # This will clone Karax and create a link to it in ~/.nimble`
 
-``cd karax``
+  `cd karax`
 
-``cd examples/todoapp``
+  `cd examples/todoapp`
+  `nim js todoapp.nim`
+  `open todoapp.html`
+  `cd ../..`
 
-``nim js todoapp.nim``
-
-``open todoapp.html``
-
-``cd ../..``
-
-``cd examples/mediaplayer``
-
-``nim js playerapp.nim``
-
-``open playerapp.html``
+  `cd examples/mediaplayer`
+  `nim js playerapp.nim`
+  `open playerapp.html`
 
 It uses a virtual DOM like React, but is much smaller than the existing
 frameworks plus of course it's written in Nim for Nim. No external
@@ -57,13 +57,13 @@ The simplest Karax program looks like this:
 
 ```nim
 
-include karax / prelude
+  include karax / prelude
 
-proc createDom(): VNode =
-  result = buildHtml(tdiv):
-    text "Hello World!"
+  proc createDom(): VNode =
+    result = buildHtml(tdiv):
+      text "Hello World!"
 
-setRenderer createDom
+  setRenderer createDom
 ```
 
 Since ``div`` is a keyword in Nim, karax choose to use ``tdiv`` instead
@@ -74,17 +74,17 @@ construction of (virtual) DOM trees (of type ``VNode``). Karax provides
 a tiny build tool called ``karun`` that generates the HTML boilerplate code that
 embeds and invokes the generated JavaScript code::
 
-``nim c karax/tools/karun``
-``karax/tools/karun -r helloworld.nim``
+  ``nim c karax/tools/karun``
+  ``karax/tools/karun -r helloworld.nim``
 
 Via ``-d:debugKaraxDsl`` we can have a look at the produced Nim code by
 ``buildHtml``:
 
 ```nim
 
-let tmp1 = tree(VNodeKind.tdiv)
-add(tmp1, text "Hello World!")
-tmp1
+  let tmp1 = tree(VNodeKind.tdiv)
+  add(tmp1, text "Hello World!")
+  tmp1
 ```
 (I shortened the IDs for better readability.)
 
@@ -94,30 +94,30 @@ construction so that it composes with all of Nim's control flow constructs:
 
 ```nim
 
-include karax / prelude
-import random
+  include karax / prelude
+  import random
 
-proc createDom(): VNode =
-  result = buildHtml(tdiv):
-    if rand(100) <= 50:
-      text "Hello World!"
-    else:
-      text "Hello Universe"
+  proc createDom(): VNode =
+    result = buildHtml(tdiv):
+      if rand(100) <= 50:
+        text "Hello World!"
+      else:
+        text "Hello Universe"
 
-randomize()
-setRenderer createDom
+  randomize()
+  setRenderer createDom
 
 ```
 Produces:
 
 ```nim
 
-let tmp1 = tree(VNodeKind.tdiv)
-if rand(100) <= 50:
-  add(tmp1, text "Hello World!")
-else:
-  add(tmp1, text "Hello Universe")
-tmp1
+  let tmp1 = tree(VNodeKind.tdiv)
+  if rand(100) <= 50:
+    add(tmp1, text "Hello World!")
+  else:
+    add(tmp1, text "Hello Universe")
+  tmp1
 ```
 
 ## Event model
@@ -127,22 +127,22 @@ that writes "Hello simulated universe" on a button click:
 
 ```nim
 
-include karax / prelude
-# alternatively: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
+  include karax / prelude
+  # alternatively: import karax / [kbase, vdom, kdom, vstyles, karax, karaxdsl, jdict, jstrutils, jjson]
 
-var lines: seq[kstring] = @[]
+  var lines: seq[kstring] = @[]
 
-proc createDom(): VNode =
-  result = buildHtml(tdiv):
-    button:
-      text "Say hello!"
-      proc onclick(ev: Event; n: VNode) =
-        lines.add "Hello simulated universe"
-    for x in lines:
-      tdiv:
-        text x
+  proc createDom(): VNode =
+    result = buildHtml(tdiv):
+      button:
+        text "Say hello!"
+        proc onclick(ev: Event; n: VNode) =
+          lines.add "Hello simulated universe"
+      for x in lines:
+        tdiv:
+          text x
 
-setRenderer createDom
+  setRenderer createDom
 ```
 
 ``kstring`` is Karax's alias for ``cstring`` (which stands for "compatible
@@ -157,37 +157,37 @@ following syntax is also supported:
 
 ```nim
 
-include karax / prelude
-from sugar import `=>`
+  include karax / prelude
+  from sugar import `=>`
 
-var lines: seq[kstring] = @[]
+  var lines: seq[kstring] = @[]
 
-proc createDom(): VNode =
-  result = buildHtml(tdiv):
-    button(onclick = () => lines.add "Hello simulated universe"):
-      text "Say hello!"
-    for x in lines:
-      tdiv:
-        text x
+  proc createDom(): VNode =
+    result = buildHtml(tdiv):
+      button(onclick = () => lines.add "Hello simulated universe"):
+        text "Say hello!"
+      for x in lines:
+        tdiv:
+          text x
 
-setRenderer createDom
+  setRenderer createDom
 ```
 
 The ``buildHtml`` macro produces this code for us:
 
 ```nim
 
-let tmp2 = tree(VNodeKind.tdiv)
-let tmp3 = tree(VNodeKind.button)
-addEventHandler(tmp3, EventKind.onclick,
-                () => lines.add "Hello simulated universe", kxi)
-add(tmp3, text "Say hello!")
-add(tmp2, tmp3)
-for x in lines:
-  let tmp4 = tree(VNodeKind.tdiv)
-  add(tmp4, text x)
-  add(tmp2, tmp4)
-tmp2
+  let tmp2 = tree(VNodeKind.tdiv)
+  let tmp3 = tree(VNodeKind.button)
+  addEventHandler(tmp3, EventKind.onclick,
+                  () => lines.add "Hello simulated universe", kxi)
+  add(tmp3, text "Say hello!")
+  add(tmp2, tmp3)
+  for x in lines:
+    let tmp4 = tree(VNodeKind.tdiv)
+    add(tmp4, text x)
+    add(tmp2, tmp4)
+  tmp2
 ```
 As the examples grow larger it becomes more and more visible of what
 a DSL that composes with the builtin Nim control flow constructs buys us.
@@ -204,16 +204,16 @@ done via Nim's closures. In general this means a pattern like this:
 
 ```nim
 
-proc menuAction(menuEntry: kstring): proc() =
-  result = proc() =
-    echo "clicked ", menuEntry
+  proc menuAction(menuEntry: kstring): proc() =
+    result = proc() =
+      echo "clicked ", menuEntry
 
-proc buildMenu(menu: seq[kstring]): VNode =
-  result = buildHtml(tdiv):
-    for m in menu:
-      nav(class="navbar is-primary"):
-        tdiv(class="navbar-brand"):
-          a(class="navbar-item", onclick = menuAction(m)):
+  proc buildMenu(menu: seq[kstring]): VNode =
+    result = buildHtml(tdiv):
+      for m in menu:
+        nav(class="navbar is-primary"):
+          tdiv(class="navbar-brand"):
+            a(class="navbar-item", onclick = menuAction(m)):
 ```
 
 ## DOM diffing
@@ -242,12 +242,12 @@ returns a ``VNode``:
 
 ```nim
 
-proc loginField(desc, field, class: kstring;
-                validator: proc (field: kstring): proc ()): VNode =
-  result = buildHtml(tdiv):
-    label(`for` = field):
-      text desc
-    input(class = class, id = field, onchange = validator(field))
+  proc loginField(desc, field, class: kstring;
+                  validator: proc (field: kstring): proc ()): VNode =
+    result = buildHtml(tdiv):
+      label(`for` = field):
+        text desc
+      input(class = class, id = field, onchange = validator(field))
 ```
 
 We use the ``karax / errors`` module to help with this error
@@ -258,13 +258,13 @@ captures the ``field`` parameter:
 
 ```nim
 
-proc validateNotEmpty(field: kstring): proc () =
-  result = proc () =
-    let x = getVNodeById(field).getInputText
-    if x.isNil or x == "":
-      errors.setError(field, field & " must not be empty")
-    else:
-      errors.setError(field, "")
+  proc validateNotEmpty(field: kstring): proc () =
+    result = proc () =
+      let x = getVNodeById(field).getInputText
+      if x.isNil or x == "":
+        errors.setError(field, field & " must not be empty")
+      else:
+        errors.setError(field, "")
 ```
 
 This indirection is required because
@@ -277,29 +277,29 @@ pieces together to write our login dialog:
 
 ```nim
 
-# some consts in order to prevent typos:
-const
-  username = kstring"username"
-  password = kstring"password"
+  # some consts in order to prevent typos:
+  const
+    username = kstring"username"
+    password = kstring"password"
 
-var loggedIn: bool
+  var loggedIn: bool
 
-proc loginDialog(): VNode =
-  result = buildHtml(tdiv):
-    if not loggedIn:
-      loginField("Name :", username, "input", validateNotEmpty)
-      loginField("Password: ", password, "password", validateNotEmpty)
-      button(onclick = () => (loggedIn = true), disabled = errors.disableOnError()):
-        text "Login"
-      p:
-        text errors.getError(username)
-      p:
-        text errors.getError(password)
-    else:
-      p:
-        text "You are now logged in."
+  proc loginDialog(): VNode =
+    result = buildHtml(tdiv):
+      if not loggedIn:
+        loginField("Name :", username, "input", validateNotEmpty)
+        loginField("Password: ", password, "password", validateNotEmpty)
+        button(onclick = () => (loggedIn = true), disabled = errors.disableOnError()):
+          text "Login"
+        p:
+          text errors.getError(username)
+        p:
+          text errors.getError(password)
+      else:
+        p:
+          text "You are now logged in."
 
-setRenderer loginDialog
+  setRenderer loginDialog
 ```
 
 (Full example [here](https://github.com/karaxnim/karax/blob/master/examples/login.nim).)
@@ -310,8 +310,8 @@ at initialization we have to do:
 
 ```nim
 
-setError username, username & " must not be empty"
-setError password, password & " must not be empty"
+  setError username, username & " must not be empty"
+  setError password, password & " must not be empty"
 ```
 There are likely more elegant solutions to this problem.
 
@@ -323,15 +323,15 @@ type ``RouterData``. Here is the relevant excerpt from the famous "Todo App" exa
 
 ```nim
 
-proc createDom(data: RouterData): VNode =
-  if data.hashPart == "#/": filter = all
-  elif data.hashPart == "#/completed": filter = completed
-  elif data.hashPart == "#/active": filter = active
-  result = buildHtml(tdiv(class="todomvc-wrapper")):
-    section(class = "todoapp"):
+  proc createDom(data: RouterData): VNode =
+    if data.hashPart == "#/": filter = all
+    elif data.hashPart == "#/completed": filter = completed
+    elif data.hashPart == "#/active": filter = active
+    result = buildHtml(tdiv(class="todomvc-wrapper")):
+      section(class = "todoapp"):
         ...
 
-setRenderer createDom
+  setRenderer createDom
 ```
 (Full example [here](https://github.com/karaxnim/karax/blob/master/examples/todoapp/todoapp.nim).)
 
@@ -342,26 +342,26 @@ modules can be used since there is no JS interpreter.
 
 ```nim
 
-import karax / [karaxdsl, vdom]
+  import karax / [karaxdsl, vdom]
 
-const places = @["boston", "cleveland", "los angeles", "new orleans"]
+  const places = @["boston", "cleveland", "los angeles", "new orleans"]
 
-proc render*(): string =
-  let vnode = buildHtml(tdiv(class = "mt-3")):
-    h1: text "My Web Page"
-    p: text "Hello world"
-    ul:
-      for place in places:
-        li: text place
-    dl:
-      dt: text "Can I use Karax for client side single page apps?"
-      dd: text "Yes"
+  proc render*(): string =
+    let vnode = buildHtml(tdiv(class = "mt-3")):
+      h1: text "My Web Page"
+      p: text "Hello world"
+      ul:
+        for place in places:
+          li: text place
+      dl:
+        dt: text "Can I use Karax for client side single page apps?"
+        dd: text "Yes"
 
-      dt: text "Can I use Karax for server side HTML rendering?"
-      dd: text "Yes"
-  result = $vnode
+        dt: text "Can I use Karax for server side HTML rendering?"
+        dd: text "Yes"
+    result = $vnode
 
-echo render()
+  echo render()
 ```
 ## Generate HTML with event handlers
 
@@ -373,21 +373,21 @@ Here's an example of auto submit a dropdown when a value is selected:
 
 ```nim
 
-template kxi(): int = 0
-template addEventHandler(n: VNode; k: EventKind; action: string; kxi: int) =
-  n.setAttr($k, action)
+  template kxi(): int = 0
+  template addEventHandler(n: VNode; k: EventKind; action: string; kxi: int) =
+    n.setAttr($k, action)
 
-let
-  names = @["nim", "c", "python"]
-  selected_name = request.params.getOrDefault("name")
-  hello = buildHtml(html):
-    form(`method` = "get"):
-      select(name="name", onchange="this.form.submit()"):
-        for name in names:
-          if name == selected_name:
-            option(selected = ""): text name
-          else:
-            option: text name
+  let
+    names = @["nim", "c", "python"]
+    selected_name = request.params.getOrDefault("name")
+    hello = buildHtml(html):
+      form(`method` = "get"):
+        select(name="name", onchange="this.form.submit()"):
+          for name in names:
+            if name == selected_name:
+              option(selected = ""): text name
+            else:
+              option: text name
 ```
 
 ## Licence
