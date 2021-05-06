@@ -390,5 +390,5 @@ let
             option: text name
 ```
 
-## Licence
-MIT Licence. See [here](https://github.com/karaxnim/karax/blob/master/LICENSE.txt).
+## License
+MIT License. See [here](https://github.com/karaxnim/karax/blob/master/LICENSE.txt).
