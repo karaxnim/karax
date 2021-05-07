@@ -1,12 +1,29 @@
 # For now we only test that the things still compile.
 
-import os
+import os, osproc
+import parseutils
 
 proc exec(cmd: string) =
   if os.execShellCmd(cmd) != 0:
     quit "command failed " & cmd
 
 proc main =
+  for guide in os.walkDirRec("guide"):
+    let contents = guide.readFile
+    var last = 0
+    var trash = ""
+    const startDelim = "```nim"
+    const endDelim = "```"
+    while true:
+      last += contents.parseUntil(trash, startDelim, last)
+      if last == contents.len: break # no matches found
+      var code = ""
+      last += contents.parseUntil(code, endDelim, last+startDelim.len)
+      var res = execCmdEx("nim js -", input = code)
+      if res.exitCode != 0:
+        echo code
+        echo res.output
+        quit "Failed to compile"
   exec("nim js tests/diffDomTests.nim")
   exec("nim js tests/compiler_tests.nim")
   exec("nim js examples/todoapp/todoapp.nim")

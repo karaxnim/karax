@@ -73,11 +73,11 @@ How do we display a list of elements in Karax? As you might expect, using a Nim 
 include karax/prelude
 var list = @[kstring"Apples", "Oranges", "Bananas"]
 proc createDom(): VNode =
-buildHtml(tdiv):
-  for fruit in list:
-    p:
-      text fruit
-      text " is a fruit"
+  buildHtml(tdiv):
+    for fruit in list:
+      p:
+        text fruit
+        text " is a fruit"
 
 setRenderer createDom
 ```
