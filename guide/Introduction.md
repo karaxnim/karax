@@ -8,10 +8,10 @@ It is designed to be easy to use and fast, by using a virtual DOM model similar 
 > We assume that the reader has knowledge of basic HTML, CSS, and Nim.
 > Knowledge of Javascript (specifically events) is reccomended, but not required.
 
-We'll be using `karun` for most of this guide, although it is possible to compile Karax applications using `ǹim js` 
+We'll be using `karun` for most of this guide, although it is possible to compile Karax applications using `nim js` 
 
 Here's a simple example:
-```ǹim
+```nim
 include karax/prelude # imports many of the basic Karax modules
 
 proc createDom(): VNode = # define a function to return our HTML nodes
@@ -22,9 +22,9 @@ setRenderer createDom # tell Karax to use function to render
 ```
 
 Save this file as `ìndex.nim`. Then, run
-````
+```
 karun -r index.nim
-````
+```
 This should compile the file using the `js` backend from Nim and open the file in your default browser!
 Note that you can also pass in the `-w` flag to make it so that whenever you save the `ìndex.nim` file, it will automatically rebuild and refresh the page.
 
@@ -32,7 +32,7 @@ The syntax here shouldn't be too confusing.
 Karax comes with a built in DSL (domain specific language) to aid in generating HTML nodes.
 
 If you want to bind to an HTML attribute, you can do the following:
-```ǹim
+```nim
 include karax/prelude
 
 proc createDom(): VNode =
@@ -46,7 +46,7 @@ Pretty simple, right? You can specify any HTML attribute that you want here.
 ### Conditionals and Loops
 It's simple to toggle whether an element exists as well.
 
-```ǹim
+```nim
 include karax/prelude
 var show = true
 proc createDom(): VNode =
@@ -69,7 +69,7 @@ You can see a list of all of the tags along with there mapping here: ADD LINK
 
 How do we display a list of elements in Karax? As you might expect, using a Nim for loop.
 
-```ǹim
+```nim
 include karax/prelude
 var list = @[kstring"Apples", "Oranges", "Bananas"]
 proc createDom(): VNode =
@@ -90,7 +90,7 @@ If you've ever worked with Nim's `js` backend, you would know that Javascript st
 Nim uses the `cstring` type to denote a "compatible string". 
 In our case, this corresponds to the native Javascript string type. 
 In fact, if you try using Nim's string type on the Javascript backend, you'll get something like:
-````[45, 67, 85, 34, ...]````
+```[45, 67, 85, 34, ...]```
 This is how Nim strings are handle internally - a sequence of numbers.
 We use `cstring` to avoid taking a performance penalty when working with strings, as the native string type is faster than a list of numbers.
 
