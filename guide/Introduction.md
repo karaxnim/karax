@@ -111,7 +111,7 @@ proc createDom(): VNode =
     p:
       text message
     button:
-      text: "Click me to reverse!"
+      text "Click me to reverse!"
       proc onclick =
         message.reverse()
 
@@ -136,7 +136,11 @@ proc createDom(): VNode =
 setRenderer createDom
 ```
 No manual DOM manipulation required! 
-Just update the variable and everything magically updates.
+Just change the variable and everything magically updates.
+
+You may notice that this time our `proc` has two arguments. 
+You can see the Karax documentation for information on VNode, but the `Event` type is from the `dom` module in the stdlib.
+It is defined similarly to a DOM event in Javascript.
 
 ### Composing and Reusability
 Unlike other web frameworks, Karax doesn't have explicit components.
@@ -149,16 +153,20 @@ include karax/prelude
 type Task = ref object
   id: int
   text: kstring
+var tasks = @[
+  Task(id: 0, text: "Buy milk"),
+  Task(id: 1, text: "Clean table"),
+  Task(id: 2, text: "Call mom")
+]
 proc render(t: Task): VNode =
-  buildHtml(li(text = t.text))
-var message = kstring"Karax is fun!"
+  buildHtml(li):
+    text t.text
+
 proc createDom(): VNode =
-buildHtml(tdiv):
-p:
-text message
-input(value = message):
-proc oninput(e: Event, n: VNode) =
-message = n.value
+  buildHtml(tdiv):
+    ol:
+      for task in tasks:
+        task.render()
 
 setRenderer createDom
 ```
