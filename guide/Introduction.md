@@ -65,7 +65,7 @@ Standard Nim if statements work just fine and are handled by the DSL.
 
 There is one thing that is unfamiliar here though: What is the `tdiv` tag? 
 Since Nim has `div` as a reserved keyword, Karax defines tdiv to refer to the `div` element.
-You can see a list of all of the tags along with there mapping here: ADD LINK
+You can see a list of all of the tags along with their mapping at the top of this file: [vdom.nim](https://github.com/karaxnim/karax/blob/master/karax/vdom.nim)
 
 How do we display a list of elements in Karax? As you might expect, using a Nim for loop.
 
