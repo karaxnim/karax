@@ -90,7 +90,9 @@ If you've ever worked with Nim's `js` backend, you would know that Javascript st
 Nim uses the `cstring` type to denote a "compatible string". 
 In our case, this corresponds to the native Javascript string type. 
 In fact, if you try using Nim's string type on the Javascript backend, you'll get something like:
-```[45, 67, 85, 34, ...]```
+```
+[45, 67, 85, 34, ...]
+```
 This is how Nim strings are handle internally - a sequence of numbers.
 We use `cstring` to avoid taking a performance penalty when working with strings, as the native string type is faster than a list of numbers.
 
@@ -98,3 +100,70 @@ What is `kstring` then? `kstring` corresponds to a `cstring` when compiled using
 This makes it much easier to write code that can be used on multiple platforms.
 
 ### Handling User Input
+Karax allows you to simply utilize existing DOM events to handle user input.
+
+```nim
+include karax/prelude
+import algorithm
+var message = "Karax is fun!"
+proc createDom(): VNode =
+  buildHtml(tdiv):
+    p:
+      text message
+    button:
+      text: "Click me to reverse!"
+      proc onclick =
+        message.reverse()
+
+setRenderer createDom
+```
+Clicking that button causes the onclick event to fire, which reverses our string.
+Note that we treat `message` as a string - that way we can reverse the string using Nim's `algorithm` module.
+
+Karax can work with text inputs as well!
+
+```nim
+include karax/prelude
+var message = kstring"Karax is fun!"
+proc createDom(): VNode =
+  buildHtml(tdiv):
+    p:
+      text message
+    input(value = message):
+      proc oninput(e: Event, n: VNode) =
+        message = n.value
+
+setRenderer createDom
+```
+No manual DOM manipulation required! 
+Just update the variable and everything magically updates.
+
+### Composing and Reusability
+Unlike other web frameworks, Karax doesn't have explicit components.
+Instead, it gives you the freedom to organize your code how you want.
+
+So, to mimic what components do we can just use functions.
+
+```nim
+include karax/prelude
+type Task = ref object
+  id: int
+  text: kstring
+proc render(t: Task): VNode =
+  buildHtml(li(text = t.text))
+var message = kstring"Karax is fun!"
+proc createDom(): VNode =
+buildHtml(tdiv):
+p:
+text message
+input(value = message):
+proc oninput(e: Event, n: VNode) =
+message = n.value
+
+setRenderer createDom
+```
+With this, we can easily divide up parts of a more complex application.
+Function arguments can take the place of "props", and we're not constrained by "components" in any way.
+
+We've briefly covered many of the features that Karax offers.
+Interested in more? Continue reading for more advanced topics!
