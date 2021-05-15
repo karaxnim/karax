@@ -800,11 +800,10 @@ proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
 proc loadScript*(jsfilename: cstring; kxi: KaraxInstance = kxi) =
-  let body = document.getElementById("body")
   let s = document.createElement("script")
   s.setAttr "type", "text/javascript"
   s.setAttr "src", jsfilename
-  body.prepend(s)
+  document.body.prepend(s)
   redraw(kxi)
 
 proc runLater*(action: proc(); later = 400): Timeout {.discardable.} =
