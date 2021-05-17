@@ -7,4 +7,10 @@ when not declared(dom.DomApiVersion):
 
 else:
   import dom
+
+  when not declared(dom.checked):
+    proc checked*(n: Node): bool {.importcpp: "#.checked", nodecl.}
+  when not declared(dom.`checked=`):
+    proc `checked=`*(n: Node; v: bool) {.importcpp: "#.checked = #", nodecl.}
+
   export dom
