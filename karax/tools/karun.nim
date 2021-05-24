@@ -19,9 +19,8 @@ const html = """
   $2
 </head>
 <body id="body" class="site">
-<div id="ROOT"></div>
-<script type="text/javascript" src="/app.js"></script>
-$3
+<div id="ROOT">$3</div>
+$4
 </body>
 </html>
 """
@@ -51,19 +50,30 @@ proc exec(cmd: string) =
   if os.execShellCmd(cmd) != 0:
     quit "External command failed: " & cmd
 
-proc build(rest: string, selectedCss: string, run: bool, watch: bool) =
+proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: bool, watch: bool) =
   echo("Building...")
-  let cmd = "nim js --out:" & "app" & ".js " & rest
+  var cmd:string
+  var content = ""
+  var outTempPath:string
+  var outHtmlName:string
+  if ssr: 
+    outHtmlName = changeFileExt(extractFilename(entry),"html")
+    outTempPath = getTempDir() / outHtmlName
+    cmd = "nim c -r " & rest & " " &  outTempPath 
+  else:
+    cmd = "nim js --out:" & "app" & ".js " & rest
   if watch:
     discard os.execShellCmd(cmd)
   else:
     exec cmd
   let dest = "app" & ".html"
-  let script = if watch: websocket else: ""
-  writeFile(dest, html % ["app", selectedCss, script])
+  let script = if ssr:"" else: """<script type="text/javascript" src="/app.js"></script>""" & (if watch: websocket else: "")
+  if ssr: 
+    content = readFile(outTempPath)
+  writeFile(dest, html % [if ssr: outHtmlName else:"app", selectedCss,content, script])
   if run: openDefaultBrowser("http://localhost:8080")
 
-proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} = 
+proc watchBuild(ssr: bool, filePath: string, selectedCss: string, rest: string) {.thread.} = 
   var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
   while true:
     sleep(300)
@@ -76,7 +86,7 @@ proc watchBuild(filePath: string, selectedCss: string, rest: string) {.thread.} 
       if files.hasKey(path):
         if files[path] != getLastModificationTime(path):
           echo("File changed: " & path)
-          build(rest,selectedCss, false, true)
+          build(ssr, filePath, rest,selectedCss, false, true)
           files[path] = getLastModificationTime(path)
       else:
         if absolutePath(path) in [absolutePath("app" & ".js"),absolutePath("app" & ".html")]:
@@ -93,6 +103,7 @@ proc main =
   var run = false
   var watch = false
   var selectedCss = ""
+  var ssr = false
   while true:
     op.next()
     case op.kind
@@ -107,6 +118,9 @@ proc main =
         else:
           selectedCss = css
         rest = rest.substr(rest.find(" "))
+      of "ssr":
+        ssr = true
+        rest = rest.replace("--ssr ")
       else: discard
     of cmdShortOption:
       if op.key == "r":
@@ -115,6 +129,9 @@ proc main =
       if op.key == "w":
         watch = true
         rest = rest.replace("-w ")
+      if op.key == "s":
+        ssr = true
+        rest = rest.replace("-s ")
     of cmdArgument: file = op.key
     of cmdEnd: break
 
@@ -122,8 +139,8 @@ proc main =
   if run:
     spawn serve()
   if watch:
-    spawn watchBuild(file, selectedCss, rest)
-  build(rest,selectedCss, run, watch)
+    spawn watchBuild(ssr,file, selectedCss, rest)
+  build(ssr,file,rest,selectedCss, run, watch)
   sync()
 
 main()
