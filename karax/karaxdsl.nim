@@ -74,7 +74,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
     if L > 0:
       result[L-1] = tcall2(result[L-1], tmpContext)
   of nnkStmtList, nnkStmtListExpr, nnkWhenStmt, nnkIfStmt, nnkTryStmt,
-     nnkFinally,nnkBlockStmt, nnkBlockExpr:
+     nnkFinally, nnkBlockStmt, nnkBlockExpr:
     # recurse for every child:
     result = copyNimNode(n)
     for x in n:
