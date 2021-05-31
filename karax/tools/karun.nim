@@ -140,7 +140,7 @@ proc main =
     spawn serve()
   if watch:
     spawn watchBuild(ssr, file, selectedCss, rest)
-  build(ssr,file,rest,selectedCss, run, watch)
+  build(ssr, file, rest, selectedCss, run, watch)
   sync()
 
 main()
