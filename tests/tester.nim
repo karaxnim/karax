@@ -1,6 +1,6 @@
 # For now we only test that the things still compile.
 
-import os, osproc
+import os, osproc, streams
 import parseutils
 
 proc exec(cmd: string) =
@@ -19,11 +19,16 @@ proc main =
       if last == contents.len: break # no matches found
       var code = ""
       last += contents.parseUntil(code, endDelim, last+startDelim.len)
-      var res = execCmdEx("nim js -", input = code)
-      if res.exitCode != 0:
+      var snippet = startProcess("nim js -", options = {poStdErrToStdOut, poUsePath, poEvalCommand})
+      var codeStream = snippet.inputStream
+      codeStream.write(code & "\0")
+      codeStream.close()
+      var res = snippet.waitForExit
+      echo snippet.outputStream.readAll
+      if res != 0:
         echo code
-        echo res.output
         quit "Failed to compile"
+      snippet.close()
   exec("nim js tests/diffDomTests.nim")
   exec("nim js tests/compiler_tests.nim")
   exec("nim js examples/todoapp/todoapp.nim")
