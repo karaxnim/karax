@@ -472,9 +472,17 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance) =
     if result == similar:
       updateStyles(newNode, oldNode)
       updateAttributes(newNode, oldNode)
+
       if oldNode.kind == VNodeKind.text:
         oldNode.text = newNode.text
         oldNode.dom.nodeValue = newNode.text
+
+      # Set the value of the input field to update
+      if oldNode.kind == VNodeKind.input:
+        oldNode.dom.value = newNode.text
+
+        let checked = newNode.getAttr("checked")
+        oldNode.dom.checked = if checked.isNil: false else: true
 
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
