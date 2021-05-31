@@ -52,7 +52,7 @@ proc exec(cmd: string) =
 
 proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: bool, watch: bool) =
   echo("Building...")
-  var cmd:string
+  var cmd: string
   var content = ""
   var outTempPath:string
   var outHtmlName:string
