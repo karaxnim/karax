@@ -54,8 +54,8 @@ proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: boo
   echo("Building...")
   var cmd: string
   var content = ""
-  var outTempPath:string
-  var outHtmlName:string
+  var outTempPath: string
+  var outHtmlName: string
   if ssr: 
     outHtmlName = changeFileExt(extractFilename(entry),"html")
     outTempPath = getTempDir() / outHtmlName
