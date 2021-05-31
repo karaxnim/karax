@@ -740,7 +740,7 @@ when not defined(js):
       of cmdArgument: file = op.key
       of cmdEnd: break
       else: discard
-      writeFile file,$renderer()
+      writeFile file, $renderer()
 
 proc setInitializer*(renderer: proc (data: RouterData): VNode, root: cstring = "ROOT",
                     clientPostRenderCallback:
