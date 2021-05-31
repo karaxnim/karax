@@ -739,7 +739,7 @@ when not defined(js):
       case op.kind
       of cmdArgument: file = op.key
       of cmdEnd: break
-      else:discard
+      else: discard
       writeFile file,$renderer()
 
 proc setInitializer*(renderer: proc (data: RouterData): VNode, root: cstring = "ROOT",
