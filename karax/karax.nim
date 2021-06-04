@@ -1,7 +1,7 @@
 ## Karax -- Single page applications for Nim.
 
-import kdom, vdom, jstrutils, compact, jdict, vstyles
-
+import kdom, vdom, jstrutils, compact, jdict, vstyles, tables
+import strutils
 export kdom.Event, kdom.Blob
 
 when defined(nimNoNil):
@@ -152,7 +152,10 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   if kxi.byId.contains(id):
     result = kxi.byId[id]
 
-proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
+const KnownNS = {"svg":"http://www.w3.org/2000/svg","math":"http://www.w3.org/1998/Math/MathML"}.toTable()
+
+proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil; ns = ""): Node =
+  var privNs = ns
   if useAttachedNode:
     if n.dom != nil:
       if n.id != nil: kxi.byId[n.id] = n
@@ -189,10 +192,20 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     attach n
     return result
   else:
-    result = document.createElement(toTag[n.kind])
+    let tag = toTag[n.kind] # upper case
+    let tagName = $n.kind # lower case
+    if ns.len > 0:
+      result = document.createElementNS(ns.cstring, tagName.cstring)
+    else:
+      if tagName notin ["math","svg"]:
+        result = document.createElement(tag)
+      else: 
+        privNs = KnownNS[tagName]
+        result = document.createElementNS(privNs.cstring, tagName.cstring)
+        result.setAttr("xmlns", privNs)
     attach n
     for k in n:
-      appendChild(result, toDom(k, useAttachedNode, kxi))
+      appendChild(result, toDom(k, useAttachedNode, kxi, privNs))
     # text is mapped to 'value':
     if n.text != nil:
       result.value = n.text
@@ -219,7 +232,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif toTag[n.kind] == e.nodename:
+  elif cmpIgnoreCase($toTag[n.kind], $e.nodename) == 0:
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!

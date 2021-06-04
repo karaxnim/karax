@@ -1014,6 +1014,7 @@ else:
   proc insertBefore*(n, newNode, before: Node) {.importcpp.}
   proc getElementById*(d: Document, id: cstring): Element {.importcpp.}
   proc createElement*(d: Document, identifier: cstring): Element {.importcpp.}
+  proc createElementNS*(d: Document, namespaceURI, qualifiedIdentifier: cstring): Element {.importcpp.}
   proc createTextNode*(d: Document, identifier: cstring): Node {.importcpp.}
 
 proc setTimeout*(action: proc(); ms: int): Timeout {.importc, nodecl.}
@@ -1078,6 +1079,7 @@ proc removeAttributeNode*(n, attr: Node)
 proc replaceData*(n: Node, start, len: int, text: cstring)
 proc scrollIntoView*(n: Node, alignToTop = true)
 proc setAttribute*(n: Node, name, value: cstring)
+proc setAttributeNS*(n: Node, ns, name, value: cstring)
 proc setAttributeNode*(n: Node, attr: Node)
 
 # Document "methods"
@@ -1174,6 +1176,7 @@ proc slice*(e: Blob, startindex: int = 0, endindex: int = e.size, contentType: c
 {.pop.}
 
 proc setAttr*(n: Node; key, val: cstring) {.importcpp: "#.setAttribute(@)".}
+proc setAttrNs*(n: Node; ns, key, val: cstring) {.importcpp: "#.setAttributeNS(@)".}
 
 var
   window* {.importc, nodecl.}: Window
