@@ -488,3 +488,17 @@ proc getVNodeById*(n: VNode; id: cstring): VNode =
   for i in 0..<n.len:
     result = getVNodeById(n[i], id)
     if result != nil: return result
+
+when not defined(js):
+  import parseopt
+
+  proc setRenderer*(renderer: proc (): VNode) =
+    var op = initOptParser()
+    var file = ""
+    while true:
+      op.next()
+      case op.kind
+      of cmdArgument: file = op.key
+      of cmdEnd: break
+      else: discard
+      writeFile file, $renderer()
