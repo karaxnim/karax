@@ -7,6 +7,10 @@ proc `[]=`*[K, V](d: JDict[K, V], k: K, v: V) {.importcpp: "#[#] = #".}
 
 proc newJDict*[K, V](): JDict[K, V] {.importcpp: "{@}".}
 
+proc toJDict*[A, B](pairs: openArray[(A, B)]): JDict[A, B] =
+  result = newJDict[A, B]()
+  for key, val in items(pairs): result[key] = val
+
 proc contains*[K, V](d: JDict[K, V], k: K): bool {.importcpp: "#.hasOwnProperty(#)".}
 
 proc del*[K, V](d: JDict[K, V], k: K) {.importcpp: "delete #[#]".}

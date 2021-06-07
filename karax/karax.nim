@@ -1,7 +1,7 @@
 ## Karax -- Single page applications for Nim.
 
-import kdom, vdom, jstrutils, compact, jdict, vstyles, tables
-import strutils
+import kdom, vdom, jstrutils, compact, jdict, vstyles
+
 export kdom.Event, kdom.Blob
 
 when defined(nimNoNil):
@@ -152,7 +152,7 @@ proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   if kxi.byId.contains(id):
     result = kxi.byId[id]
 
-const KnownNS = {"svg":"http://www.w3.org/2000/svg","math":"http://www.w3.org/1998/Math/MathML"}.toTable()
+let KnownNS = {"svg":"http://www.w3.org/2000/svg","math":"http://www.w3.org/1998/Math/MathML"}.toJDict()
 
 proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil; ns = ""): Node =
   var privNs = ns
@@ -232,7 +232,7 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif cmpIgnoreCase($toTag[n.kind], $e.nodename) == 0:
+  elif toTag[n.kind].cstring.toLowerCase == e.nodename.toLowerCase:
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!

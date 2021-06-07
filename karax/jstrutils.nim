@@ -28,6 +28,6 @@ proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
   asm """
     return `s`.match(/^[0-9]+$/);
   """
-
+proc toLowerCase*(a:cstring):cstring {.importcpp: "#.toLowerCase()", nodecl.}
 proc parseInt*(s: cstring): int {.importcpp: "parseInt(#, 10)", nodecl.}
 proc parseFloat*(s: cstring): BiggestFloat {.importc, nodecl.}
