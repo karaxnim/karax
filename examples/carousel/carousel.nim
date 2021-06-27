@@ -14,6 +14,11 @@ const ticksUntilChange = 5
 var
   images: seq[cstring] = @[cstring"a", "b", "c", "d"]
 
+var 
+  refA:Carousel
+  refB:Carousel
+  refC:Carousel
+  refD:Carousel
 proc render(x: VComponent): VNode =
   let self = Carousel(x)
 
@@ -48,22 +53,26 @@ proc render(x: VComponent): VNode =
     if self.cntdown != ticksUntilChange:
       text &self.cntdown
 
-proc carousel(): Carousel =
-  result = newComponent(Carousel, render)
-  result.list = images
-  result.cntdown = ticksUntilChange
+proc carousel(nref:var Carousel): Carousel =
+  if nref == nil:
+    nref = newComponent(Carousel, render)
+    nref.list = images
+    nref.cntdown = ticksUntilChange
+    return nref
+  else:
+    return nref
 
 proc createDom(): VNode =
   result = buildHtml(table):
     tr:
       td:
-        carousel()
+        carousel(nref=refA)
       td:
-        carousel()
+        carousel(nref=refB)
     tr:
       td:
-        carousel()
+        carousel(nref=refC)
       td:
-        carousel()
+        carousel(nref=refD)
 
 setRenderer createDom

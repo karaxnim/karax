@@ -7,9 +7,8 @@ export kdom.Event, kdom.Blob
 when defined(nimNoNil):
   {.experimental: "notnil".}
 
-proc kout*[T](x: T) {.importc: "console.log", varargs, deprecated.}
-  ## the preferred way of debugging karax applications. Now deprecated,
-  ## you can now use ``system.echo`` instead.
+proc kout*[T](x: T) {.importc: "console.log", varargs.}
+  ## The preferred way of debugging karax applications.
 
 type
   PatchKind = enum
@@ -38,6 +37,7 @@ type
     toFocus: Node
     toFocusV: VNode
     renderId: int
+    rendering: bool
     patches: seq[Patch] # we reuse this to save allocations
     patchLen: int
     patchesV: seq[PatchV]
@@ -474,9 +474,17 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance) =
     if result == similar:
       updateStyles(newNode, oldNode)
       updateAttributes(newNode, oldNode)
+
       if oldNode.kind == VNodeKind.text:
         oldNode.text = newNode.text
         oldNode.dom.nodeValue = newNode.text
+
+      # Set the value of the input field to update
+      if oldNode.kind == VNodeKind.input:
+        oldNode.dom.value = newNode.text
+
+        let checked = newNode.getAttr("checked")
+        oldNode.dom.checked = if checked.isNil: false else: true
 
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
@@ -632,8 +640,21 @@ proc avoidDomDiffing*(kxi: KaraxInstance = kxi) =
   ## This is an experimental API.
   kxi.currentTree = nil
 
+proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
+when false:
+  proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
+
 proc dodraw(kxi: KaraxInstance) =
   if kxi.renderer.isNil: return
+  kxi.renderId = 0
+
+  if kxi.rendering:
+    # there is a render already running, delay 1 frame
+    kxi.renderId = reqFrame(proc () = kxi.dodraw)
+    return
+
+  kxi.rendering = true
+
   let rdata = RouterData(hashPart: hashPart)
   let newtree = kxi.renderer(rdata)
   inc kxi.runCount
@@ -664,15 +685,11 @@ proc dodraw(kxi: KaraxInstance) =
   # now that it's part of the DOM, give it the focus:
   if kxi.toFocus != nil:
     kxi.toFocus.focus()
-  kxi.renderId = 0
+  kxi.rendering = false
   when defined(stats):
     kxi.recursion = 0
     var total = 0
     echo "depth ", depth(kxi.currentTree, total), " total ", total
-
-proc reqFrame(callback: proc()): int {.importc: "window.requestAnimationFrame".}
-when false:
-  proc cancelFrame(id: int) {.importc: "window.cancelAnimationFrame".}
 
 proc redraw*(kxi: KaraxInstance = kxi) =
   # we buffer redraw requests:
@@ -721,6 +738,19 @@ proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
   proc wrapPostRender(data: RouterData) =
     if clientPostRenderCallback != nil: clientPostRenderCallback()
   setRenderer(wrapRenderer, root, wrapPostRender)
+
+when not defined(js):
+  import parseopt
+  proc setRenderer*(renderer: proc (): VNode) =
+    var op = initOptParser()
+    var file = ""
+    while true:
+      op.next()
+      case op.kind
+      of cmdArgument: file = op.key
+      of cmdEnd: break
+      else: discard
+      writeFile file, $renderer()
 
 proc setInitializer*(renderer: proc (data: RouterData): VNode, root: cstring = "ROOT",
                     clientPostRenderCallback:
@@ -793,11 +823,10 @@ proc prepend(parent, kid: Element) =
   parent.insertBefore(kid, parent.firstChild)
 
 proc loadScript*(jsfilename: cstring; kxi: KaraxInstance = kxi) =
-  let body = document.getElementById("body")
   let s = document.createElement("script")
   s.setAttr "type", "text/javascript"
   s.setAttr "src", jsfilename
-  body.prepend(s)
+  document.body.prepend(s)
   redraw(kxi)
 
 proc runLater*(action: proc(); later = 400): Timeout {.discardable.} =
