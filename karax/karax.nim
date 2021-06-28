@@ -219,17 +219,19 @@ proc same(n: VNode, e: Node; nesting = 0): bool =
   elif n.kind == VNodeKind.vthunk or n.kind == VNodeKind.dthunk:
     # we don't check these:
     result = true
-  elif toTag[n.kind] == e.nodename:
+  elif toTag[n.kind] == e.nodeName:
     result = true
     if n.kind != VNodeKind.text:
       # BUGFIX: Microsoft's Edge gives the textarea a child containing the text node!
       if e.len != n.len and n.kind != VNodeKind.textarea:
-        echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
+        when defined(karaxDebug):
+          echo "expected ", n.len, " real ", e.len, " ", toTag[n.kind], " nesting ", nesting
         return false
       for i in 0 ..< n.len:
         if not same(n[i], e[i], nesting+1): return false
   else:
-    echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodename
+    when defined(karaxDebug):
+      echo "VDOM: ", toTag[n.kind], " DOM: ", e.nodeName
 
 proc replaceById(id: cstring; newTree: Node) =
   let x = document.getElementById(id)

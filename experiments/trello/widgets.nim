@@ -1,9 +1,10 @@
 ## Common widget implemenations
 
 import knete
+import std / dom
 
 const
-  cross* = "x"
+  cross* = kstring"x"
   plus* = kstring"+"
 
 const
@@ -17,7 +18,7 @@ const
 
 proc editable*(x: kstring; onchanged: proc (value: kstring);
                isEdited = false): Element =
-  proc onenter(ev: Event) = ev.target.blur()
+  proc onenter(ev: Event) = Element(ev.target).blur()
   proc submit(ev: Event) =
     onchanged(ev.target.value)
     # close the loop: This is a common pattern in Knete.

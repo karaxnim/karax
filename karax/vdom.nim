@@ -34,8 +34,7 @@ type
     kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
-    param, video, audio, source, track, canvas, map,
-    area, math,
+    param, video, audio, source, track, canvas, map, area,
 
     # SVG elements, see: https://www.w3.org/TR/SVG2/eltindex.html
     animate, animateMotion, animateTransform, circle, clipPath, defs, desc,
@@ -46,8 +45,14 @@ type
     fePointLight, feSpecularLighting, feSpotLight, feTile, feTurbulence,
     filter, foreignObject, g, image, line, linearGradient, marker, mask,
     metadata, mpath, path, pattern, polygon, polyline, radialGradient, rect,
-    `set` = "set", stop, svg, switch, symbol, txt = "text", textPath, tspan,
+    `set` = "set", stop, svg, switch, symbol, stext = "text", textPath, tspan,
     unknown, use, view,
+
+    # MathML elements
+    maction, math, menclose, merror, mfenced, mfrac, mglyph, mi, mlabeledtr,
+    mmultiscripts, mn, mo, mover, mpadded, mphantom, mroot, mrow, ms, mspace,
+    msqrt, mstyle, msub, msubsup, msup, mtable, mtd, mtext, mtr, munder,
+    munderover, semantics,
 
     table, caption, colgroup, col, tbody, thead,
     tfoot, tr, td, th,
@@ -57,9 +62,9 @@ type
     keygen, output, progress, meter,
     details, summary, command, menu
 
-const selfClosing = {area, base, br, col, embed, hr, img, input,
-  link, meta, param, source, track, wbr}
-
+const
+  selfClosing = {area, base, br, col, embed, hr, img, input,
+    link, meta, param, source, track, wbr}
 
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
@@ -68,7 +73,7 @@ type
     ondblclick, ## An element is double clicked.
     onkeyup, ## A key was released.
     onkeydown, ## A key is pressed.
-    onkeypressed, # A key was pressed.
+    onkeypressed, ## A key was pressed.
     onfocus, ## An element got the focus.
     onblur, ## An element lost the focus.
     onchange, ## The selected value of an element was changed.
@@ -107,14 +112,14 @@ type
     onkeyupenter, ## vdom extension: an input field received the ENTER key press
     onkeyuplater,  ## vdom extension: a key was pressed and some time
                   ## passed (useful for on-the-fly text completions)
-    onload, # img
+    onload, ## img
 
     ontransitioncancel,
     ontransitionend,
     ontransitionrun,
     ontransitionstart,
 
-    onwheel # fires when the user rotates a wheel button on a pointing device.
+    onwheel ## fires when the user rotates a wheel button on a pointing device.
 
 macro buildLookupTables(): untyped =
   var a = newTree(nnkBracket)
