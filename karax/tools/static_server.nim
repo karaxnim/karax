@@ -109,7 +109,7 @@ proc handleWs(req: Request) {.async.} =
       await ws.send("refresh")
       changed = false
 
-proc serveStatic*() =
+proc serveStatic*(port: Port) =
   if fileExists("static.env"):
     var env: DotEnv
     env = initDotEnv(getCurrentDir(), "static.env")
@@ -135,7 +135,7 @@ proc serveStatic*() =
       if status != Http200:
         await req.respond(status, "")
 
-  waitFor server.serve(Port(8080), cb)
+  waitFor server.serve(port, cb)
 
 when isMainModule:
   serveStatic()

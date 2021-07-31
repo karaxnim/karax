@@ -1,5 +1,7 @@
-import std / [os, strutils, browsers, times, tables, parseopt, threadpool]
+import std / [os, strutils, browsers, times, tables, parseopt, threadpool, nativesockets]
 import static_server
+
+var port = 8080.Port
 
 const
   css = """
@@ -23,10 +25,10 @@ $4
 </body>
 </html>
 """
-
+var
   websocket = """
 <script type="text/javascript">
-var ws = new WebSocket("ws://localhost:8080/ws");
+var ws = new WebSocket("ws://localhost:""" & $port & """/ws");
 
 ws.onopen = function(evt) {
   console.log("Connection open ...");
@@ -50,16 +52,16 @@ proc exec(cmd: string) =
   if os.execShellCmd(cmd) != 0:
     quit "External command failed: " & cmd
 
-proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: bool, watch: bool) =
+proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: bool, watch: bool, websocket: string) =
   echo("Building...")
   var cmd: string
   var content = ""
   var outTempPath: string
   var outHtmlName: string
-  if ssr: 
+  if ssr:
     outHtmlName = changeFileExt(extractFilename(entry),"html")
     outTempPath = getTempDir() / outHtmlName
-    cmd = "nim c -r " & rest & " " &  outTempPath 
+    cmd = "nim c -r " & rest & " " &  outTempPath
   else:
     cmd = "nim js --out:" & "app" & ".js " & rest
   if watch:
@@ -68,12 +70,12 @@ proc build(ssr: bool, entry: string, rest: string, selectedCss: string, run: boo
     exec cmd
   let dest = "app" & ".html"
   let script = if ssr:"" else: """<script type="text/javascript" src="/app.js"></script>""" & (if watch: websocket else: "")
-  if ssr: 
+  if ssr:
     content = readFile(outTempPath)
   writeFile(dest, html % [if ssr: outHtmlName else:"app", selectedCss,content, script])
-  if run: openDefaultBrowser("http://localhost:8080")
+  if run: openDefaultBrowser("http://localhost:" & $port)
 
-proc watchBuild(ssr: bool, filePath: string, selectedCss: string, rest: string) {.thread.} = 
+proc watchBuild(ssr: bool, filePath: string, selectedCss: string, rest: string, websocket: string) {.thread.} =
   var files: Table[string, Time] = {"path": getLastModificationTime(".")}.toTable
   while true:
     sleep(300)
@@ -86,15 +88,15 @@ proc watchBuild(ssr: bool, filePath: string, selectedCss: string, rest: string) 
       if files.hasKey(path):
         if files[path] != getLastModificationTime(path):
           echo("File changed: " & path)
-          build(ssr, filePath, rest,selectedCss, false, true)
+          build(ssr, filePath, rest,selectedCss, false, true, websocket)
           files[path] = getLastModificationTime(path)
       else:
         if absolutePath(path) in [absolutePath("app" & ".js"), absolutePath("app" & ".html")]:
           continue
         files[path] = getLastModificationTime(path)
 
-proc serve() {.thread.} =
-  serveStatic()
+proc serve(port: Port) {.thread.} =
+  serveStatic(port)
 
 proc main =
   var op = initOptParser()
@@ -118,6 +120,10 @@ proc main =
         else:
           selectedCss = css
         rest = rest.substr(rest.find(" "))
+      of "port":
+        rest = rest.replace("--port ")
+        if op.val != "":
+          port = op.val.parseInt.Port
       of "ssr":
         ssr = true
         rest = rest.replace("--ssr ")
@@ -126,6 +132,10 @@ proc main =
       if op.key == "r":
         run = true
         rest = rest.replace("-r ")
+      if op.key == "p":
+        rest = rest.replace("-p ")
+        if op.val != "":
+          port = op.val.parseInt.Port
       if op.key == "w":
         watch = true
         rest = rest.replace("-w ")
@@ -136,11 +146,13 @@ proc main =
     of cmdEnd: break
 
   if file.len == 0: quit "filename expected"
+  var ws: string
+  ws.addr.moveMem websocket.addr, websocket.len.Natural
   if run:
-    spawn serve()
+    spawn serve(port)
   if watch:
-    spawn watchBuild(ssr, file, selectedCss, rest)
-  build(ssr, file, rest, selectedCss, run, watch)
+    spawn watchBuild(ssr, file, selectedCss, rest, ws)
+  build(ssr, file, rest, selectedCss, run, watch, ws)
   sync()
 
 main()
