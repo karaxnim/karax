@@ -19,7 +19,7 @@ type
     html, head, title, base, link, meta, style,
     script, noscript,
     body, section, nav, article, aside,
-    h1, h2, h3, h4, h5, h6,
+    h1, h2, h3, h4, h5, h6, hgroup,
     header, footer, address, main,
 
     p, hr, pre, blockquote, ol, ul, li,
