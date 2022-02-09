@@ -111,9 +111,7 @@ proc handleWs(req: Request) {.async.} =
 
 proc serveStatic*() =
   if fileExists("static.env"):
-    var env: DotEnv
-    env = initDotEnv(getCurrentDir(), "static.env")
-    env.overload()
+    overload(getCurrentDir(), "static.env")
   else:
     putEnv("staticDir", "assets/")
 
