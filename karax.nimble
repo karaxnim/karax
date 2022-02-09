@@ -9,7 +9,7 @@ license       = "MIT"
 
 requires "nim >= 0.18.0"
 requires "ws"
-requires "dotenv"
+requires "dotenv >= 2.0.0"
 skipDirs = @["examples", "experiments", "tests"]
 
 bin = @["karax/tools/karun"]
