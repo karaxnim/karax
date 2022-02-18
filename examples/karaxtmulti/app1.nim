@@ -1,13 +1,3 @@
-# include karax / prelude
-
-# proc createDom1*(): VNode =
-#   result = buildHtml(tdiv):
-#     text "Hello World1"
-#     echo "1"
-
-# var a1 = setRenderer(createDom1, "ROOT1")
-
-
 include karax / prelude
 
 var lines: seq[kstring] = @[]
