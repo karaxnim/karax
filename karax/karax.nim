@@ -50,9 +50,10 @@ type
       recursion: int
     orphans: JDict[cstring, bool]
 
-
+# const kxiname = instantiationInfo().filename # does not work :/
+const kxiname {.strdefine.} = ""
 var
-  kxi*: KaraxInstance ## The current Karax instance. This is always used
+  kxi* {.exportc: "kxi__" & kxiname .}:  KaraxInstance ## The current Karax instance. This is always used
                       ## as the default. **Note**: Within the karax DSL
                       ## always a symbol of the name *kxi* is assumed, so
                       ## if you have a local karax instance to use instead
@@ -728,7 +729,7 @@ proc setRenderer*(renderer: proc (data: RouterData): VNode,
                          byId: newJDict[cstring, VNode](),
                          orphans: newJDict[cstring, bool]())
   kxi = result
-  window.onload = init
+  window.addEventListener("load", init)
   onhashChange = proc() = redraw()
 
 proc setRenderer*(renderer: proc (): VNode, root: cstring = "ROOT",
