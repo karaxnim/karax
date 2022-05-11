@@ -363,6 +363,22 @@ proc render*(): string =
 
 echo render()
 ```
+
+You can embed raw html using the `verbatim` proc:
+
+``` nim
+let vg = """
+<svg height="100" width="100">
+<circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
+Sorry, your browser does not support inline SVG.
+</svg>
+"""
+let wrap = buildHtml(tdiv(class="wrapper")):
+    verbatim(vg)
+
+echo wrap
+```
+
 ## Generate HTML with event handlers
 
 If you are writing a static site generator or do server-side HTML rendering
