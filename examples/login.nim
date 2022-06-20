@@ -1,6 +1,6 @@
 include karax / prelude
 from sugar import `=>`
-import karax / [errors, kdom]
+import karax / errors
 
 proc loginField(desc, field, class: kstring;
                 validator: proc (field: kstring): proc ()): VNode =
@@ -16,8 +16,8 @@ const
 
 proc validateNotEmpty(field: kstring): proc () =
   result = proc () =
-    let x = getElementById(field)
-    if x.value == "":
+    let x = getVNodeById(field)
+    if x.getInputText == "":
       errors.setError(field, field & " must not be empty")
     else:
       errors.setError(field, "")
