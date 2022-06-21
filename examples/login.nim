@@ -7,7 +7,7 @@ proc loginField(desc, field, class: kstring;
   result = buildHtml(tdiv):
     label(`for` = field):
       text desc
-    input(class = class, id = field, onchange = validator(field))
+    input(class = class, id = field, onkeyup = validator(field))
 
 # some consts in order to prevent typos:
 const
@@ -17,7 +17,7 @@ const
 proc validateNotEmpty(field: kstring): proc () =
   result = proc () =
     let x = getVNodeById(field)
-    if x.text == "":
+    if x.getInputText == "":
       errors.setError(field, field & " must not be empty")
     else:
       errors.setError(field, "")
