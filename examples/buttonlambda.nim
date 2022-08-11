@@ -1,5 +1,5 @@
 include karax / prelude
-from future import `=>`
+from sugar import `=>`
 
 var lines: seq[kstring] = @[]
 
