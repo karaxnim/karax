@@ -1,5 +1,5 @@
 include karax/prelude
-import future, sequtils
+import sugar, sequtils
 
 type
   CustomRef = ref object of VComponent
