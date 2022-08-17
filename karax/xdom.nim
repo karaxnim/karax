@@ -1,15 +1,21 @@
-import std/[xmltree, strtabs, strutils]
+import std/[xmltree, htmlparser, strtabs, strutils]
 import ./vdom
 
 converter toXmlNode*(el: VNode): XmlNode =
-  let xAttrs = @[].toXmlAttributes
-  for k, v in el.attrs:
-    xAttrs[k] = v
-  var kids: seq[XmlNode]
-  if el.len > 0:
-    for k in el:
-      kids.add k.toXmlNode
-  result = newXmlTree($el.kind, kids, attributes = xAttrs)
+  case el.kind:
+    of VNodeKind.verbatim:
+      parseHtml($el)
+    of VNodeKind.text:
+      newText(el.text)
+    else:
+      let xAttrs = @[].toXmlAttributes
+      for k, v in el.attrs:
+        xAttrs[k] = v
+      var kids: seq[XmlNode]
+      if el.len > 0:
+        for k in el:
+          kids.add k.toXmlNode
+      newXmlTree($el.kind, kids, attributes = xAttrs)
 
 converter toVNode*(el: XmlNode): VNode =
   try:
