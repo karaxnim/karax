@@ -1,7 +1,7 @@
 import std/[xmltree, htmlparser, strtabs, strutils]
 import ./vdom
 
-converter toXmlNode*(el: VNode): XmlNode =
+proc toXmlNode*(el: VNode): XmlNode =
   case el.kind
   of VNodeKind.verbatim:
     parseHtml($el)
@@ -17,7 +17,7 @@ converter toXmlNode*(el: VNode): XmlNode =
         kids.add k.toXmlNode
     newXmlTree($el.kind, kids, attributes = xAttrs)
 
-converter toVNode*(el: XmlNode): VNode =
+proc toVNode*(el: XmlNode): VNode =
   try:
     case el.kind
     of xnElement:
