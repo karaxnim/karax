@@ -19,21 +19,21 @@ converter toXmlNode*(el: VNode): XmlNode =
 
 converter toVNode*(el: XmlNode): VNode =
   try:
-    case el.kind:
-      of xnElement:
-        let kind = parseEnum[VNodeKind](el.tag)
-        var vnAttrs: seq[(string, string)]
-        if not el.attrs.isnil:
-          for k, v in el.attrs:
-            vnAttrs.add (k, v)
-        var kids: seq[VNode]
-        if el.len > 0:
-          for k in el:
-            kids.add k.toVNode
-        tree(kind, vnAttrs, kids)
-      of xnText:
-        vn($el)
-      else:
-        verbatim($el)
+    case el.kind
+    of xnElement:
+      let kind = parseEnum[VNodeKind](el.tag)
+      var vnAttrs: seq[(string, string)]
+      if not el.attrs.isnil:
+        for k, v in el.attrs:
+          vnAttrs.add (k, v)
+      var kids: seq[VNode]
+      if el.len > 0:
+        for k in el:
+          kids.add k.toVNode
+      tree(kind, vnAttrs, kids)
+    of xnText:
+      vn($el)
+    else:
+      verbatim($el)
   except ValueError: # karax doesn't support the node tag
     verbatim($el)
