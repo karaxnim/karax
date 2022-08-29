@@ -255,11 +255,17 @@ proc getAttr*(n: VNode; key: kstring): kstring =
     if n.attrs[i] == key: return n.attrs[i+1]
 
 proc takeOverAttr*(newNode, oldNode: VNode) =
-  shallowCopy oldNode.attrs, newNode.attrs
+  when defined(gcArc) or defined(gcOrc):
+    oldNode.attrs = move newNode.attrs
+  else:
+    shallowCopy oldNode.attrs, newNode.attrs
 
 proc takeOverFields*(newNode, oldNode: VNode) =
   template take(field) =
-    shallowCopy oldNode.field, newNode.field
+    when defined(gcArc) or defined(gcOrc):
+      oldNode.field = move newNode.field
+    else:
+      shallowCopy oldNode.field, newNode.field
   take kind
   take index
   take id
