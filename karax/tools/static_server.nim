@@ -1,7 +1,7 @@
 import
   std/[net, os, strutils, uri, mimetypes, asyncnet, asyncdispatch, md5,
   logging, httpcore, asyncfile, asynchttpserver, tables, times]
-from cgi import decodeUrl
+
 import ws, dotenv
 
 var logger = newConsoleLogger()
@@ -78,7 +78,7 @@ proc sendStaticIfExists(req: Request, paths: seq[string]): Future[HttpCode] {.as
 
 proc handleFileRequest(req: Request): Future[HttpCode] {.async.} =
   # Find static file.
-  var reqPath = cgi.decodeUrl(req.url.path)
+  var reqPath = decodeUrl(req.url.path)
   var staticDir = getEnv("staticDir") # it's assumed a relative dir
   var status = Http400
   var path = staticDir / reqPath
