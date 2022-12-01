@@ -520,7 +520,7 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance) =
     let pos = min(oldPos, newPos) + 1
     # now the different children are in commonPrefix .. pos - 1:
     for i in commonPrefix..pos-1:
-      diff(newNode[i], oldNode[i], current, current.childNodes[i], kxi)
+      diff(newNode[i], oldNode[i], current, oldNode[i].dom, kxi)
 
     if oldPos + 1 == oldLength:
       for i in pos..newPos:
@@ -665,7 +665,8 @@ proc dodraw(kxi: KaraxInstance) =
     let asdom = toDom(newtree, useAttachedNode = true, kxi)
     replaceById(kxi.rootId, asdom)
   else:
-    doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+    when not defined(release):
+      doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
     let olddom = document.getElementById(kxi.rootId)
     diff(newtree, kxi.currentTree, nil, olddom, kxi)
   when defined(profileKarax):
@@ -678,7 +679,8 @@ proc dodraw(kxi: KaraxInstance) =
     echo ">>>>>>>>>>>>>>"
   applyPatch(kxi)
   kxi.currentTree = newtree
-  doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
+  when not defined(release):
+    doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
     kxi.postRenderCallback(rdata)
