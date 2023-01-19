@@ -11,6 +11,9 @@ proc `[]=`*[T](obj: JsonNode; fieldname: cstring; value: T)
 proc length(x: JsonNode): int {.importcpp: "#.length".}
 proc len*(x: JsonNode): int = (if x.isNil: 0 else: x.length)
 
+proc parse*(input: cstring): JsonNode {.importcpp: "JSON.parse(#)".}
+proc hasField*(obj: JsonNode; fieldname: cstring): bool {.importcpp: "#[#] !== undefined".}
+
 proc newJsonNode*(fields: varargs[(cstring, JsonNode)]): JsonNode =
   result = JsonNode()
   for f in fields:
