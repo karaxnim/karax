@@ -319,7 +319,7 @@ There are likely more elegant solutions to this problem.
 
 Some HTML attributes don't have meaningful values; instead, they are treated like
 a boolean whose value is `false` when the attribute is not set, and `true` when
-the value is set to any value. Some examples of these attributes are `disabled`
+the attribute is set to any value. Some examples of these attributes are `disabled`
 and `contenteditable`.
 
 In Karax, these attributes can be set/cleared with a boolean value:
