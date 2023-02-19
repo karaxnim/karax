@@ -250,6 +250,15 @@ proc setAttr*(n: VNode; key: kstring; val: kstring = "") =
     n.attrs.add key
     n.attrs.add val
 
+proc setAttr*(n: VNode, key: kstring, val: bool) =
+  if val:
+    n.setAttr(key, "")
+  else:
+    for i in countup(0, n.attrs.len-2, 2):
+      if n.attrs[i] == key:
+        n.attrs.delete i+1
+        n.attrs.delete i
+
 proc getAttr*(n: VNode; key: kstring): kstring =
   for i in countup(0, n.attrs.len-2, 2):
     if n.attrs[i] == key: return n.attrs[i+1]
