@@ -406,5 +406,21 @@ let
             option: text name
 ```
 
+## Debugging
+
+Karax will accept various compile time flags to add additional checks and debug info.
+
+e.g. `nim js -d:debugKaraxDsl myapp.nim`
+
+| flag name       | description |
+| --------------- | ----------- |
+| debugKaraxDsl   | prints the Nim code produced by the `buildHtml` macro to the terminal at compile time |
+| debugKaraxSame  | Ensures that the rendered html dom matches the expected output from the vdom. Note that some browser extensions will modify the page and cause false positives |
+| karaxDebug*     | prints debug info when checking the dom output and applying component state |
+| stats*          | track statistics about recursion depth when rendering |
+| profileKarax*   | track statistics about why nodes differ |
+
+_* = used when debugging karax itself, not karax apps_
+
 ## License
 MIT License. See [here](https://github.com/karaxnim/karax/blob/master/LICENSE.txt).
