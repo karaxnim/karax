@@ -194,7 +194,7 @@ macro buildHtml*(children: untyped): VNode =
   when defined(debugKaraxDsl):
     echo repr result
 
-macro flatHtml*(tag: untyped): VNode =
+macro flatHtml*(tag: untyped): VNode {.deprecated.} =
   result = tcall2(tag, nil)
   when defined(debugKaraxDsl):
     echo repr result
