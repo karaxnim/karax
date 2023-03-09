@@ -209,7 +209,9 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   applyEvents(n)
   if kxi != nil and n == kxi.toFocusV and kxi.toFocus.isNil:
     kxi.toFocus = result
-  if not n.style.isNil: applyStyle(result, n.style)
+  if not n.style.isNil:
+    applyStyle(result, n.style)
+    n.styleVersion = n.style.version
 
 proc same(n: VNode, e: Node; nesting = 0): bool =
   if kxi.orphans.contains(n.id): return true
@@ -299,7 +301,8 @@ proc eq(a, b: VNode; recursive: bool): EqResult =
   #if:
   #  when defined(profileKarax): inc reasons[deClass]
   #  return different
-  if a.class != b.class or not eq(a.style, b.style) or not sameAttrs(a, b):
+
+  if a.class != b.class or not (eq(a.style, b.style) and versionMatch(a.style, b.styleVersion)) or not sameAttrs(a, b):
     when defined(profileKarax): inc reasons[deSimilar]
     return similar
 
@@ -316,7 +319,9 @@ proc eq(a, b: VNode; recursive: bool): EqResult =
 proc updateStyles(newNode, oldNode: VNode) =
   # we keep the oldNode, but take over the style from the new node:
   if oldNode.dom != nil:
-    if newNode.style != nil: applyStyle(oldNode.dom, newNode.style)
+    if newNode.style != nil:
+      applyStyle(oldNode.dom, newNode.style)
+      newNode.styleVersion = newNode.style.version
     else: oldNode.dom.style = Style()
     oldNode.dom.class = newNode.class
   oldNode.style = newNode.style

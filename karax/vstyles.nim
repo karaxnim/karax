@@ -222,6 +222,9 @@ buildLookupTables()
 when defined(js):
   type
     VStyle* = JSeq[cstring]
+
+  proc version*(s: VStyle): int {.importcpp: "(#.__version || 0)".}
+  proc `version=`*(s: VStyle, v: int) {.importcpp: "#.__version = #;".}
 else:
   type
     VStyle* = ref seq[string]
@@ -238,10 +241,18 @@ proc eq*(a, b: VStyle): bool =
     if a[i] != b[i]: return false
   return true
 
+proc versionMatch*(s: VStyle, version: int): bool =
+  when defined(js):
+    s.isNil or s.version == version
+  else:
+    true
+
 proc setAttr*(s: VStyle; a, value: kstring) {.noSideEffect.} =
   ## inserts (a, value) in sorted order of key `a`
   # worst case quadratic complexity (if given styles in reverse order), hopefully
   # not a concern assuming small cardinal
+  when defined(js):
+    s.version = s.version + 1
   var i = 0
   while i < s.len:
     if s[i] == a:
