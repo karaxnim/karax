@@ -160,6 +160,7 @@ type
       hash*: Hash
       validHash*: bool
     style*: VStyle ## the style that should be applied to the virtual node.
+    styleVersion*: int
     dom*: Node ## the attached real DOM node. Can be 'nil' if the virtual node
                ## is not part of the virtual DOM anymore.
 
@@ -275,6 +276,7 @@ proc takeOverFields*(newNode, oldNode: VNode) =
   take attrs
   take events
   take style
+  take styleVersion
   take dom
 
 proc len*(x: VNode): int = x.kids.len
