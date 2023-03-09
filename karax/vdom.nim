@@ -60,7 +60,9 @@ type
     form, fieldset, legend, label, input, button,
     select, datalist, optgroup, option, textarea,
     keygen, output, progress, meter,
-    details, summary, command, menu
+    details, summary, command, menu,
+
+    b, bdo, dialog, i, kbd, s, slot, `template`="template", u
 
 const
   selfClosing = {area, base, br, col, embed, hr, img, input,
