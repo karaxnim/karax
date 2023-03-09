@@ -634,7 +634,7 @@ macro buildHtml*(children: untyped): Element =
   when defined(debugKaraxDsl):
     echo repr result
 
-macro flatHtml*(tag: untyped): Element =
+macro flatHtml*(tag: untyped): Element {.deprecated.} =
   result = tcall2(tag, nil)
   when defined(debugKaraxDsl):
     echo repr result
