@@ -312,6 +312,9 @@ proc toCss*(a: string): VStyle =
     var ai = ai.strip
     if ai.len == 0: continue
     let aj = ai.strip.split(":", maxsplit=1)
+    when not defined(release):
+      if aj.len != 2:
+        raise newException(ValueError, "Incorrect css rule: " & ai)
     result.setAttr(aj[0], aj[1])
 
 when defined(js):
