@@ -670,7 +670,7 @@ proc dodraw(kxi: KaraxInstance) =
     let asdom = toDom(newtree, useAttachedNode = true, kxi)
     replaceById(kxi.rootId, asdom)
   else:
-    when not defined(debugKaraxSame):
+    when defined(debugKaraxSame):
       doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
     let olddom = document.getElementById(kxi.rootId)
     diff(newtree, kxi.currentTree, nil, olddom, kxi)
@@ -684,7 +684,7 @@ proc dodraw(kxi: KaraxInstance) =
     echo ">>>>>>>>>>>>>>"
   applyPatch(kxi)
   kxi.currentTree = newtree
-  when not defined(debugKaraxSame):
+  when defined(debugKaraxSame):
     doAssert same(kxi.currentTree, document.getElementById(kxi.rootId))
 
   if not kxi.postRenderCallback.isNil:
