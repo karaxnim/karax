@@ -86,8 +86,9 @@ const
     munderover, semantics}
     
 var 
-  svgNamespace = "http://www.w3.org/2000/svg"
-  mathNamespace = "http://www.w3.org/1998/Math/MathML"
+  svgNamespace* = "http://www.w3.org/2000/svg"
+  mathNamespace* = "http://www.w3.org/1998/Math/MathML"
+  #global var settings: defaults are already set up, but may be adjusted in one shot for the user's entire project
 
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
