@@ -68,6 +68,27 @@ const
   selfClosing = {area, base, br, col, embed, hr, img, input,
     link, meta, param, source, track, wbr}
 
+const
+  svgElements = {animate, animateMotion, animateTransform, circle, clipPath, defs, desc,
+    `discard`, ellipse, feBlend, feColorMatrix, feComponentTransfer,
+    feComposite, feConvolveMatrix, feDiffuseLighting, feDisplacementMap,
+    feDistantLight, feDropShadow, feFlood, feFuncA, feFuncB, feFuncG, feFuncR,
+    feGaussianBlur, feImage, feMerge, feMergeNode, feMorphology, feOffset,
+    fePointLight, feSpecularLighting, feSpotLight, feTile, feTurbulence,
+    filter, foreignObject, g, image, line, linearGradient, marker, mask,
+    metadata, mpath, path, pattern, polygon, polyline, radialGradient, rect,
+    `set`, stop, svg, switch, symbol, stext, textPath, tspan,
+    unknown, use, view}
+    
+  mathElements = {maction, math, menclose, merror, mfenced, mfrac, mglyph, mi, mlabeledtr,
+    mmultiscripts, mn, mo, mover, mpadded, mphantom, mroot, mrow, ms, mspace,
+    msqrt, mstyle, msub, msubsup, msup, mtable, mtd, mtext, mtr, munder,
+    munderover, semantics}
+    
+var 
+  svgNamespace = "http://www.w3.org/2000/svg"
+  mathNamespace = "http://www.w3.org/1998/Math/MathML"
+
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
     onclick, ## An element is clicked.
