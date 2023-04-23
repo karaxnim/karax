@@ -31,3 +31,5 @@ proc isInt*(s: cstring): bool {.asmNoStackFrame.} =
 
 proc parseInt*(s: cstring): int {.importcpp: "parseInt(#, 10)", nodecl.}
 proc parseFloat*(s: cstring): BiggestFloat {.importc, nodecl.}
+
+proc join*(a: openArray[cstring], sep = cstring""): cstring {.importcpp: "(#.join(#))", nodecl.}
