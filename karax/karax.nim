@@ -27,6 +27,7 @@ type
 type
   RouterData* = ref object ## information that is passed to the 'renderer' callback
     hashPart*: cstring     ## the hash part of the URL for routing.
+    queryString*: cstring  ## The search string, can be used for passing data to karax
 
   KaraxInstance* = ref object ## underlying karax instance. Usually you don't have
                               ## know about this.
@@ -637,6 +638,7 @@ proc runDiff*(kxi: KaraxInstance; oldNode, newNode: VNode) =
 
 var onhashChange {.importc: "window.onhashchange".}: proc()
 var hashPart {.importc: "window.location.hash".}: cstring
+var queryString {.importc: "window.location.search".}: cstring
 
 proc avoidDomDiffing*(kxi: KaraxInstance = kxi) =
   ## enforce a full redraw for the next redraw operation.
@@ -660,8 +662,16 @@ proc dodraw(kxi: KaraxInstance) =
     return
 
   kxi.rendering = true
-
-  let rdata = RouterData(hashPart: hashPart)
+  
+  var rdata = RouterData()
+  if cstring"?" in hashPart: 
+    let hashSplit = hashPart.split(cstring"?")
+    rdata.hashPart = hashSplit[0]
+    rdata.queryString = join(hashSplit[1..^1], cstring"?")
+  else:
+    rdata.hashPart = hashPart
+    rdata.queryString = queryString
+    
   let newtree = kxi.renderer(rdata)
   inc kxi.runCount
   newtree.id = kxi.rootId
