@@ -148,6 +148,10 @@ proc applyEvents(n: VNode) =
   for i in 0..<len(n.events):
     n.events[i][2] = wrapEvent(dest, n, n.events[i][0], n.events[i][1])
 
+proc reapplyEvents(n: VNode) =
+  removeAllEventHandlers(n.dom)
+  applyEvents(n)
+
 proc getVNodeById*(id: cstring; kxi: KaraxInstance = kxi): VNode =
   ## Get the VNode that was marked with ``id``. Returns ``nil``
   ## if no node exists.
@@ -394,6 +398,7 @@ proc addPatchV(kxi: KaraxInstance; parent: VNode; pos: int; newChild: VNode) =
 proc moveDom(dest, src: VNode) =
   dest.dom = src.dom
   src.dom = nil
+  reapplyEvents(dest)
   if dest.id != nil:
     kxi.byId[dest.id] = dest
   assert dest.len == src.len
