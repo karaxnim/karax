@@ -31,7 +31,7 @@ type
     a, em, strong, small,
     strikethrough = "s", cite, quote,
     dfn, abbr, data, time, code, `var` = "var", samp,
-    kdb, sub, sup, italic = "i", bold = "b", underlined = "u",
+    kbd, sub, sup, italic = "i", bold = "b", underlined = "u",
     mark, ruby, rt, rp, bdi, dbo, span, br, wbr,
     ins, del, img, iframe, embed, `object` = "object",
     param, video, audio, source, track, canvas, map, area,
