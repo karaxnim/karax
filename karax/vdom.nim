@@ -62,7 +62,7 @@ type
     keygen, output, progress, meter,
     details, summary, command, menu,
 
-    bdo, dialog, kbd, slot, `template`="template"
+    bdo, dialog, slot, `template`="template"
 
 const
   selfClosing = {area, base, br, col, embed, hr, img, input,
