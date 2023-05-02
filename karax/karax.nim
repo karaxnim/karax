@@ -194,8 +194,15 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     result = toDom(x.expanded, useAttachedNode, kxi)
     attach n
     return result
-  else:
-    result = document.createElement(toTag[n.kind])
+  else: # we are dealing with fundamental tags at this point, and not nim components/functions
+    if svgElements.contains(n.kind):
+      result = document.createElementNS(svgNamespace,toTag[n.kind]) #svg elements need to be declared with a namespace
+      #we apply a default so that users can just treat it like html in the DSL while learning 
+    
+    elif mathElements.contains(n.kind): #mathML needs a similar treatment as svg
+      result = document.createElementNS(mathNamespace,toTag[n.kind])
+    else:
+      result = document.createElement(toTag[n.kind])
     attach n
     for k in n:
       appendChild(result, toDom(k, useAttachedNode, kxi))
