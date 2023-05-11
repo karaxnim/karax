@@ -69,8 +69,9 @@ const
     link, meta, param, source, track, wbr}
     
 const
-  svgElements = {animate..view}    
+  svgElements = {animate..view}
   mathElements = {maction..semantics}
+  needingNamespace = {svg,math}
     
 var 
   svgNamespace* = "http://www.w3.org/2000/svg"
