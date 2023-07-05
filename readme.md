@@ -149,7 +149,7 @@ setRenderer createDom
 string"; for the JS target that is an immutable JavaScript string) which
 is preferred for efficiency on the JS target. However, on the native targets
 ``kstring`` is mapped  to ``string`` for efficiency. The DSL for HTML
-construction is also avaible for the native targets (!) and the ``kstring``
+construction is also available for the native targets (!) and the ``kstring``
 abstraction helps to deal with these conflicting requirements.
 
 Karax's DSL is quite flexible when it comes to event handlers, so the
