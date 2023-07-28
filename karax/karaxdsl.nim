@@ -4,6 +4,13 @@ from strutils import startsWith, toLowerAscii
 
 when defined(js):
   import karax
+else:
+  type
+    KaraxInstance = ref object
+  var kxi*: KaraxInstance ## The current Karax instance. This is always used
+  proc addEventHandler*(n: VNode; k: EventKind; action: EventHandler;
+                        kxi: KaraxInstance = kxi) = discard
+
 
 const
   StmtContext = ["kout", "inc", "echo", "dec", "!"]
