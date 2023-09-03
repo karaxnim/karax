@@ -349,7 +349,7 @@ when kstring is cstring:
   proc len(a: kstring): int =
     # xxx: maybe move where kstring is defined
     # without this, `n.field.len` fails on js (non web) platform
-    if a == nil: 0 else: a.len
+    if a == nil: 0 else: system.len(a)
 
 template toStringAttr(field) =
   if n.field.len > 0:
