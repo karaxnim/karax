@@ -167,8 +167,9 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     result = document.createTextNode(n.text)
     attach n
   elif n.kind == VNodeKind.verbatim:
-    result = document.createElement("div")
-    result.innerHTML = n.text
+    var t = document.createElement("template")
+    t.innerHTML = n.text
+    result = t.content
     attach n
     return result
   elif n.kind == VNodeKind.vthunk:
