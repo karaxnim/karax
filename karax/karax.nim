@@ -7,6 +7,9 @@ export kdom.Event, kdom.Blob
 when defined(nimNoNil):
   {.experimental: "notnil".}
 
+proc createElementNS(document: Document, namespace, tag: cstring): Node {.importjs: "#.createElementNS(@)".}
+proc `classBaseVal=`(n: Node, v: cstring) {.importjs: "#.className.baseVal = #".}
+
 proc kout*[T](x: T) {.importc: "console.log", varargs.}
   ## The preferred way of debugging karax applications.
 
@@ -195,7 +198,13 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
     attach n
     return result
   else:
-    result = document.createElement(toTag[n.kind])
+    result =
+      if n.kind in svgElements:
+        document.createElementNS(svgNamespace, $n.kind)
+      elif n.kind in mathElements:
+        document.createElementNS(mathNamespace, $n.kind)
+      else:
+        document.createElement(toTag[n.kind])
     attach n
     for k in n:
       appendChild(result, toDom(k, useAttachedNode, kxi))
@@ -205,7 +214,10 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   if n.id != nil:
     result.id = n.id
   if n.class != nil:
-    result.class = n.class
+    if n.kind in svgElements:
+      result.classBaseVal = n.class.cstring
+    else:
+      result.class = n.class
   #if n.key >= 0:
   #  result.key = n.key
   for k, v in attrs(n):

@@ -68,6 +68,12 @@ const
   selfClosing = {area, base, br, col, embed, hr, img, input,
     link, meta, param, source, track, wbr}
 
+  svgElements* = {animate .. view}
+  mathElements* = {maction .. semantics}
+
+  svgNamespace* = "http://www.w3.org/2000/svg"
+  mathNamespace* = "http://www.w3.org/1998/Math/MathML"
+
 type
   EventKind* {.pure.} = enum ## The events supported by the virtual DOM.
     onclick, ## An element is clicked.
