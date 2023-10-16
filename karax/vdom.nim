@@ -71,6 +71,7 @@ const
   svgElements* = {animate .. view}
   mathElements* = {maction .. semantics}
 
+var
   svgNamespace* = "http://www.w3.org/2000/svg"
   mathNamespace* = "http://www.w3.org/1998/Math/MathML"
 
