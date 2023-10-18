@@ -200,9 +200,9 @@ proc toDom*(n: VNode; useAttachedNode: bool; kxi: KaraxInstance = nil): Node =
   else:
     result =
       if n.kind in svgElements:
-        document.createElementNS(svgNamespace, $n.kind)
+        document.createElementNS(svgNamespace, toTag[n.kind])
       elif n.kind in mathElements:
-        document.createElementNS(mathNamespace, $n.kind)
+        document.createElementNS(mathNamespace, toTag[n.kind])
       else:
         document.createElement(toTag[n.kind])
     attach n

@@ -130,24 +130,18 @@ type
 
     onwheel ## fires when the user rotates a wheel button on a pointing device.
 
-macro buildLookupTables(): untyped =
-  var a = newTree(nnkBracket)
-  for i in low(VNodeKind)..high(VNodeKind):
-    let x = $i
-    let y = if x[0] == '#': x else: toUpperAscii(x)
-    a.add(newCall("kstring", newLit(y)))
-  var e = newTree(nnkBracket)
-  for i in low(EventKind)..high(EventKind):
-    e.add(newCall("kstring", newLit(substr($i, 2))))
+const
+  toTag* = block:
+    var res: array[VNodeKind, kstring]
+    for kind in VNodeKind:
+      res[kind] = kstring($kind)
+    res
 
-  template tmpl(a, e) {.dirty.} =
-    const
-      toTag*: array[VNodeKind, kstring] = a
-      toEventName*: array[EventKind, kstring] = e
-
-  result = getAst tmpl(a, e)
-
-buildLookupTables()
+  toEventName* = block:
+    var res: array[EventKind, kstring]
+    for kind in EventKind:
+      res[kind] = kstring(($kind)[2..^1])
+    res
 
 type
   EventHandler* = proc (ev: Event; target: VNode) {.closure.}
