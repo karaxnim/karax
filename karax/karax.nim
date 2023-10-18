@@ -340,7 +340,10 @@ proc updateStyles(newNode, oldNode: VNode) =
       applyStyle(oldNode.dom, newNode.style)
       newNode.styleVersion = newNode.style.version
     else: oldNode.dom.style = Style()
-    oldNode.dom.class = newNode.class
+    if oldNode.kind in svgElements:
+      oldNode.dom.classBaseVal = newNode.class
+    else:
+      oldNode.dom.class = newNode.class
   oldNode.style = newNode.style
   oldNode.class = newNode.class
 
