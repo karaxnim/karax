@@ -44,7 +44,7 @@ proc toKstring(n: NimNode): NimNode =
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
 
-proc handleNoRedrawPragma(call: var NimNode, tmpContext, name, anon: NimNode) =
+proc handleNoRedrawPragma(call: NimNode, tmpContext, name, anon: NimNode): NimNode =
   when defined(js):
     if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
       var hasNoRedrawPragma = false
@@ -55,8 +55,9 @@ proc handleNoRedrawPragma(call: var NimNode, tmpContext, name, anon: NimNode) =
           anon.pragma.del(i)
           break
       if hasNoRedrawPragma:
-        call = newCall(ident"addEventHandlerNoRedraw", tmpContext,
+        return newCall(ident"addEventHandlerNoRedraw", tmpContext,
                        newDotExpr(bindSym"EventKind", name), anon)
+  call
 
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
@@ -108,9 +109,9 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       if tmpContext == nil:
         error "no VNode to attach the event handler to"
       else:
-        result = newCall(evHandler(), tmpContext,
-                         newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
-        handleNoRedrawPragma(result, tmpContext, n[0], anon)
+        let call = newCall(evHandler(), tmpContext,
+                           newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+        result = handleNoRedrawPragma(call, tmpContext, n[0], anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
