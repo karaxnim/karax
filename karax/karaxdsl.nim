@@ -44,6 +44,20 @@ proc toKstring(n: NimNode): NimNode =
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
 
+proc handleNoRedrawPragma(call: var NimNode, tmpContext, name, anon: NimNode) =
+  when defined(js):
+    if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
+      var hasNoRedrawPragma = false
+      for i in 0 ..< len(anon.pragma):
+        # using anon because anon needs to get rid of the pragma
+        if anon.pragma[i].kind == nnkIdent and cmpIgnoreStyle(anon.pragma[i].strVal, "noredraw") == 0:
+          hasNoRedrawPragma = true
+          anon.pragma.del(i)
+          break
+      if hasNoRedrawPragma:
+        call = newCall(ident"addEventHandlerNoRedraw", tmpContext,
+                       newDotExpr(bindSym"EventKind", name), anon)
+
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
   # every call statement 's' needs to be transformed to 'dest.add s'.
@@ -96,21 +110,7 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       else:
         result = newCall(evHandler(), tmpContext,
                          newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
-        # if has pragma .noredraw. surpress redraw during event
-        when defined(js):
-          if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
-            var hasNoRedrawPragma = false
-            for i in 0 ..< len(anon.pragma):
-              # using anon because anon needs to get rid of the pragma
-              if anon.pragma[i].kind == nnkIdent and cmpIgnoreStyle(anon.pragma[i].strVal, "noredraw") == 0:
-                debugEcho "noredraw"
-                hasNoRedrawPragma = true
-                anon.pragma.del(i)
-                debugEcho anon.pragma.repr
-                break
-            if hasNoRedrawPragma:
-              result = newCall(ident"addEventHandlerNoRedraw", tmpContext,
-                               newDotExpr(bindSym"EventKind", n[0]), anon)
+        handleNoRedrawPragma(result, tmpContext, n[0], anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
