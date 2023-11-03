@@ -1,6 +1,6 @@
 
 import macros, vdom, compact, kbase
-from strutils import startsWith, toLowerAscii
+from strutils import startsWith, toLowerAscii, cmpIgnoreStyle
 
 when defined(js):
   import karax
@@ -96,6 +96,21 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       else:
         result = newCall(evHandler(), tmpContext,
                          newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+        # if has pragma .noredraw. surpress redraw during event
+        when defined(js):
+          if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
+            var hasNoRedrawPragma = false
+            for i in 0 ..< len(anon.pragma):
+              # using anon because anon needs to get rid of the pragma
+              if anon.pragma[i].kind == nnkIdent and cmpIgnoreStyle(anon.pragma[i].strVal, "noredraw") == 0:
+                debugEcho "noredraw"
+                hasNoRedrawPragma = true
+                anon.pragma.del(i)
+                debugEcho anon.pragma.repr
+                break
+            if hasNoRedrawPragma:
+              result = newCall(ident"addEventHandlerNoRedraw", tmpContext,
+                               newDotExpr(bindSym"EventKind", n[0]), anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
