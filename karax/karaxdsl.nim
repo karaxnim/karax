@@ -57,7 +57,7 @@ proc handleNoRedrawPragma(call: NimNode, tmpContext, name, anon: NimNode): NimNo
       if hasNoRedrawPragma:
         return newCall(ident"addEventHandlerNoRedraw", tmpContext,
                        newDotExpr(bindSym"EventKind", name), anon)
-  call
+  result = call
 
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
