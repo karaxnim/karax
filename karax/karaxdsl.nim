@@ -44,17 +44,8 @@ proc toKstring(n: NimNode): NimNode =
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
 
-when defined(js):
-  template evHandler(): untyped = bindSym"addEventHandler"
-else:
-  template evHandler(): untyped = ident"addEventHandler"
-
-proc genAddHandlerCall(tmpContext, n: NimNode): NimNode =
-  # turn it into an anon proc:
-  let anon = copyNimTree(n)
-  anon[0] = newEmptyNode()
+proc handleNoRedrawPragma(call: NimNode, tmpContext, name, anon: NimNode): NimNode =
   when defined(js):
-    # if has noredraw pragma add handler without redraw
     if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
       var hasNoRedrawPragma = false
       for i in 0 ..< len(anon.pragma):
@@ -65,10 +56,8 @@ proc genAddHandlerCall(tmpContext, n: NimNode): NimNode =
           break
       if hasNoRedrawPragma:
         return newCall(ident"addEventHandlerNoRedraw", tmpContext,
-                       newDotExpr(bindSym"EventKind", n[0]), anon)
-
-  newCall(evHandler(), tmpContext,
-          newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+                       newDotExpr(bindSym"EventKind", name), anon)
+  call
 
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
@@ -79,6 +68,10 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   # (except for the last child of the macros we consider here),
   # lets, consts, types can be considered as expressions
   # case is complex, calls are assumed to produce a value.
+  when defined(js):
+    template evHandler(): untyped = bindSym"addEventHandler"
+  else:
+    template evHandler(): untyped = ident"addEventHandler"
 
   case n.kind
   of nnkLiterals, nnkIdent, nnkSym, nnkDotExpr, nnkBracketExpr:
@@ -110,10 +103,15 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
   of nnkProcDef:
     let name = getName n[0]
     if name.startsWith"on":
+      # turn it into an anon proc:
+      let anon = copyNimTree(n)
+      anon[0] = newEmptyNode()
       if tmpContext == nil:
         error "no VNode to attach the event handler to"
       else:
-        result = genAddHandlerCall(tmpContext, n)
+        let call = newCall(evHandler(), tmpContext,
+                           newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+        result = handleNoRedrawPragma(call, tmpContext, n[0], anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
