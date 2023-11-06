@@ -1,6 +1,6 @@
 
 import macros, vdom, compact, kbase
-from strutils import startsWith, toLowerAscii
+from strutils import startsWith, toLowerAscii, cmpIgnoreStyle
 
 when defined(js):
   import karax
@@ -43,6 +43,21 @@ proc toKstring(n: NimNode): NimNode =
 
 proc newDotAsgn(tmp: NimNode, key: string, x: NimNode): NimNode =
   result = newTree(nnkAsgn, newDotExpr(tmp, newIdentNode key), x)
+
+proc handleNoRedrawPragma(call: NimNode, tmpContext, name, anon: NimNode): NimNode =
+  when defined(js):
+    if anon.pragma.kind == nnkPragma and len(anon.pragma) > 0:
+      var hasNoRedrawPragma = false
+      for i in 0 ..< len(anon.pragma):
+        # using anon because anon needs to get rid of the pragma
+        if anon.pragma[i].kind == nnkIdent and cmpIgnoreStyle(anon.pragma[i].strVal, "noredraw") == 0:
+          hasNoRedrawPragma = true
+          anon.pragma.del(i)
+          break
+      if hasNoRedrawPragma:
+        return newCall(ident"addEventHandlerNoRedraw", tmpContext,
+                       newDotExpr(bindSym"EventKind", name), anon)
+  result = call
 
 proc tcall2(n, tmpContext: NimNode): NimNode =
   # we need to distinguish statement and expression contexts:
@@ -94,8 +109,9 @@ proc tcall2(n, tmpContext: NimNode): NimNode =
       if tmpContext == nil:
         error "no VNode to attach the event handler to"
       else:
-        result = newCall(evHandler(), tmpContext,
-                         newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+        let call = newCall(evHandler(), tmpContext,
+                           newDotExpr(bindSym"EventKind", n[0]), anon, ident("kxi"))
+        result = handleNoRedrawPragma(call, tmpContext, n[0], anon)
     else:
       result = n
   of nnkVarSection, nnkLetSection, nnkConstSection:
