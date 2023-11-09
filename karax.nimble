@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.3.1"
+version       = "1.3.3"
 author        = "Andreas Rumpf"
 description   = "Karax is a framework for developing single page applications in Nim."
 license       = "MIT"
