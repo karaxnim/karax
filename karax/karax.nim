@@ -513,6 +513,10 @@ proc diff(newNode, oldNode: VNode; parent, current: Node; kxi: KaraxInstance) =
         let checked = newNode.getAttr("checked")
         oldNode.dom.checked = if checked.isNil: false else: true
 
+      # Set the value of the textarea field to update
+      if oldNode.kind == VNodeKind.textarea:
+        oldNode.dom.value = newNode.text
+
     if newNode.events.len != 0 or oldNode.events.len != 0:
       mergeEvents(newNode, oldNode, kxi)
 
