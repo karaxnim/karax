@@ -128,6 +128,8 @@ type
     ontransitionrun,
     ontransitionstart,
 
+    onpaste,
+
     onwheel ## fires when the user rotates a wheel button on a pointing device.
 
 const
