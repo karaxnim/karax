@@ -869,10 +869,10 @@ type
   Touch* = ref TouchObj
   TouchObj {.importc.} = object of RootObj
     identifier*: int
-    screenX*, screenY*, clientX*, clientY*, pageX*, pageY*: float
+    screenX*, screenY*, clientX*, clientY*, pageX*, pageY*: int
     target*: Element
-    radiusX*, radiusY*: float
-    rotationAngle*: float
+    radiusX*, radiusY*: int
+    rotationAngle*: int
     force*: float
 
   # https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
