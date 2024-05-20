@@ -52,7 +52,7 @@ proc toJson(x: NimNode): NimNode {.compiletime.} =
     for i in 0 ..< x.len:
       x[i].expectKind nnkExprColonExpr
       let key = x[i][0]
-      let a = if x[i].kind in {nnkIdent, nnkSym, nnkAccQuoted}:
+      let a = if key.kind in {nnkIdent, nnkSym, nnkAccQuoted}:
                 newLit($key)
               else:
                 key
