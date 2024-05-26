@@ -1,10 +1,22 @@
 #dragDiv {
   background-color: #0d1224;
-  width: 500px;
+  width: 250px;
   height: 100px;
   position: absolute; 
   top: 500px;
   left: 200px;
+  text-align: center;
+  cursor: move;
+  color: rgb(60, 201, 163);
+}
+
+#touchDiv {
+  background-color: #0d1224;
+  width: 250px;
+  height: 100px;
+  position: absolute; 
+  top: 500px;
+  left: 500px;
   text-align: center;
   cursor: move;
   color: rgb(60, 201, 163);

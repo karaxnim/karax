@@ -3,6 +3,7 @@ import times, jstrutils, strutils, kdom, karax, karaxdsl, vdom, tables
 var
   results: seq[cstring]
   dragEventsCompleted = initTable[DragEventTypes, bool]()
+  touchEventsCompleted = initTable[TouchEventTypes, bool]()
   testRunning: array[13, bool]
   testCompleted: array[13, bool]
   test2ImageDrop = false
@@ -52,10 +53,36 @@ proc dragDivDragStart(ev: kdom.Event) =
     var img = (ImageElement)document.createElement("img")
     img.src ="https://nim-lang.org/assets/img/logo.svg"
     dgev.dataTransfer.setDragImage(img, 0, 0)
-    
+
 proc dragDivDragOver(ev: kdom.Event) =
   dragEventsCompleted[DragOver] = true
   ev.preventDefault()
+
+proc touchDivTouchStart(ev: kdom.Event) =
+  var tev = cast[TouchEvent](ev)
+  if tev.touches.len > 0:
+    let t = tev.touches[0]
+    log fmt"[TE] touch start - page: {t.pageX.repr} {t.pageY.repr}"
+    log fmt"[TE] touch start - radius: {t.radiusX.repr} {t.radiusY.repr}"
+    log fmt"[TE] touch start - rotation: {t.rotationAngle.repr}"
+    # log "[TE] touch start: " & $t.pageX & ", " & $t.pageY
+    touchEventsCompleted[TouchStart] = true
+
+proc touchDivTouchMove(ev: kdom.Event) =
+  var tev = cast[TouchEvent](ev)
+  if tev.touches.len > 0:
+    let t = tev.touches[0]
+    log "[TE] touch move: " & t.pageX.repr & ", " & t.pageY.repr
+    touchEventsCompleted[TouchMove] = true
+
+proc touchDivTouchEnd(ev: kdom.Event) =
+  var tev = cast[TouchEvent](ev)
+  # end has no touches so use changedTouches
+  if tev.changedTouches.len > 0:
+    let t = tev.changedTouches[0]
+    log "[TE] touch end: " & t.pageX.repr & ", " & t.pageY.repr
+    touchEventsCompleted[TouchEnd] = true
+    document.getElementById("touchDiv").style.visibility = "hidden"
 
 proc checkAllTests() =
   var allTestsPassed = true
@@ -93,7 +120,7 @@ proc test12focus3(ev: kdom.Event) =
   check false, "Unexpected listener invocation."
 
 proc completeTest12() =
-  if not test12Failure:    
+  if not test12Failure:
     var elmt = document.getElementById("test12input")
     elmt.style.visibility = "hidden"
     testRunning[11] = false
@@ -200,7 +227,7 @@ proc completeTest8() =
 
 proc failTest8() =
   test8Failure = true
-  check(false, "ClearTimeout failed.")    
+  check(false, "ClearTimeout failed.")
 
 proc test8() =
   log "Test 8 started."
@@ -442,7 +469,7 @@ proc dragDivDrop(ev: kdom.Event) =
 
     log "[DT] effectAllowed: " & $dt.effectAllowed
     var expectedEffectAllowed = $Uninitialized
-    if isChrome: 
+    if isChrome:
       expectedEffectAllowed = if test2ImageDrop: $DataTransferEffectAllowed.Copy else: $DataTransferEffectAllowed.All
     check(dt.effectAllowed == $expectedEffectAllowed, "Unexpected effectAllowed value.")
 
@@ -549,6 +576,20 @@ proc initDragEvents() =
   log "Drag the div to continue the test. Make sure you drag the div over another element."
   log "Then click the \"Check test 1 status\" button."
 
+proc initTouchEvents() =
+  log "Touch event initialization started."
+  var touchDiv = document.getElementById("touchDiv")
+  if touchDiv != nil:
+    touchDiv.addEventListener($TouchEventTypes.TouchStart, touchDivTouchStart, false)
+    touchDiv.addEventListener($TouchEventTypes.TouchMove, touchDivTouchMove, false)
+    touchDiv.addEventListener($TouchEventTypes.TouchEnd, touchDivTouchEnd, false)
+    log "Touch event initialization complete."
+    log "Enable the developer console (F12) and open the Device Toolbar (Ctrl + Shift + M) to a touchable device."
+    log "Touch and drag the \"touch div\" to continue the test."
+    log "Then click the \"Check test !!! status\" button."
+  else:
+    log "Touch div not found."
+
 proc initMouseEvents() =
   log "Mouse event initialization started."
   document.addEventListener($DomEvent.MouseDown, mouseDown, false)
@@ -567,16 +608,21 @@ proc startTests() =
   log "  | |    | |    | |    | |    | |    | |    | |    | |    | |    | |    | |"
   log " /  \\  /   \\ /   \\ /   \\ /   \\ /   \\ /   \\ /   \\ /   \\ /   \\ /   \\"
   log "Test 1 started."
-  log "This test checks that drag events are fired."
+  log "This test checks that drag and touch events are fired."
   testRunning[0] = true
   for evt in [Drag, DragEnd, DragEnter, DragExit, DragLeave, DragOver, DragStart, Drop]:
     dragEventsCompleted.add(evt, false)
+  for evt in [TouchStart, TouchMove, TouchEnd]:
+    touchEventsCompleted.add(evt, false)
   initKbEvents()
   initMouseEvents()
   initDragEvents()
-  
+  initTouchEvents()
+
 proc checkTest1Status() =
-  var evtsCompleted = true
+  var
+    dragEvtsCompleted = true
+    touchEvtsCompleted = true
 
   # Chrome doesn't seem to send DragExit, so ignore this
   if (($navigator.userAgent).contains("Chrome")):
@@ -584,25 +630,43 @@ proc checkTest1Status() =
   
   for evt, completed in dragEventsCompleted:
     if not completed:
-      evtsCompleted = false
+      dragEvtsCompleted = false
       break
 
-  if evtsCompleted:
+  for evt, completed in touchEventsCompleted:
+    if not completed:
+      touchEvtsCompleted = false
+      break
+
+  if dragEvtsCompleted and touchEvtsCompleted:
     testRunning[0] = false
     log "Test 1 completed successfully. Drag the div anywhere to start the next test."
     testCompleted[0] = true
     document.getElementById("checkTest1").style.visibility = "hidden"
   else:
-    log "Test 1 has not completed yet. Make sure you drag the div over another element."
-    log "Status:"
-    for evt, completed in dragEventsCompleted:
-      log $evt & ": " & $completed
+    if not dragEvtsCompleted:
+      log "Test 1 has not completed yet. Make sure you drag the div over another element."
+      log "Status:"
+      for evt, completed in dragEventsCompleted:
+        log $evt & ": " & $completed
+    else:
+      log "Test 1 drag events were completed. Touch tests pending..."
+    if not touchEvtsCompleted:
+      log "Test 1 has not completed yet. Enable a touchable device in the developer console and drag the touch div."
+      log "Status:"
+      for evt, completed in touchEventsCompleted:
+        log $evt & ": " & $completed
+    else:
+      log "Test 1 touch events were completed. Drag tests pending..."
 
 proc createDom(): VNode =
   result = buildHtml(tdiv()):
     tdiv(id="dragDiv", draggable="true"):
       tdiv(class="divcontent"):
         text "draggable div"
+    tdiv(id="touchDiv"):
+      tdiv(class="divcontent"):
+        text "touch div"
     tdiv(id="results"):
       for i in countdown(results.len - 1, 0):
         tdiv:
