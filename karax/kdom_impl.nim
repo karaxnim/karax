@@ -35,6 +35,9 @@ type
     onreset*: proc (event: Event) {.nimcall.}
     onselect*: proc (event: Event) {.nimcall.}
     onsubmit*: proc (event: Event) {.nimcall.}
+    ontouchstart*: proc(event: Event) {.nimcall.}
+    ontouchmove*: proc(event: Event) {.nimcall.}
+    ontouchend*: proc(event: Event) {.nimcall.}
     onunload*: proc (event: Event) {.nimcall.}
 
   # https://developer.mozilla.org/en-US/docs/Web/Events
@@ -66,6 +69,7 @@ type
     Resize = "resize",
     Scroll = "scroll",
     Select = "select",
+    Touch = "touch"
     Unload = "unload",
     Wheel = "wheel"
 
@@ -871,9 +875,15 @@ type
     rotationAngle*: int
     force*: float
 
+  # https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
   TouchEvent* = ref TouchEventObj
   TouchEventObj {.importc.} = object of UIEvent
     changedTouches*, targetTouches*, touches*: seq[Touch]
+
+  TouchEventTypes* = enum
+    TouchStart = "touchstart",
+    TouchMove = "touchmove",
+    TouchEnd = "touchend"
 
   Location* = ref LocationObj
   LocationObj {.importc.} = object of RootObj
