@@ -16,7 +16,6 @@ type
   FormData* {.importc.} = JsObject
 
   HttpRequest* {.importc.} = ref object
-  ThisObj {.importc.} = ref object
     readyState, status: int
     responseText, statusText: cstring
 
@@ -50,7 +49,6 @@ proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent)
     cont(httpStatus, response)
 
   proc upload(r: HttpRequest):XMLHttpRequestUpload {.importcpp: "#.upload".}
-  var this {.importc: "this".}: ThisObj
 
   var formData = newFormData()
   formData.append("upload_file",file)
@@ -60,8 +58,8 @@ proc uploadFile*(url: cstring, file: Blob, onprogress :proc(data: ProgressEvent)
   for a, b in items(headers):
     ajax.setRequestHeader(a, b)
   ajax.statechange proc() =
-    if this.readyState == 4:
-      contWrapper(this.status, this.responseText)
+    if ajax.readyState == 4:
+      contWrapper(ajax.status, ajax.responseText)
   ajax.upload.onprogress = onprogress
   ajax.send(formData.to(cstring))
 
@@ -76,18 +74,17 @@ proc ajax*(meth, url: cstring; headers: openarray[(cstring, cstring)];
     cont(httpStatus, response)
     if doRedraw: redraw(kxi)
 
-  var this {.importc: "this".}: ThisObj
 
   let ajax = newRequest()
   ajax.open(meth, url, true)
   for a, b in items(headers):
     ajax.setRequestHeader(a, b)
   ajax.statechange proc() =
-    if this.readyState == 4:
-      if this.status == 200:
-        contWrapper(this.status, this.responseText)
+    if ajax.readyState == 4:
+      if ajax.status == 200:
+        contWrapper(ajax.status, ajax.responseText)
       else:
-        contWrapper(this.status, this.responseText)
+        contWrapper(ajax.status, ajax.responseText)
   if useBinary:
     ajax.send(blob)
   else:
