@@ -72,10 +72,12 @@ here. ``tdiv`` produces a ``<div>`` virtual DOM node.
 As you can see, karax comes with its own ``buildHtml`` DSL for convenient
 construction of (virtual) DOM trees (of type ``VNode``). Karax provides
 a tiny build tool called ``karun`` that generates the HTML boilerplate code that
-embeds and invokes the generated JavaScript code::
+embeds and invokes the generated JavaScript code:
 
-``nim c karax/tools/karun``
-``karax/tools/karun -r helloworld.nim``
+```shell
+nim c karax/tools/karun
+karax/tools/karun -r helloworld.nim
+```
 
 Via ``-d:debugKaraxDsl`` we can have a look at the produced Nim code by
 ``buildHtml``:
