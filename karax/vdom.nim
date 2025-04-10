@@ -130,7 +130,43 @@ type
 
     onpaste,
 
-    onwheel ## fires when the user rotates a wheel button on a pointing device.
+    onwheel, ## fires when the user rotates a wheel button on a pointing device.
+
+    onaudioprocess,   ## The input buffer of a ScriptProcessorNode is ready to be
+                      ## processed.
+    oncanplay,        ## The browser can play the media, but estimates that not
+                      ## enough data has been loaded to play the media up to its
+                      ## end without having to stop for further buffering of
+                      ## content.
+    oncanplaythrough, ## The browser estimates it can play the media up to its end
+                      ## without stopping for content buffering.
+    oncomplete,       ## The rendering of an OfflineAudioContext is terminated.
+    ondurationchange, ## The duration attribute has been updated.
+    onemptied,        ## The media has become empty; for example, this event is
+                      ## sent if the media has already been loaded (or partially
+                      ## loaded), and the load() method is called to reload it.
+    onended,          ## Playback has stopped because the end of the media was
+                      ## reached.
+    onerror,          ## An error occurred while fetching the media data, or the
+                      ## type of the resource is not a supported media format.
+    onloadeddata,     ## The first frame of the media has finished loading.
+    onloadedmetadata, ## The metadata has been loaded.
+    onloadstart,      ## Fired when the browser has started to load the resource.
+    onpause,          ## Playback has been paused.
+    onplay,           ## Playback has begun.
+    onplaying,        ## Playback is ready to start after having been paused or
+                      ## delayed due to lack of data.
+    onprogress,       ## Fired periodically as the browser loads a resource.
+    onratechange,     ## The playback rate has changed.
+    onseeked,         ## A seek operation completed.
+    onseeking,        ## A seek operation began.
+    onstalled,        ## The user agent is trying to fetch media data, but data is
+                      ## unexpectedly not forthcoming.
+    onsuspend,        ## Media data loading has been suspended.
+    ontimeupdate,     ## The time indicated by the currentTime attribute has been
+                      ## updated.
+    onvolumechange,   ## The volume has changed.
+    onwaiting,        ## Playback has stopped because of a temporary lack of data.
 
 const
   toTag* = block:
