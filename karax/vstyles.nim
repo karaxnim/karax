@@ -159,6 +159,7 @@ type
     perspectiveOrigin
     pointerEvents
     position
+    rowGap
     quotes
     resize
     right
