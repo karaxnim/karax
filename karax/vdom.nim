@@ -342,6 +342,11 @@ proc add*(parent, kid: VNode) =
     if parent.kids.isNil: parent.kids = @[]
   parent.kids.add kid
 
+proc add*(parent: VNode, kids: openarray[VNode]) =
+  when not defined(js) and not defined(nimNoNil):
+    if parent.kids.isNil: parent.kids = @[]
+  parent.kids.add kids
+
 proc delete*(parent: VNode; position: int) =
   parent.kids.delete(position)
 proc insert*(parent, kid: VNode; position: int) =
