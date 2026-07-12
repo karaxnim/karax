@@ -100,6 +100,11 @@ proc removeAllEventHandlers(d: Node) =
   if d.karaxEvents != nil:
     for i in 0..<d.karaxEvents.len:
       d.removeEventListener(d.karaxEvents[i][0], d.karaxEvents[i][1])
+    # Reset the bookkeeping array: without this, every re-attach cycle
+    # (mergeEvents runs one per event-carrying node per redraw) leaks the
+    # detached handlers' closures here forever, and each closure keeps its
+    # render generation's whole VNode tree alive via `wrapEvent`'s `n`.
+    d.karaxEvents = newJSeq[(cstring, NativeEventHandler)]()
 
 proc wrapEvent(d: Node; n: VNode; k: EventKind;
                action: EventHandler): NativeEventHandler =

@@ -169,6 +169,35 @@ proc testWildInsert() =
   let b = createEntries(entries)
   doDiff(a, b, "pkInsertBefore button 7", "pkInsertBefore div 7")
 
+proc newStubEventNode(): Node {.importcpp: "({addEventListener: function(){}, removeEventListener: function(){}})", nodecl.}
+  ## A minimal event target: the nodejs DOM emulation (kdom_impl) has no
+  ## real addEventListener, so the event path stubs its own node.
+
+proc testEventBookkeepingDoesNotLeak() =
+  ## Regression test: re-merging events on a redrawn node must not
+  ## accumulate handler tuples in the DOM node's `karaxEvents` array —
+  ## every leaked tuple's closure retains its render generation's whole
+  ## VNode tree (memory), and the removal loop in `removeAllEventHandlers`
+  ## walks the array on every redraw (CPU). `updateElement` calls
+  ## `mergeEvents` for every visited event-carrying node, so one entry
+  ## leaked per redraw per node.
+  let handler: EventHandler = proc (ev: Event; n: VNode) = discard
+  proc gen(): VNode =
+    result = buildHtml(button):
+      text "b"
+    result.addEventListener(EventKind.onclick, handler)
+  var a = gen()
+  a.dom = newStubEventNode()
+  applyEvents(a)              # the initial attach, as toDom does
+  for i in 1..10:
+    let b = gen()
+    mergeEvents(b, a, kxi)    # what updateElement does on every redraw
+  let leaked = a.dom.karaxEvents.len
+  if leaked > 2:
+    echo "event bookkeeping leaks: karaxEvents grew to ", leaked,
+         " entries after 10 event re-merges (expected to stay at 1)"
+    inc err
+
 kxi = KaraxInstance(rootId: cstring"ROOT", renderer: proc (data: RouterData): VNode = discard,
                     byId: newJDict[cstring, VNode]())
 
@@ -179,6 +208,7 @@ testDelete()
 testWild()
 testWildInsert()
 testDeleteMiddle()
+testEventBookkeepingDoesNotLeak()
 if err == 0:
   echo "Success"
 else:
